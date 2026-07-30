@@ -1,0 +1,240 @@
+"use client";
+
+import { ChevronDown, ChevronUp, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  computeWorkoutAerobicMinutes,
+  computeWorkoutFunctionalMinutes,
+  computeWorkoutIsometricLoad,
+  computeWorkoutPlyoReps,
+  computeWorkoutTonnage,
+  exerciseSummaryText,
+  fmtDate,
+} from "@/lib/calculations";
+import {
+  AERO,
+  CARD,
+  FONT_DISPLAY,
+  FONT_MONO,
+  INK,
+  INK_SOFT,
+  ISO,
+  LINE,
+  PLYO,
+  RUST,
+  TEAL,
+  TOKEN_COLOR,
+} from "@/lib/design";
+import type { LeafExercise, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
+import { IconBtn } from "./atoms";
+import { WorkoutForm } from "./WorkoutForm";
+import type { CircuitElementHandlers } from "./CircuitEditor";
+
+export function LogTab({
+  showForm,
+  startNew,
+  draft,
+  setDraft,
+  categories,
+  newCategory,
+  setNewCategory,
+  addCategory,
+  addExercise,
+  updateExercise,
+  removeExercise,
+  addSet,
+  updateSet,
+  removeSet,
+  toggleUnilateral,
+  circuitElementHandlers,
+  saveWorkout,
+  cancelForm,
+  editingId,
+  sortedWorkouts,
+  expandedId,
+  setExpandedId,
+  startEdit,
+  startDuplicate,
+  confirmDeleteId,
+  setConfirmDeleteId,
+  deleteWorkout,
+  prIds,
+  thisWeekTonnage,
+  formError,
+  saveStatus,
+  knownExerciseNames,
+}: {
+  showForm: boolean;
+  startNew: () => void;
+  draft: Workout;
+  setDraft: (updater: (d: Workout) => Workout) => void;
+  categories: string[];
+  newCategory: string;
+  setNewCategory: (v: string) => void;
+  addCategory: () => void;
+  addExercise: (kind: LeafKind | "circuit") => void;
+  updateExercise: (id: string, patch: Partial<WorkoutExercise>) => void;
+  removeExercise: (id: string) => void;
+  addSet: (id: string) => void;
+  updateSet: (id: string, idx: number, field: string, value: string) => void;
+  removeSet: (id: string, idx: number) => void;
+  toggleUnilateral: (id: string) => void;
+  circuitElementHandlers: (circuitId: string) => CircuitElementHandlers;
+  saveWorkout: () => void;
+  cancelForm: () => void;
+  editingId: string | null;
+  sortedWorkouts: Workout[];
+  expandedId: string | null;
+  setExpandedId: (id: string | null) => void;
+  startEdit: (w: Workout) => void;
+  startDuplicate: (w: Workout) => void;
+  confirmDeleteId: string | null;
+  setConfirmDeleteId: (id: string | null) => void;
+  deleteWorkout: (id: string) => void;
+  prIds: Set<string>;
+  thisWeekTonnage: number;
+  formError: string | null;
+  saveStatus: "saving" | null;
+  knownExerciseNames: string[];
+}) {
+  return (
+    <div>
+      {!showForm && (
+        <div className="mb-4 p-3 rounded-md flex items-center justify-between" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+          <div style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 12 }}>
+            TEN TYDZIEŃ
+            <div style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 22, fontWeight: 600 }}>
+              {Math.round(thisWeekTonnage).toLocaleString("pl-PL")} kg
+            </div>
+          </div>
+          <button onClick={startNew} className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm" style={{ fontFamily: FONT_MONO, background: INK, color: "#fff" }}>
+            <Plus size={16} /> Nowy trening
+          </button>
+        </div>
+      )}
+
+      {showForm && (
+        <WorkoutForm
+          draft={draft}
+          setDraft={setDraft}
+          categories={categories}
+          newCategory={newCategory}
+          setNewCategory={setNewCategory}
+          addCategory={addCategory}
+          addExercise={addExercise}
+          updateExercise={updateExercise}
+          removeExercise={removeExercise}
+          addSet={addSet}
+          updateSet={updateSet}
+          removeSet={removeSet}
+          toggleUnilateral={toggleUnilateral}
+          circuitElementHandlers={circuitElementHandlers}
+          saveWorkout={saveWorkout}
+          cancelForm={cancelForm}
+          editingId={editingId}
+          formError={formError}
+          saveStatus={saveStatus}
+          knownExerciseNames={knownExerciseNames}
+        />
+      )}
+
+      {sortedWorkouts.length === 0 && !showForm && (
+        <div className="text-center py-10" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
+          Brak wpisów w dzienniku.
+          <br />
+          Dodaj pierwszy trening, żeby zobaczyć tu historię.
+        </div>
+      )}
+
+      <div className="space-y-2 mt-2">
+        {sortedWorkouts.map((w) => {
+          const tonnage = computeWorkoutTonnage(w);
+          const plyoReps = computeWorkoutPlyoReps(w);
+          const isometricLoad = computeWorkoutIsometricLoad(w);
+          const functionalMin = computeWorkoutFunctionalMinutes(w);
+          const aerobicMin = computeWorkoutAerobicMinutes(w);
+          const expanded = expandedId === w.id;
+          const isPR = prIds.has(w.id);
+          return (
+            <div key={w.id} className="rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+              <button className="w-full flex items-center justify-between p-3 text-left" onClick={() => setExpandedId(expanded ? null : w.id)}>
+                <div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>{fmtDate(w.date)}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="px-2 py-0.5 rounded-full text-[11px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
+                      {w.category}
+                    </span>
+                    {isPR && <span className="pr-stamp px-1.5 py-0.5 rounded-full text-[10px] font-semibold">PR</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
+                    {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
+                    {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
+                    {isometricLoad > 0 && <div style={{ color: ISO }}>{Math.round(isometricLoad)} kg·s izo</div>}
+                    {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
+                    {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
+                  </div>
+                  {expanded ? <ChevronUp size={16} color={INK_SOFT} /> : <ChevronDown size={16} color={INK_SOFT} />}
+                </div>
+              </button>
+
+              {expanded && (
+                <div className="px-3 pb-3 border-t" style={{ borderColor: LINE }}>
+                  {w.notes && <div className="text-xs mt-2 italic" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>{w.notes}</div>}
+                  <div className="mt-2 space-y-1.5">
+                    {w.exercises.map((ex) => {
+                      if (ex.kind === "circuit") {
+                        return (
+                          <div key={ex.id} style={{ fontFamily: FONT_MONO, fontSize: 12 }}>
+                            <span className="font-semibold" style={{ color: RUST }}>
+                              {ex.name || "Obwód"} (×{ex.rounds} rundy)
+                            </span>
+                            <div className="pl-3 mt-0.5 space-y-0.5">
+                              {ex.elements.map((el: LeafExercise) => {
+                                const { text, color } = exerciseSummaryText(el);
+                                return (
+                                  <div key={el.id}>
+                                    <span style={{ color: INK }}>{el.name}</span>
+                                    <span style={{ color: TOKEN_COLOR[color] }}> — {text}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }
+                      const { text, color } = exerciseSummaryText(ex);
+                      return (
+                        <div key={ex.id} style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
+                          <span className="font-semibold">{ex.name}</span>
+                          <span style={{ color: TOKEN_COLOR[color] }}> — {text}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <IconBtn onClick={() => startEdit(w)} title="Edytuj">
+                      <Pencil size={15} />
+                    </IconBtn>
+                    <IconBtn onClick={() => startDuplicate(w)} title="Duplikuj jako nowy trening">
+                      <Copy size={15} />
+                    </IconBtn>
+                    {confirmDeleteId === w.id ? (
+                      <button onClick={() => deleteWorkout(w.id)} className="text-xs px-2 py-1 rounded" style={{ fontFamily: FONT_MONO, background: RUST, color: "#fff" }}>
+                        Na pewno usunąć?
+                      </button>
+                    ) : (
+                      <IconBtn onClick={() => setConfirmDeleteId(w.id)} title="Usuń" color={RUST}>
+                        <Trash2 size={15} />
+                      </IconBtn>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
