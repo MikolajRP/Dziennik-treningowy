@@ -41,6 +41,14 @@ import {
 } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
 import type { Circuit, Cycle, LeafExercise, LeafKind, Period, Workout, WorkoutExercise } from "@/lib/types";
+import {
+  aggregateHrZones,
+  computeWorkoutRunningDistanceM,
+  computeWorkoutRunningTimeS,
+  computeWorkoutTotalMinutes,
+  groupDistanceByActivityType,
+  groupTimeByActivityType,
+} from "@/lib/stravaCalculations";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -312,6 +320,35 @@ export function Journal({
     return workouts.filter((w) => w.date >= start).reduce((s, w) => s + computeWorkoutTonnage(w), 0);
   }, [workouts]);
 
+  // ---------- running / Strava-derived report data ----------
+  const totalRunningKm = useMemo(
+    () => filtered.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000,
+    [filtered]
+  );
+  const totalRunningMinutes = useMemo(
+    () => filtered.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60,
+    [filtered]
+  );
+  const weeklyRunningKmSeries = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach((w) => {
+      const km = computeWorkoutRunningDistanceM(w) / 1000;
+      if (km <= 0) return;
+      const key = startOfWeek(w.date);
+      map[key] = (map[key] || 0) + km;
+    });
+    return Object.entries(map)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([week, km]) => ({ week: fmtShort(week), km: Math.round(km * 10) / 10 }));
+  }, [filtered]);
+  const kmByActivityType = useMemo(() => groupDistanceByActivityType(filtered), [filtered]);
+  const timeByActivityType = useMemo(() => groupTimeByActivityType(filtered), [filtered]);
+  const hrZones = useMemo(() => aggregateHrZones(filtered), [filtered]);
+  const totalOverallMinutes = useMemo(
+    () => filtered.reduce((s, w) => s + computeWorkoutTotalMinutes(w), 0),
+    [filtered]
+  );
+
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
@@ -417,6 +454,13 @@ export function Journal({
             functionalByCat={functionalByCat}
             aerobicByCat={aerobicByCat}
             weeklySeries={weeklySeries}
+            totalRunningKm={totalRunningKm}
+            totalRunningMinutes={totalRunningMinutes}
+            weeklyRunningKmSeries={weeklyRunningKmSeries}
+            kmByActivityType={kmByActivityType}
+            timeByActivityType={timeByActivityType}
+            hrZones={hrZones}
+            totalOverallMinutes={totalOverallMinutes}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}

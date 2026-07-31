@@ -1,5 +1,11 @@
 import type { StravaActivity, Workout } from "./types";
-import { computeWorkoutAerobicMinutes, computeWorkoutFunctionalMinutes } from "./calculations";
+import {
+  computeWorkoutAerobicMinutes,
+  computeWorkoutFunctionalMinutes,
+  computeWorkoutManualDistanceKm,
+} from "./calculations";
+
+const MANUAL_LABEL = "Ręczne (bez GPS)";
 
 export const TYPE_LABEL_PL: Record<string, string> = {
   Run: "Bieganie",
@@ -20,6 +26,13 @@ export const computeWorkoutStravaMovingTimeS = (w: Workout) =>
   (w.stravaActivities ?? []).reduce((s, a) => s + a.movingTimeS, 0);
 export const computeWorkoutStravaElevationM = (w: Workout) =>
   (w.stravaActivities ?? []).reduce((s, a) => s + a.elevationGainM, 0);
+
+const RUNNING_TYPES = new Set(["Run", "TrailRun"]);
+export const isRunningActivityType = (type: string) => RUNNING_TYPES.has(type);
+export const computeWorkoutRunningDistanceM = (w: Workout) =>
+  (w.stravaActivities ?? []).filter((a) => isRunningActivityType(a.type)).reduce((s, a) => s + a.distanceM, 0);
+export const computeWorkoutRunningTimeS = (w: Workout) =>
+  (w.stravaActivities ?? []).filter((a) => isRunningActivityType(a.type)).reduce((s, a) => s + a.movingTimeS, 0);
 
 // Overall average pace (m/s) across every linked Strava activity, weighted
 // by distance rather than averaging each activity's own average speed.
@@ -59,6 +72,8 @@ export function groupDistanceByActivityType(workouts: Workout[]): TypeDatum[] {
     label: stravaTypeLabel(type),
     km: m / 1000,
   }));
+  const manualKm = workouts.reduce((s, w) => s + computeWorkoutManualDistanceKm(w), 0);
+  if (manualKm > 0) entries.push({ type: "manual", label: MANUAL_LABEL, km: manualKm });
   entries.sort((a, b) => (a.type === "Run" ? -1 : b.type === "Run" ? 1 : b.km - a.km));
   return entries;
 }
@@ -80,6 +95,11 @@ export function groupTimeByActivityType(workouts: Workout[]): TimeDatum[] {
     label: stravaTypeLabel(type),
     minutes: s / 60,
   }));
+  const manualMinutes = workouts.reduce(
+    (s, w) => s + computeWorkoutFunctionalMinutes(w) + computeWorkoutAerobicMinutes(w),
+    0
+  );
+  if (manualMinutes > 0) entries.push({ type: "manual", label: MANUAL_LABEL, minutes: manualMinutes });
   entries.sort((a, b) => (a.type === "Run" ? -1 : b.type === "Run" ? 1 : b.minutes - a.minutes));
   return entries;
 }

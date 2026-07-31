@@ -216,6 +216,15 @@ export const computeWorkoutFunctionalMinutes = (w: Workout) =>
 export const computeWorkoutAerobicMinutes = (w: Workout) =>
   sumAcrossWorkout(w, computeAerobicMinutes, circuitAerobicMinutes);
 
+// Optional manual distance on functional/aerobic entries — lets cardio
+// logged without Strava (e.g. treadmill, no watch) still count in km stats.
+const computeExerciseDistanceKm = (ex: LeafExercise) =>
+  ex.kind === "functional" || ex.kind === "aerobic" ? num(ex.distanceKm) : 0;
+const circuitDistanceKm = (c: Circuit) =>
+  circuitMultiplier(c) * c.elements.reduce((s, e) => s + computeExerciseDistanceKm(e), 0);
+export const computeWorkoutManualDistanceKm = (w: Workout) =>
+  sumAcrossWorkout(w, computeExerciseDistanceKm, circuitDistanceKm);
+
 // side (L/P) breakdown for unilateral strength, plyo, or isometric exercises
 export const computeSideBreakdown = (ex: LeafExercise) => {
   if (ex.kind === "functional" || ex.kind === "aerobic" || !ex.unilateral) return null;
