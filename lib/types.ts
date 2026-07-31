@@ -43,12 +43,14 @@ export interface FunctionalExercise {
   kind: "functional";
   name: string;
   minutes: string;
+  distanceKm?: string;
 }
 export interface AerobicExercise {
   id: string;
   kind: "aerobic";
   name: string;
   minutes: string;
+  distanceKm?: string;
 }
 
 export type LeafExercise =
@@ -74,6 +76,46 @@ export interface Workout {
   category: string;
   notes: string;
   exercises: WorkoutExercise[];
+  durationMinutes?: number;
+  stravaActivities?: StravaActivity[];
+}
+
+// A single per-km (or per-mile, but we always request metric) split, as
+// returned by Strava's detailed activity endpoint.
+export interface StravaSplit {
+  split: number;
+  distance: number;
+  moving_time: number;
+  elapsed_time: number;
+  elevation_difference?: number;
+  average_heartrate?: number;
+  average_speed?: number;
+}
+
+// One bucket of Strava's heart-rate zone distribution for an activity —
+// "time" is seconds spent with bpm between min and max.
+export interface StravaHrZoneBucket {
+  min: number;
+  max: number;
+  time: number;
+}
+
+export interface StravaActivity {
+  id: string; // our strava_activities row id
+  stravaActivityId: number;
+  name: string;
+  type: string; // Strava's activity type: "Run", "Ride", "Swim", ...
+  startDate: string; // ISO datetime
+  distanceM: number;
+  movingTimeS: number;
+  elapsedTimeS: number;
+  elevationGainM: number;
+  averageSpeedMps: number;
+  averageHeartrate: number | null;
+  maxHeartrate: number | null;
+  splitsMetric: StravaSplit[] | null;
+  hrZones: StravaHrZoneBucket[] | null;
+  polyline: string | null;
 }
 
 export type CycleType = "mezocykl" | "makrocykl";

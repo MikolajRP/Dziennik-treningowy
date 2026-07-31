@@ -39,6 +39,35 @@ export const startOfWeek = (iso: string) => {
 export const num = (v: unknown) =>
   v === "" || v === null || v === undefined || isNaN(Number(v)) ? 0 : Number(v);
 
+// ---------- Strava-oriented formatting helpers ----------
+export function fmtDurationShort(totalSeconds: number): string {
+  const s = Math.max(0, Math.round(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+export function fmtPaceMinPerKm(mps: number): string {
+  if (!mps) return "–";
+  const secPerKm = 1000 / mps;
+  const min = Math.floor(secPerKm / 60);
+  const sec = Math.round(secPerKm % 60);
+  return `${min}:${String(sec).padStart(2, "0")}/km`;
+}
+export function fmtKm(meters: number, digits = 2): string {
+  return (
+    (meters / 1000).toLocaleString("pl-PL", { minimumFractionDigits: digits, maximumFractionDigits: digits }) + " km"
+  );
+}
+export function fmtMinutesLong(totalMinutes: number): string {
+  const rounded = Math.round(totalMinutes);
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
+  if (h > 0) return `${h} godz. ${m} min`;
+  return `${m} min`;
+}
+
 export const emptyDraft = (categories: string[]): Workout => ({
   id: "",
   date: todayISO(),

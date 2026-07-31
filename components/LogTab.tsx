@@ -1,33 +1,27 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Link2, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   computeWorkoutAerobicMinutes,
   computeWorkoutFunctionalMinutes,
   computeWorkoutIsometricLoad,
   computeWorkoutPlyoReps,
   computeWorkoutTonnage,
-  exerciseSummaryText,
   fmtDate,
 } from "@/lib/calculations";
 import {
-  AERO,
-  CARD,
-  FONT_DISPLAY,
-  FONT_MONO,
-  INK,
-  INK_SOFT,
-  ISO,
-  LINE,
-  PLYO,
-  RUST,
-  TEAL,
-  TOKEN_COLOR,
-} from "@/lib/design";
-import type { LeafExercise, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
+  computeWorkoutStravaAvgSpeedMps,
+  computeWorkoutStravaDistanceM,
+  computeWorkoutStravaMovingTimeS,
+} from "@/lib/stravaCalculations";
+import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, PLYO, RUST, TEAL } from "@/lib/design";
+import type { LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { IconBtn } from "./atoms";
 import { WorkoutForm } from "./WorkoutForm";
 import type { CircuitElementHandlers } from "./CircuitEditor";
+import { WorkoutExerciseSummary } from "./WorkoutExerciseSummary";
+import { StravaCollapsedSummary, StravaSingleActivity } from "./StravaActivityCard";
+import { MergeWorkoutPicker } from "./MergeWorkoutPicker";
 
 export function LogTab({
   showForm,
@@ -62,6 +56,10 @@ export function LogTab({
   formError,
   saveStatus,
   knownExerciseNames,
+  mergeSourceId,
+  setMergeSourceId,
+  onMergeConfirm,
+  onDetachActivity,
 }: {
   showForm: boolean;
   startNew: () => void;
@@ -95,7 +93,13 @@ export function LogTab({
   formError: string | null;
   saveStatus: "saving" | null;
   knownExerciseNames: string[];
+  mergeSourceId: string | null;
+  setMergeSourceId: (id: string | null) => void;
+  onMergeConfirm: (sourceId: string, targetId: string) => void;
+  onDetachActivity: (activityRowId: string) => void;
 }) {
+  const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
+
   return (
     <div>
       {!showForm && (
@@ -152,6 +156,8 @@ export function LogTab({
           const isometricLoad = computeWorkoutIsometricLoad(w);
           const functionalMin = computeWorkoutFunctionalMinutes(w);
           const aerobicMin = computeWorkoutAerobicMinutes(w);
+          const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
+          const stravaDistanceM = hasStrava ? computeWorkoutStravaDistanceM(w) : 0;
           const expanded = expandedId === w.id;
           const isPR = prIds.has(w.id);
           return (
@@ -167,13 +173,21 @@ export function LogTab({
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
-                    {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
-                    {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
-                    {isometricLoad > 0 && <div style={{ color: ISO }}>{Math.round(isometricLoad)} kg·s izo</div>}
-                    {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
-                    {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
-                  </div>
+                  {hasStrava ? (
+                    <StravaCollapsedSummary
+                      distanceM={stravaDistanceM}
+                      movingTimeS={computeWorkoutStravaMovingTimeS(w)}
+                      avgSpeedMps={computeWorkoutStravaAvgSpeedMps(w)}
+                    />
+                  ) : (
+                    <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
+                      {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
+                      {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
+                      {isometricLoad > 0 && <div style={{ color: ISO }}>{Math.round(isometricLoad)} kg·s izo</div>}
+                      {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
+                      {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
+                    </div>
+                  )}
                   {expanded ? <ChevronUp size={16} color={INK_SOFT} /> : <ChevronDown size={16} color={INK_SOFT} />}
                 </div>
               </button>
@@ -181,37 +195,21 @@ export function LogTab({
               {expanded && (
                 <div className="px-3 pb-3 border-t" style={{ borderColor: LINE }}>
                   {w.notes && <div className="text-xs mt-2 italic" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>{w.notes}</div>}
-                  <div className="mt-2 space-y-1.5">
-                    {w.exercises.map((ex) => {
-                      if (ex.kind === "circuit") {
-                        return (
-                          <div key={ex.id} style={{ fontFamily: FONT_MONO, fontSize: 12 }}>
-                            <span className="font-semibold" style={{ color: RUST }}>
-                              {ex.name || "Obwód"} (×{ex.rounds} rundy)
-                            </span>
-                            <div className="pl-3 mt-0.5 space-y-0.5">
-                              {ex.elements.map((el: LeafExercise) => {
-                                const { text, color } = exerciseSummaryText(el);
-                                return (
-                                  <div key={el.id}>
-                                    <span style={{ color: INK }}>{el.name}</span>
-                                    <span style={{ color: TOKEN_COLOR[color] }}> — {text}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      }
-                      const { text, color } = exerciseSummaryText(ex);
-                      return (
-                        <div key={ex.id} style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
-                          <span className="font-semibold">{ex.name}</span>
-                          <span style={{ color: TOKEN_COLOR[color] }}> — {text}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+
+                  {hasStrava && (
+                    <div className="mt-2">
+                      {w.stravaActivities!.map((a) => (
+                        <StravaSingleActivity key={a.id} activity={a} onDetach={() => onDetachActivity(a.id)} />
+                      ))}
+                    </div>
+                  )}
+
+                  {w.exercises.length > 0 && (
+                    <div className="mt-2">
+                      <WorkoutExerciseSummary exercises={w.exercises} />
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 mt-3">
                     <IconBtn onClick={() => startEdit(w)} title="Edytuj">
                       <Pencil size={15} />
@@ -219,6 +217,11 @@ export function LogTab({
                     <IconBtn onClick={() => startDuplicate(w)} title="Duplikuj jako nowy trening">
                       <Copy size={15} />
                     </IconBtn>
+                    {hasStrava && (
+                      <IconBtn onClick={() => setMergeSourceId(w.id)} title="Połącz z innym treningiem">
+                        <Link2 size={15} />
+                      </IconBtn>
+                    )}
                     {confirmDeleteId === w.id ? (
                       <button onClick={() => deleteWorkout(w.id)} className="text-xs px-2 py-1 rounded" style={{ fontFamily: FONT_MONO, background: RUST, color: "#fff" }}>
                         Na pewno usunąć?
@@ -235,6 +238,15 @@ export function LogTab({
           );
         })}
       </div>
+
+      {mergeSource && (
+        <MergeWorkoutPicker
+          sourceWorkout={mergeSource}
+          candidates={sortedWorkouts.filter((w) => w.id !== mergeSource.id)}
+          onPick={(targetId) => onMergeConfirm(mergeSource.id, targetId)}
+          onCancel={() => setMergeSourceId(null)}
+        />
+      )}
     </div>
   );
 }

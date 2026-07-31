@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, BookOpen, Dumbbell, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
   addCategoryRow,
+  attachStravaActivities,
   deleteCycleRow,
   deleteWorkoutRow,
+  detachStravaActivity,
   saveCycleRow,
   saveWorkout as saveWorkoutRow,
 } from "@/lib/data";
+import { StravaConnect } from "./StravaConnect";
 import {
   addDays,
   addExerciseToList,
@@ -47,11 +50,13 @@ export function Journal({
   initialWorkouts,
   initialCategories,
   initialCycles,
+  initialStravaConnected,
 }: {
   userId: string;
   initialWorkouts: Workout[];
   initialCategories: string[];
   initialCycles: Cycle[];
+  initialStravaConnected: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -59,6 +64,17 @@ export function Journal({
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useState<string[]>(initialCategories);
+  // Reflects the server's fresh read on this page load — the Strava OAuth
+  // callback does a full server-driven redirect back to "/", so this is
+  // already up to date without needing client-side state.
+  const stravaConnected = initialStravaConnected;
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (window.location.search.includes("strava=")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -207,6 +223,33 @@ export function Journal({
     }
   }
 
+  async function handleMergeConfirm(sourceId: string, targetId: string) {
+    try {
+      const merged = await attachStravaActivities(supabase, sourceId, targetId);
+      setWorkouts((prev) => prev.filter((w) => w.id !== sourceId).map((w) => (w.id === targetId ? merged : w)));
+    } finally {
+      setMergeSourceId(null);
+    }
+  }
+
+  async function handleDetachActivity(activityRowId: string) {
+    const { newWorkout, sourceWorkoutId, sourceDeleted } = await detachStravaActivity(
+      supabase,
+      userId,
+      activityRowId,
+      "Cardio"
+    );
+    setWorkouts((prev) => {
+      const withoutDetached = prev.map((w) =>
+        w.id === sourceWorkoutId
+          ? { ...w, stravaActivities: (w.stravaActivities ?? []).filter((a) => a.id !== activityRowId) }
+          : w
+      );
+      const next = sourceDeleted ? withoutDetached.filter((w) => w.id !== sourceWorkoutId) : withoutDetached;
+      return [...next, newWorkout];
+    });
+  }
+
   async function addCategory() {
     const v = newCategory.trim();
     if (!v || categories.includes(v)) return;
@@ -277,6 +320,7 @@ export function Journal({
             Dziennik Treningowy
           </h1>
           <div className="flex items-center gap-3">
+            <StravaConnect connected={stravaConnected} />
             <Dumbbell size={20} color={INK} />
             <button
               onClick={() => signOut()}
@@ -341,6 +385,10 @@ export function Journal({
             formError={formError}
             saveStatus={saveStatus}
             knownExerciseNames={knownExerciseNames}
+            mergeSourceId={mergeSourceId}
+            setMergeSourceId={setMergeSourceId}
+            onMergeConfirm={handleMergeConfirm}
+            onDetachActivity={handleDetachActivity}
           />
         )}
 

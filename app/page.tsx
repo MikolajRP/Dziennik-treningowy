@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { fetchCategories, fetchCycles, fetchWorkouts } from "@/lib/data";
+import { fetchCategories, fetchCycles, fetchStravaConnected, fetchWorkouts } from "@/lib/data";
 import { Journal } from "@/components/Journal";
 
 export default async function Home() {
@@ -13,10 +13,11 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const [workouts, categories, cycles] = await Promise.all([
+  const [workouts, categories, cycles, stravaConnected] = await Promise.all([
     fetchWorkouts(supabase),
     fetchCategories(supabase, user.id),
     fetchCycles(supabase),
+    fetchStravaConnected(supabase),
   ]);
 
   return (
@@ -25,6 +26,7 @@ export default async function Home() {
       initialWorkouts={workouts}
       initialCategories={categories}
       initialCycles={cycles}
+      initialStravaConnected={stravaConnected}
     />
   );
 }

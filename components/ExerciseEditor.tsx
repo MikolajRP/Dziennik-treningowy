@@ -185,7 +185,7 @@ export function ExerciseEditor({
       )}
 
       {(ex.kind === "functional" || ex.kind === "aerobic") && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             type="number"
             inputMode="numeric"
@@ -197,6 +197,18 @@ export function ExerciseEditor({
           />
           <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 12, color: ex.kind === "aerobic" ? "#2F5D8C" : "#2F6F63" }}>
             minut ({ex.kind === "aerobic" ? "aerobowe" : "szacowany czas"})
+          </span>
+          <input
+            type="number"
+            inputMode="decimal"
+            placeholder="km"
+            value={ex.distanceKm ?? ""}
+            onChange={(e) => onUpdate({ distanceKm: e.target.value })}
+            className="w-20 px-2 py-1 rounded text-sm"
+            style={inputStyle}
+          />
+          <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 12, color: INK_SOFT }}>
+            km (opcjonalnie)
           </span>
         </div>
       )}

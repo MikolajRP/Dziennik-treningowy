@@ -136,6 +136,23 @@ export function WorkoutForm({
         </button>
       </Field>
 
+      <Field label="Czas trwania treningu w minutach (opcjonalnie)">
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder="np. 60"
+          value={draft.durationMinutes ?? ""}
+          onChange={(e) =>
+            setDraft((d) => ({
+              ...d,
+              durationMinutes: e.target.value === "" ? undefined : Number(e.target.value),
+            }))
+          }
+          className="w-24 px-2 py-1.5 rounded text-sm"
+          style={inputStyle}
+        />
+      </Field>
+
       <Field label="Notatka (opcjonalnie)">
         <textarea
           value={draft.notes}
