@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Dumbbell, Timer, Zap, Activity, Hourglass, Trash2, X } from "lucide-react";
 import {
   computeExerciseTonnage,
@@ -8,9 +9,67 @@ import {
   computeSideBreakdown,
   fmtDurationShort,
 } from "@/lib/calculations";
-import { INK, INK_SOFT, ISO, KIND_COLOR, KIND_LABEL, LINE, MUSTARD, PLYO, inputStyle } from "@/lib/design";
+import { CARD, INK, INK_SOFT, ISO, KIND_COLOR, KIND_LABEL, LINE, MUSTARD, PLYO, inputStyle } from "@/lib/design";
 import type { LeafExercise, LeafKind, Side } from "@/lib/types";
 import { IconBtn } from "./atoms";
+
+// Native <datalist> suggestions don't render on iOS Safari, so exercise
+// name autocomplete is a small hand-built dropdown instead.
+function ExerciseNameField({
+  name,
+  onUpdate,
+  knownExerciseNames,
+}: {
+  name: string;
+  onUpdate: (patch: Partial<LeafExercise>) => void;
+  knownExerciseNames: string[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  const suggestions = useMemo(() => {
+    const q = name.trim().toLowerCase();
+    const pool = q
+      ? knownExerciseNames.filter((n) => n.toLowerCase().includes(q) && n.toLowerCase() !== q)
+      : knownExerciseNames;
+    return pool.slice(0, 6);
+  }, [name, knownExerciseNames]);
+
+  return (
+    <div className="relative flex-1">
+      <input
+        placeholder="Nazwa ćwiczenia"
+        value={name}
+        onChange={(e) => onUpdate({ name: e.target.value })}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full px-2 py-1.5 rounded text-sm"
+        style={inputStyle}
+      />
+      {open && suggestions.length > 0 && (
+        <div
+          className="absolute left-0 right-0 mt-1 rounded-md overflow-hidden z-10"
+          style={{ background: "#fff", border: `1px solid ${INK}`, boxShadow: "0 4px 10px rgba(27,42,58,0.15)" }}
+        >
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onUpdate({ name: s });
+                setOpen(false);
+              }}
+              className="w-full text-left px-2.5 py-1.5 text-sm"
+              style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", color: INK, background: CARD }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // The three set shapes (Strength/Plyo/Isometric) share fields loosely —
 // this view type lets the JSX below read whichever fields apply to the
@@ -33,6 +92,7 @@ export function ExerciseEditor({
   onAddSet,
   onUpdateSet,
   onRemoveSet,
+  knownExerciseNames = [],
 }: {
   ex: LeafExercise;
   onUpdate: (patch: Partial<LeafExercise>) => void;
@@ -41,6 +101,7 @@ export function ExerciseEditor({
   onAddSet: () => void;
   onUpdateSet: (idx: number, field: string, value: string) => void;
   onRemoveSet: (idx: number) => void;
+  knownExerciseNames?: string[];
 }) {
   return (
     <div className="rounded-md p-2.5 mb-2" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
@@ -51,14 +112,7 @@ export function ExerciseEditor({
         >
           {KIND_LABEL[ex.kind]}
         </span>
-        <input
-          placeholder="Nazwa ćwiczenia"
-          value={ex.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-          className="flex-1 px-2 py-1.5 rounded text-sm"
-          style={inputStyle}
-          list="exercise-name-suggestions"
-        />
+        <ExerciseNameField name={ex.name} onUpdate={onUpdate} knownExerciseNames={knownExerciseNames} />
         <IconBtn onClick={onRemove} color="#A6402F" title="Usuń">
           <Trash2 size={15} />
         </IconBtn>

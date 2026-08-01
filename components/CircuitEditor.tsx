@@ -30,11 +30,13 @@ export function CircuitEditor({
   onUpdateCircuit,
   onRemoveCircuit,
   elementHandlers,
+  knownExerciseNames = [],
 }: {
   circuit: Circuit;
   onUpdateCircuit: (patch: Partial<Circuit>) => void;
   onRemoveCircuit: () => void;
   elementHandlers: CircuitElementHandlers;
+  knownExerciseNames?: string[];
 }) {
   return (
     <div className="rounded-md p-2.5 mb-2" style={{ background: "#FBF6EC", border: `2px dashed ${RUST}` }}>
@@ -73,6 +75,7 @@ export function CircuitEditor({
             onAddSet={() => elementHandlers.addSet(el.id)}
             onUpdateSet={(idx, field, value) => elementHandlers.updateSet(el.id, idx, field, value)}
             onRemoveSet={(idx) => elementHandlers.removeSet(el.id, idx)}
+            knownExerciseNames={knownExerciseNames}
           />
         ))}
         {circuit.elements.length === 0 && (

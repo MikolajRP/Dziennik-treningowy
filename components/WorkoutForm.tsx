@@ -52,11 +52,6 @@ export function WorkoutForm({
 }) {
   return (
     <div className="rounded-md p-3 mb-4" style={{ background: CARD, border: `1px solid ${INK}` }}>
-      <datalist id="exercise-name-suggestions">
-        {knownExerciseNames.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
       <div className="flex items-center justify-between mb-3">
         <div style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 16, fontWeight: 600 }}>
           {editingId ? "EDYTUJ TRENING" : "NOWY TRENING"}
@@ -127,6 +122,7 @@ export function WorkoutForm({
               onUpdateCircuit={(patch) => updateExercise(ex.id, patch)}
               onRemoveCircuit={() => removeExercise(ex.id)}
               elementHandlers={circuitElementHandlers(ex.id)}
+              knownExerciseNames={knownExerciseNames}
             />
           ) : (
             <ExerciseEditor
@@ -138,6 +134,7 @@ export function WorkoutForm({
               onAddSet={() => addSet(ex.id)}
               onUpdateSet={(idx, field, value) => updateSet(ex.id, idx, field, value)}
               onRemoveSet={(idx) => removeSet(ex.id, idx)}
+              knownExerciseNames={knownExerciseNames}
             />
           )
         )}

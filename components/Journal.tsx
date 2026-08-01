@@ -49,6 +49,7 @@ import {
   groupDistanceByActivityType,
   groupTimeByActivityType,
 } from "@/lib/stravaCalculations";
+import { computeTonnageByMuscleGroup } from "@/lib/muscleGroups";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -348,6 +349,7 @@ export function Journal({
     () => filtered.reduce((s, w) => s + computeWorkoutTotalMinutes(w), 0),
     [filtered]
   );
+  const tonnageByMuscleGroup = useMemo(() => computeTonnageByMuscleGroup(filtered), [filtered]);
 
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
@@ -461,6 +463,7 @@ export function Journal({
             timeByActivityType={timeByActivityType}
             hrZones={hrZones}
             totalOverallMinutes={totalOverallMinutes}
+            tonnageByMuscleGroup={tonnageByMuscleGroup}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}

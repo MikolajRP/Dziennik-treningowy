@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   BarChart,
@@ -14,6 +15,7 @@ import {
 } from "recharts";
 import { fmtDate, fmtDurationShort, fmtMinutesLong, fmtShort } from "@/lib/calculations";
 import type { HrZoneDatum } from "@/lib/stravaCalculations";
+import type { MuscleGroupDatum } from "@/lib/muscleGroups";
 import { STRAVA_ORANGE } from "./StravaConnect";
 import {
   CARD,
@@ -38,6 +40,9 @@ interface CategoryDatum {
 }
 
 const ZONE_COLORS = [AERO, "#4E8CB0", MUSTARD, "#C97A2E", "#A6402F"];
+const RUNNING_TYPES = new Set(["Run", "TrailRun"]);
+
+type ReportSubTab = "general" | "running" | "strength" | "other";
 
 export function ReportsTab({
   period,
@@ -70,6 +75,7 @@ export function ReportsTab({
   timeByActivityType,
   hrZones,
   totalOverallMinutes,
+  tonnageByMuscleGroup,
   showCycleForm,
   setShowCycleForm,
   cycleDraft,
@@ -107,6 +113,7 @@ export function ReportsTab({
   timeByActivityType: { type: string; label: string; minutes: number }[];
   hrZones: HrZoneDatum[];
   totalOverallMinutes: number;
+  tonnageByMuscleGroup: MuscleGroupDatum[];
   showCycleForm: boolean;
   setShowCycleForm: (v: boolean) => void;
   cycleDraft: Cycle;
@@ -114,7 +121,16 @@ export function ReportsTab({
   saveCycle: () => void;
   deleteCycle: (id: string) => void;
 }) {
-  const categoryChart = (data: CategoryDatum[], label: string, color: string, unitFormatter: (v: number) => string) =>
+  const [subTab, setSubTab] = useState<ReportSubTab>("general");
+
+  // horizontal bars — for lists with longer text labels (activity types,
+  // muscle groups) where a standing bar would crowd the label
+  const horizontalChart = (
+    data: CategoryDatum[],
+    label: string,
+    color: string,
+    unitFormatter: (v: number) => string
+  ) =>
     data.length > 0 && (
       <div className="mb-5">
         <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, marginBottom: 6 }}>{label}</div>
@@ -130,8 +146,43 @@ export function ReportsTab({
       </div>
     );
 
-  const kmChartData = kmByActivityType.map((d) => ({ category: d.label, value: Math.round(d.km * 100) / 100 }));
-  const timeChartData = timeByActivityType.map((d) => ({ category: d.label, value: Math.round(d.minutes) }));
+  // standing bars — for short category names (workout categories)
+  const verticalChart = (
+    data: CategoryDatum[],
+    label: string,
+    color: string,
+    unitFormatter: (v: number) => string
+  ) =>
+    data.length > 0 && (
+      <div className="mb-5">
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, marginBottom: 6 }}>{label}</div>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
+            <CartesianGrid stroke={LINE} vertical={false} />
+            <XAxis dataKey="category" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} interval={0} angle={-25} textAnchor="end" height={50} />
+            <YAxis type="number" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
+            <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }} formatter={(v) => [unitFormatter(Number(v)), label]} />
+            <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+
+  const kmChartData = kmByActivityType
+    .filter((d) => !RUNNING_TYPES.has(d.type))
+    .map((d) => ({ category: d.label, value: Math.round(d.km * 100) / 100 }));
+  const timeChartData = timeByActivityType
+    .filter((d) => !RUNNING_TYPES.has(d.type))
+    .map((d) => ({ category: d.label, value: Math.round(d.minutes) }));
+  const muscleGroupChartData = tonnageByMuscleGroup.map((d) => ({ category: d.group, value: Math.round(d.kg) }));
+  const hrZonesTotalSeconds = hrZones.reduce((s, z) => s + z.seconds, 0);
+
+  const subTabs: { id: ReportSubTab; label: string }[] = [
+    { id: "general", label: "Ogólne" },
+    { id: "running", label: "Bieganie" },
+    { id: "strength", label: "Trening siłowy" },
+    { id: "other", label: "Inne aktywności" },
+  ];
 
   return (
     <div>
@@ -169,78 +220,17 @@ export function ReportsTab({
         </div>
       )}
 
-      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 14 }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 10 }}>
         {fmtDate(rangeStart)} – {fmtDate(rangeEnd)} · {filteredCount} treningów
       </div>
 
-      {/* ---------- priority: bieganie ---------- */}
-      {(totalRunningKm > 0 || weeklyRunningKmSeries.length > 0) && (
-        <div className="mb-6 p-3 rounded-md" style={{ background: "#FFF5EE", border: `1.5px solid ${STRAVA_ORANGE}` }}>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color: STRAVA_ORANGE, fontWeight: 600, marginBottom: 8 }}>
-            BIEGANIE
-          </div>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>DYSTANS</div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, color: INK, fontWeight: 600 }}>
-                {totalRunningKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km
-              </div>
-            </div>
-            <div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>CZAS</div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, color: INK, fontWeight: 600 }}>
-                {fmtMinutesLong(totalRunningMinutes)}
-              </div>
-            </div>
-          </div>
-          {weeklyRunningKmSeries.length > 1 && (
-            <ResponsiveContainer width="100%" height={130}>
-              <LineChart data={weeklyRunningKmSeries}>
-                <CartesianGrid stroke={LINE} />
-                <XAxis dataKey="week" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
-                <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
-                <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }} formatter={(v) => [`${v} km`, "Dystans"]} />
-                <Line type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={2} dot={{ fill: STRAVA_ORANGE, r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      )}
-
-      {/* ---------- ogólne podsumowanie ---------- */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>ŁĄCZNY CZAS</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600 }}>{fmtMinutesLong(totalOverallMinutes)}</div>
-        </div>
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>TRENINGÓW</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600 }}>{filteredCount}</div>
-        </div>
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>TONAŻ</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600 }}>{Math.round(totalTonnage).toLocaleString("pl-PL")} kg</div>
-        </div>
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>PLYO</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: PLYO, fontWeight: 600 }}>{totalPlyoReps} powt.</div>
-        </div>
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>IZOMETRIA (TUT)</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: ISO, fontWeight: 600 }}>{fmtDurationShort(totalIsometricTUT)}</div>
-        </div>
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>FUNKCJONALNE</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: TEAL, fontWeight: 600 }}>{totalFunctionalMinutes} min</div>
-        </div>
-        <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>AEROBOWE</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: AERO, fontWeight: 600 }}>{totalAerobicMinutes} min</div>
-        </div>
+      <div className="flex flex-wrap gap-1.5 mb-4 pb-3 border-b" style={{ borderColor: LINE }}>
+        {subTabs.map((t) => (
+          <Chip key={t.id} active={subTab === t.id} onClick={() => setSubTab(t.id)}>
+            {t.label}
+          </Chip>
+        ))}
       </div>
-
-      {categoryChart(kmChartData, "Kilometry wg aktywności", STRAVA_ORANGE, (v) => `${v} km`)}
-      {categoryChart(timeChartData, "Czas wg aktywności (min)", INK, (v) => `${v} min`)}
 
       {filteredCount === 0 && (
         <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
@@ -248,48 +238,155 @@ export function ReportsTab({
         </div>
       )}
 
-      {/* ---------- detailed / lower-priority breakdowns ---------- */}
-      {categoryChart(tonnageByCat, "Tonaż wg kategorii", MUSTARD, (v) => `${Math.round(v)} kg`)}
-      {categoryChart(plyoByCat, "Objętość plyo wg kategorii (powtórzenia)", PLYO, (v) => `${v} powt.`)}
-      {categoryChart(isometricByCat, "Czas pod napięciem (TUT) wg kategorii", ISO, (v) => fmtDurationShort(v))}
-      {categoryChart(functionalByCat, "Minuty funkcjonalne wg kategorii", TEAL, (v) => `${v} min`)}
-      {categoryChart(aerobicByCat, "Minuty aerobowe wg kategorii", AERO, (v) => `${v} min`)}
-
-      {hrZones.length > 0 && (
-        <div className="mb-5">
-          <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, marginBottom: 6 }}>
-            Strefy tętna (% czasu z tętnem)
+      {subTab === "general" && (
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>ŁĄCZNY CZAS</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600 }}>{fmtMinutesLong(totalOverallMinutes)}</div>
           </div>
-          <div className="space-y-1.5">
-            {hrZones.map((z, i) => (
-              <div key={z.zone} className="flex items-center gap-2">
-                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, width: 96 }}>
-                  Strefa {z.zone} · {z.min}-{z.max === -1 ? "∞" : z.max} bpm
-                </div>
-                <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-                  <div style={{ width: `${z.pct}%`, background: ZONE_COLORS[i % ZONE_COLORS.length], height: "100%" }} />
-                </div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, width: 36, textAlign: "right" }}>
-                  {Math.round(z.pct)}%
-                </div>
-              </div>
-            ))}
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>TRENINGÓW</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600 }}>{filteredCount}</div>
+          </div>
+          <div className="p-3 rounded-md" style={{ background: "#FFF5EE", border: `1px solid ${STRAVA_ORANGE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>KM BIEGOWE</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: STRAVA_ORANGE, fontWeight: 600 }}>
+              {totalRunningKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km
+            </div>
+          </div>
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>TONAŻ</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600 }}>{Math.round(totalTonnage).toLocaleString("pl-PL")} kg</div>
+          </div>
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>PLYO</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: PLYO, fontWeight: 600 }}>{totalPlyoReps} powt.</div>
+          </div>
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>IZOMETRIA (TUT)</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: ISO, fontWeight: 600 }}>{fmtDurationShort(totalIsometricTUT)}</div>
+          </div>
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>FUNKCJONALNE</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: TEAL, fontWeight: 600 }}>{totalFunctionalMinutes} min</div>
+          </div>
+          <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>AEROBOWE</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: AERO, fontWeight: 600 }}>{totalAerobicMinutes} min</div>
           </div>
         </div>
       )}
 
-      {weeklySeries.length > 1 && (
-        <div className="mb-5">
-          <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, marginBottom: 6 }}>Progresja tonażu (tygodniowo)</div>
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={weeklySeries}>
-              <CartesianGrid stroke={LINE} />
-              <XAxis dataKey="week" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
-              <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
-              <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }} formatter={(v) => [`${v} kg`, "Tonaż"]} />
-              <Line type="monotone" dataKey="tonnage" stroke={INK} strokeWidth={2} dot={{ fill: MUSTARD, r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+      {subTab === "running" && (
+        <div>
+          {totalRunningKm === 0 && weeklyRunningKmSeries.length === 0 ? (
+            <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
+              Brak biegów w wybranym okresie.
+            </div>
+          ) : (
+            <div className="mb-6 p-3 rounded-md" style={{ background: "#FFF5EE", border: `1.5px solid ${STRAVA_ORANGE}` }}>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color: STRAVA_ORANGE, fontWeight: 600, marginBottom: 8 }}>
+                BIEGANIE
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>DYSTANS</div>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, color: INK, fontWeight: 600 }}>
+                    {totalRunningKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>CZAS</div>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, color: INK, fontWeight: 600 }}>
+                    {fmtMinutesLong(totalRunningMinutes)}
+                  </div>
+                </div>
+              </div>
+              {weeklyRunningKmSeries.length > 1 && (
+                <ResponsiveContainer width="100%" height={130}>
+                  <LineChart data={weeklyRunningKmSeries}>
+                    <CartesianGrid stroke={LINE} />
+                    <XAxis dataKey="week" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
+                    <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
+                    <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }} formatter={(v) => [`${v} km`, "Dystans"]} />
+                    <Line type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={2} dot={{ fill: STRAVA_ORANGE, r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          )}
+
+          {hrZones.length > 0 && (
+            <div className="mb-5">
+              <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, marginBottom: 6 }}>
+                Strefy tętna (minuty)
+              </div>
+              <div className="space-y-1.5">
+                {hrZones.map((z, i) => {
+                  const pct = hrZonesTotalSeconds > 0 ? (z.seconds / hrZonesTotalSeconds) * 100 : 0;
+                  return (
+                    <div key={z.zone} className="flex items-center gap-2">
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, width: 96 }}>
+                        Strefa {z.zone} · {z.min}-{z.max === -1 ? "∞" : z.max} bpm
+                      </div>
+                      <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+                        <div style={{ width: `${pct}%`, background: ZONE_COLORS[i % ZONE_COLORS.length], height: "100%" }} />
+                      </div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, width: 44, textAlign: "right" }}>
+                        {Math.round(z.seconds / 60)} min
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {subTab === "strength" && (
+        <div>
+          {horizontalChart(muscleGroupChartData, "Tonaż wg partii ciała (szacunkowo, wg nazwy ćwiczenia)", MUSTARD, (v) => `${v} kg`)}
+          {verticalChart(tonnageByCat, "Tonaż wg kategorii", MUSTARD, (v) => `${Math.round(v)} kg`)}
+          {verticalChart(plyoByCat, "Objętość plyo wg kategorii (powtórzenia)", PLYO, (v) => `${v} powt.`)}
+          {verticalChart(isometricByCat, "Czas pod napięciem (TUT) wg kategorii", ISO, (v) => fmtDurationShort(v))}
+          {verticalChart(functionalByCat, "Minuty funkcjonalne wg kategorii", TEAL, (v) => `${v} min`)}
+          {weeklySeries.length > 1 && (
+            <div className="mb-5">
+              <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, marginBottom: 6 }}>Progresja tonażu (tygodniowo)</div>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={weeklySeries}>
+                  <CartesianGrid stroke={LINE} />
+                  <XAxis dataKey="week" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
+                  <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} />
+                  <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }} formatter={(v) => [`${v} kg`, "Tonaż"]} />
+                  <Line type="monotone" dataKey="tonnage" stroke={INK} strokeWidth={2} dot={{ fill: MUSTARD, r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {muscleGroupChartData.length === 0 &&
+            tonnageByCat.length === 0 &&
+            plyoByCat.length === 0 &&
+            isometricByCat.length === 0 &&
+            functionalByCat.length === 0 && (
+              <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
+                Brak treningu siłowego w wybranym okresie.
+              </div>
+            )}
+        </div>
+      )}
+
+      {subTab === "other" && (
+        <div>
+          {horizontalChart(kmChartData, "Kilometry wg aktywności (poza bieganiem)", STRAVA_ORANGE, (v) => `${v} km`)}
+          {horizontalChart(timeChartData, "Czas wg aktywności (min, poza bieganiem)", INK, (v) => `${v} min`)}
+          {horizontalChart(aerobicByCat, "Minuty aerobowe wg kategorii (ręczne wpisy)", AERO, (v) => `${v} min`)}
+          {kmChartData.length === 0 && timeChartData.length === 0 && aerobicByCat.length === 0 && (
+            <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
+              Brak innych aktywności w wybranym okresie.
+            </div>
+          )}
         </div>
       )}
 
