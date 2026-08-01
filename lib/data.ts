@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORIES } from "./design";
 import type { Cycle, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
-  "id, date, category, notes, exercises, duration_minutes, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
+  "id, date, category, name, subtitle, notes, exercises, duration_minutes, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
 
 interface StravaActivityRow {
   id: string;
@@ -26,6 +26,8 @@ interface WorkoutRow {
   id: string;
   date: string;
   category: string;
+  name: string | null;
+  subtitle: string | null;
   notes: string | null;
   exercises: WorkoutExercise[];
   duration_minutes: number | null;
@@ -61,6 +63,8 @@ const workoutFromRow = (r: WorkoutRow): Workout => ({
   id: r.id,
   date: r.date,
   category: r.category,
+  name: r.name ?? undefined,
+  subtitle: r.subtitle ?? undefined,
   notes: r.notes ?? "",
   exercises: r.exercises ?? [],
   durationMinutes: r.duration_minutes ?? undefined,
@@ -96,6 +100,8 @@ export async function saveWorkout(
       .update({
         date: workout.date,
         category: workout.category,
+        name: workout.name || null,
+        subtitle: workout.subtitle || null,
         notes: workout.notes,
         exercises: workout.exercises,
         duration_minutes: workout.durationMinutes ?? null,
@@ -112,6 +118,8 @@ export async function saveWorkout(
       user_id: userId,
       date: workout.date,
       category: workout.category,
+      name: workout.name || null,
+      subtitle: workout.subtitle || null,
       notes: workout.notes,
       exercises: workout.exercises,
       duration_minutes: workout.durationMinutes ?? null,

@@ -74,6 +74,8 @@ export interface Workout {
   id: string;
   date: string; // ISO yyyy-mm-dd
   category: string;
+  name?: string; // shown bold, e.g. "Nogi — siła ciężka"
+  subtitle?: string; // shown smaller, not bold, under the name
   notes: string;
   exercises: WorkoutExercise[];
   durationMinutes?: number;

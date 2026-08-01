@@ -76,6 +76,26 @@ export function WorkoutForm({
         />
       </Field>
 
+      <Field label="Nazwa treningu (opcjonalnie)">
+        <input
+          placeholder="np. Nogi — siła ciężka"
+          value={draft.name ?? ""}
+          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+          className="w-full px-2 py-1.5 rounded text-sm"
+          style={inputStyle}
+        />
+      </Field>
+
+      <Field label="Podtytuł (opcjonalnie)">
+        <input
+          placeholder="np. tydzień 3, przed zawodami"
+          value={draft.subtitle ?? ""}
+          onChange={(e) => setDraft((d) => ({ ...d, subtitle: e.target.value }))}
+          className="w-full px-2 py-1.5 rounded text-sm"
+          style={inputStyle}
+        />
+      </Field>
+
       <Field label="Kategoria">
         <div className="flex flex-wrap gap-1.5 mb-2">
           {categories.map((c) => (

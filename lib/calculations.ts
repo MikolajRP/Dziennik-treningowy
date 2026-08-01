@@ -72,6 +72,8 @@ export const emptyDraft = (categories: string[]): Workout => ({
   id: "",
   date: todayISO(),
   category: categories[0] || "Nogi",
+  name: "",
+  subtitle: "",
   notes: "",
   exercises: [],
 });

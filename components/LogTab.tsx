@@ -166,7 +166,17 @@ export function LogTab({
               <button className="w-full flex items-center justify-between p-3 text-left" onClick={() => setExpandedId(expanded ? null : w.id)}>
                 <div>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>{fmtDate(w.date)}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  {w.name && (
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 14, color: INK, fontWeight: 700 }} className="mt-0.5">
+                      {w.name}
+                    </div>
+                  )}
+                  {w.subtitle && (
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, fontWeight: 400 }}>
+                      {w.subtitle}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
                     <span className="px-2 py-0.5 rounded-full text-[11px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
                       {w.category}
                     </span>
