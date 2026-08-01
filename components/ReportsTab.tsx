@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   BarChart,
   Bar,
   XAxis,
@@ -14,7 +16,7 @@ import {
   Line,
 } from "recharts";
 import { fmtDate, fmtDurationShort, fmtMinutesLong, fmtShort } from "@/lib/calculations";
-import type { HrZoneDatum } from "@/lib/stravaCalculations";
+import type { HrZoneDatum, ThisWeekRunning, WeeklyRunningDatum } from "@/lib/stravaCalculations";
 import type { MuscleGroupDatum } from "@/lib/muscleGroups";
 import { STRAVA_ORANGE } from "./StravaConnect";
 import {
@@ -76,6 +78,8 @@ export function ReportsTab({
   hrZones,
   totalOverallMinutes,
   tonnageByMuscleGroup,
+  thisWeekRunning,
+  last12WeeksRunning,
   showCycleForm,
   setShowCycleForm,
   cycleDraft,
@@ -114,6 +118,8 @@ export function ReportsTab({
   hrZones: HrZoneDatum[];
   totalOverallMinutes: number;
   tonnageByMuscleGroup: MuscleGroupDatum[];
+  thisWeekRunning: ThisWeekRunning;
+  last12WeeksRunning: WeeklyRunningDatum[];
   showCycleForm: boolean;
   setShowCycleForm: (v: boolean) => void;
   cycleDraft: Cycle;
@@ -279,6 +285,74 @@ export function ReportsTab({
 
       {subTab === "running" && (
         <div>
+          <div className="mb-6 p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 10 }}>W TYM TYGODNIU</div>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>Dystans</div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: INK, fontWeight: 600 }}>
+                  {thisWeekRunning.km.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} km
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>Czas</div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: INK, fontWeight: 600 }}>
+                  {fmtDurationShort(thisWeekRunning.minutes * 60)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>Suma przewyższeń</div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: INK, fontWeight: 600 }}>
+                  {Math.round(thisWeekRunning.elevationM)} m
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>OSTATNIE 12 TYGODNI</div>
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={last12WeeksRunning} margin={{ left: -20, right: 8, top: 8 }}>
+                <defs>
+                  <linearGradient id="runningAreaFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={STRAVA_ORANGE} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={STRAVA_ORANGE} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={LINE} vertical={false} />
+                <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} interval={0} />
+                <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK_SOFT }} width={40} />
+                <Tooltip
+                  contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }}
+                  labelFormatter={(_, payload) => {
+                    const d = payload?.[0]?.payload as WeeklyRunningDatum | undefined;
+                    return d ? `${fmtShort(d.weekStart)} – ${fmtShort(d.weekEnd)}` : "";
+                  }}
+                  formatter={(v) => [`${v} km`, "Dystans"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="km"
+                  stroke={STRAVA_ORANGE}
+                  strokeWidth={2}
+                  fill="url(#runningAreaFill)"
+                  dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                    const isLast = props.index === last12WeeksRunning.length - 1;
+                    return (
+                      <circle
+                        key={props.index}
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={isLast ? 5 : 3}
+                        fill={STRAVA_ORANGE}
+                        stroke={isLast ? INK : "none"}
+                        strokeWidth={isLast ? 1.5 : 0}
+                      />
+                    );
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
           {totalRunningKm === 0 && weeklyRunningKmSeries.length === 0 ? (
             <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
               Brak biegów w wybranym okresie.

@@ -1,8 +1,11 @@
 import type { StravaActivity, Workout } from "./types";
 import {
+  addDays,
   computeWorkoutAerobicMinutes,
   computeWorkoutFunctionalMinutes,
   computeWorkoutManualDistanceKm,
+  startOfWeek,
+  todayISO,
 } from "./calculations";
 
 const MANUAL_LABEL = "Ręczne (bez GPS)";
@@ -33,6 +36,8 @@ export const computeWorkoutRunningDistanceM = (w: Workout) =>
   (w.stravaActivities ?? []).filter((a) => isRunningActivityType(a.type)).reduce((s, a) => s + a.distanceM, 0);
 export const computeWorkoutRunningTimeS = (w: Workout) =>
   (w.stravaActivities ?? []).filter((a) => isRunningActivityType(a.type)).reduce((s, a) => s + a.movingTimeS, 0);
+export const computeWorkoutRunningElevationM = (w: Workout) =>
+  (w.stravaActivities ?? []).filter((a) => isRunningActivityType(a.type)).reduce((s, a) => s + a.elevationGainM, 0);
 
 // Overall average pace (m/s) across every linked Strava activity, weighted
 // by distance rather than averaging each activity's own average speed.
@@ -139,4 +144,52 @@ export function aggregateHrZones(workouts: Workout[]): HrZoneDatum[] {
 
 export function collectStravaActivities(workouts: Workout[]): StravaActivity[] {
   return workouts.flatMap((w) => w.stravaActivities ?? []);
+}
+
+// ---------- Strava-style "this week" / "last 12 weeks" running widget ----------
+// Deliberately independent of the report's period filter — like Strava's
+// own progress view, this always means "the current calendar week" and
+// "the trailing 12 weeks", regardless of what period is selected elsewhere.
+
+export interface ThisWeekRunning {
+  km: number;
+  minutes: number;
+  elevationM: number;
+}
+export function computeThisWeekRunning(allWorkouts: Workout[]): ThisWeekRunning {
+  const today = todayISO();
+  const start = startOfWeek(today);
+  const inWeek = allWorkouts.filter((w) => w.date >= start && w.date <= today);
+  return {
+    km: inWeek.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000,
+    minutes: inWeek.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60,
+    elevationM: inWeek.reduce((s, w) => s + computeWorkoutRunningElevationM(w), 0),
+  };
+}
+
+const MONTH_ABBR_PL = ["STY", "LUT", "MAR", "KWI", "MAJ", "CZE", "LIP", "SIE", "WRZ", "PAŹ", "LIS", "GRU"];
+
+export interface WeeklyRunningDatum {
+  weekStart: string;
+  weekEnd: string;
+  km: number;
+  tickLabel: string;
+}
+export function computeLast12WeeksRunning(allWorkouts: Workout[]): WeeklyRunningDatum[] {
+  const currentWeekStart = startOfWeek(todayISO());
+  let lastMonth = -1;
+  const weeks: WeeklyRunningDatum[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const weekStart = addDays(currentWeekStart, -7 * i);
+    const weekEnd = addDays(weekStart, 6);
+    const km =
+      allWorkouts
+        .filter((w) => w.date >= weekStart && w.date <= weekEnd)
+        .reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000;
+    const month = new Date(weekStart + "T00:00:00").getMonth();
+    const tickLabel = month !== lastMonth ? MONTH_ABBR_PL[month] : "";
+    lastMonth = month;
+    weeks.push({ weekStart, weekEnd, km: Math.round(km * 10) / 10, tickLabel });
+  }
+  return weeks;
 }

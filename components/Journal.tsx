@@ -43,6 +43,8 @@ import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/d
 import type { Circuit, Cycle, LeafExercise, LeafKind, Period, Workout, WorkoutExercise } from "@/lib/types";
 import {
   aggregateHrZones,
+  computeLast12WeeksRunning,
+  computeThisWeekRunning,
   computeWorkoutRunningDistanceM,
   computeWorkoutRunningTimeS,
   computeWorkoutTotalMinutes,
@@ -351,6 +353,11 @@ export function Journal({
   );
   const tonnageByMuscleGroup = useMemo(() => computeTonnageByMuscleGroup(filtered), [filtered]);
 
+  // Independent of the period filter — always "this calendar week" and
+  // "the trailing 12 weeks", matching Strava's own progress widget.
+  const thisWeekRunning = useMemo(() => computeThisWeekRunning(workouts), [workouts]);
+  const last12WeeksRunning = useMemo(() => computeLast12WeeksRunning(workouts), [workouts]);
+
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
@@ -464,6 +471,8 @@ export function Journal({
             hrZones={hrZones}
             totalOverallMinutes={totalOverallMinutes}
             tonnageByMuscleGroup={tonnageByMuscleGroup}
+            thisWeekRunning={thisWeekRunning}
+            last12WeeksRunning={last12WeeksRunning}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}
