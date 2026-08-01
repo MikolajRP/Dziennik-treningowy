@@ -3,9 +3,10 @@
 import { Dumbbell, Timer, Zap, Activity, Hourglass, Trash2, X } from "lucide-react";
 import {
   computeExerciseTonnage,
-  computeIsometricLoad,
+  computeIsometricTUT,
   computePlyoReps,
   computeSideBreakdown,
+  fmtDurationShort,
 } from "@/lib/calculations";
 import { INK, INK_SOFT, ISO, KIND_COLOR, KIND_LABEL, LINE, MUSTARD, PLYO, inputStyle } from "@/lib/design";
 import type { LeafExercise, LeafKind, Side } from "@/lib/types";
@@ -172,13 +173,15 @@ export function ExerciseEditor({
             }}
           >
             {ex.kind === "plyo" && `Objętość plyo: ${computePlyoReps(ex)} powt.`}
-            {ex.kind === "isometric" && `Obciążenie: ${Math.round(computeIsometricLoad(ex))} kg·s`}
+            {ex.kind === "isometric" && `TUT (czas pod napięciem): ${fmtDurationShort(computeIsometricTUT(ex))}`}
             {ex.kind === "strength" && `Tonaż: ${Math.round(computeExerciseTonnage(ex))} kg`}
             {ex.unilateral &&
               (() => {
                 const b = computeSideBreakdown(ex);
-                const unit = ex.kind === "plyo" ? "" : ex.kind === "isometric" ? "kg·s" : "kg";
-                return b ? `  ·  L: ${Math.round(b.L)}${unit}  P: ${Math.round(b.P)}${unit}` : "";
+                if (!b) return "";
+                if (ex.kind === "isometric") return `  ·  L: ${fmtDurationShort(b.L)}  P: ${fmtDurationShort(b.P)}`;
+                const unit = ex.kind === "plyo" ? "" : "kg";
+                return `  ·  L: ${Math.round(b.L)}${unit}  P: ${Math.round(b.P)}${unit}`;
               })()}
           </div>
         </div>

@@ -4,10 +4,11 @@ import { ChevronDown, ChevronUp, Copy, Link2, Pencil, Plus, Trash2 } from "lucid
 import {
   computeWorkoutAerobicMinutes,
   computeWorkoutFunctionalMinutes,
-  computeWorkoutIsometricLoad,
+  computeWorkoutIsometricTUT,
   computeWorkoutPlyoReps,
   computeWorkoutTonnage,
   fmtDate,
+  fmtDurationShort,
 } from "@/lib/calculations";
 import {
   computeWorkoutStravaAvgSpeedMps,
@@ -153,7 +154,7 @@ export function LogTab({
         {sortedWorkouts.map((w) => {
           const tonnage = computeWorkoutTonnage(w);
           const plyoReps = computeWorkoutPlyoReps(w);
-          const isometricLoad = computeWorkoutIsometricLoad(w);
+          const isometricTUT = computeWorkoutIsometricTUT(w);
           const functionalMin = computeWorkoutFunctionalMinutes(w);
           const aerobicMin = computeWorkoutAerobicMinutes(w);
           const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
@@ -183,7 +184,7 @@ export function LogTab({
                     <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
                       {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
                       {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
-                      {isometricLoad > 0 && <div style={{ color: ISO }}>{Math.round(isometricLoad)} kg·s izo</div>}
+                      {isometricTUT > 0 && <div style={{ color: ISO }}>TUT {fmtDurationShort(isometricTUT)} izo</div>}
                       {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
                       {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
                     </div>

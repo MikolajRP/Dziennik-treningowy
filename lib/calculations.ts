@@ -176,8 +176,10 @@ export const computeExerciseTonnage = (ex: LeafExercise) =>
   ex.kind === "strength" ? ex.sets.reduce((sum, s) => sum + num(s.reps) * num(s.weight), 0) : 0;
 export const computePlyoReps = (ex: LeafExercise) =>
   ex.kind === "plyo" ? ex.sets.reduce((sum, s) => sum + num(s.reps), 0) : 0;
-export const computeIsometricLoad = (ex: LeafExercise) =>
-  ex.kind === "isometric" ? ex.sets.reduce((sum, s) => sum + num(s.weight) * num(s.seconds), 0) : 0;
+// Time under tension (TUT), in seconds — weight isn't factored in, it's
+// just recorded per set for reference.
+export const computeIsometricTUT = (ex: LeafExercise) =>
+  ex.kind === "isometric" ? ex.sets.reduce((sum, s) => sum + num(s.seconds), 0) : 0;
 export const computeFunctionalMinutes = (ex: LeafExercise) =>
   ex.kind === "functional" ? num(ex.minutes) : 0;
 export const computeAerobicMinutes = (ex: LeafExercise) =>
@@ -188,8 +190,8 @@ export const circuitTonnage = (c: Circuit) =>
   circuitMultiplier(c) * c.elements.reduce((s, e) => s + computeExerciseTonnage(e), 0);
 export const circuitPlyoReps = (c: Circuit) =>
   circuitMultiplier(c) * c.elements.reduce((s, e) => s + computePlyoReps(e), 0);
-export const circuitIsometricLoad = (c: Circuit) =>
-  circuitMultiplier(c) * c.elements.reduce((s, e) => s + computeIsometricLoad(e), 0);
+export const circuitIsometricTUT = (c: Circuit) =>
+  circuitMultiplier(c) * c.elements.reduce((s, e) => s + computeIsometricTUT(e), 0);
 export const circuitFunctionalMinutes = (c: Circuit) =>
   circuitMultiplier(c) * c.elements.reduce((s, e) => s + computeFunctionalMinutes(e), 0);
 export const circuitAerobicMinutes = (c: Circuit) =>
@@ -209,8 +211,8 @@ export const computeWorkoutTonnage = (w: Workout) =>
   sumAcrossWorkout(w, computeExerciseTonnage, circuitTonnage);
 export const computeWorkoutPlyoReps = (w: Workout) =>
   sumAcrossWorkout(w, computePlyoReps, circuitPlyoReps);
-export const computeWorkoutIsometricLoad = (w: Workout) =>
-  sumAcrossWorkout(w, computeIsometricLoad, circuitIsometricLoad);
+export const computeWorkoutIsometricTUT = (w: Workout) =>
+  sumAcrossWorkout(w, computeIsometricTUT, circuitIsometricTUT);
 export const computeWorkoutFunctionalMinutes = (w: Workout) =>
   sumAcrossWorkout(w, computeFunctionalMinutes, circuitFunctionalMinutes);
 export const computeWorkoutAerobicMinutes = (w: Workout) =>
@@ -230,7 +232,7 @@ export const computeSideBreakdown = (ex: LeafExercise) => {
   if (ex.kind === "functional" || ex.kind === "aerobic" || !ex.unilateral) return null;
   const val = (s: { reps?: string; weight?: string; seconds?: string }) => {
     if (ex.kind === "plyo") return num(s.reps);
-    if (ex.kind === "isometric") return num(s.weight) * num(s.seconds);
+    if (ex.kind === "isometric") return num(s.seconds);
     return num(s.reps) * num(s.weight);
   };
   const totals = { L: 0, P: 0 };
@@ -307,7 +309,7 @@ export function exerciseSummaryText(ex: LeafExercise): { text: string; color: st
     const sets = ex.sets
       .map((s) => `${s.seconds}s×${s.weight}kg${ex.unilateral ? ` (${s.side})` : ""}`)
       .join(", ");
-    return { text: `${sets}  = ${Math.round(computeIsometricLoad(ex))} kg·s`, color: "iso" };
+    return { text: `${sets}  = TUT ${fmtDurationShort(computeIsometricTUT(ex))}`, color: "iso" };
   }
   if (ex.kind === "functional") return { text: `${ex.minutes} min`, color: "teal" };
   if (ex.kind === "aerobic") return { text: `${ex.minutes} min`, color: "aero" };

@@ -4,10 +4,11 @@ import { Repeat2, Trash2 } from "lucide-react";
 import {
   circuitAerobicMinutes,
   circuitFunctionalMinutes,
-  circuitIsometricLoad,
+  circuitIsometricTUT,
   circuitMultiplier,
   circuitPlyoReps,
   circuitTonnage,
+  fmtDurationShort,
 } from "@/lib/calculations";
 import { AERO, FONT_MONO, INK_SOFT, ISO, MUSTARD, PLYO, RUST, TEAL, inputStyle } from "@/lib/design";
 import type { Circuit, LeafExercise, LeafKind } from "@/lib/types";
@@ -86,7 +87,7 @@ export function CircuitEditor({
         Razem (×{circuitMultiplier(circuit)} rundy):
         {circuitTonnage(circuit) > 0 && <span style={{ color: MUSTARD }}> {Math.round(circuitTonnage(circuit))} kg</span>}
         {circuitPlyoReps(circuit) > 0 && <span style={{ color: PLYO }}> · {circuitPlyoReps(circuit)} powt. plyo</span>}
-        {circuitIsometricLoad(circuit) > 0 && <span style={{ color: ISO }}> · {Math.round(circuitIsometricLoad(circuit))} kg·s izo</span>}
+        {circuitIsometricTUT(circuit) > 0 && <span style={{ color: ISO }}> · TUT {fmtDurationShort(circuitIsometricTUT(circuit))} izo</span>}
         {circuitFunctionalMinutes(circuit) > 0 && <span style={{ color: TEAL }}> · {circuitFunctionalMinutes(circuit)} min funkc.</span>}
         {circuitAerobicMinutes(circuit) > 0 && <span style={{ color: AERO }}> · {circuitAerobicMinutes(circuit)} min aerob.</span>}
       </div>

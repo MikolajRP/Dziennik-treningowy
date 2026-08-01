@@ -3,9 +3,10 @@
 import { Activity, Dumbbell, Hourglass, Repeat2, Timer, Zap } from "lucide-react";
 import {
   computeExerciseTonnage,
-  computeIsometricLoad,
+  computeIsometricTUT,
   computePlyoReps,
   computeSideBreakdown,
+  fmtDurationShort,
 } from "@/lib/calculations";
 import {
   CARD,
@@ -43,7 +44,7 @@ function setPills(ex: LeafExercise) {
 function metricLine(ex: LeafExercise): { text: string; color: string } | null {
   if (ex.kind === "strength") return { text: `${Math.round(computeExerciseTonnage(ex))} kg`, color: MUSTARD };
   if (ex.kind === "plyo") return { text: `${computePlyoReps(ex)} powt.`, color: PLYO };
-  if (ex.kind === "isometric") return { text: `${Math.round(computeIsometricLoad(ex))} kg·s`, color: ISO };
+  if (ex.kind === "isometric") return { text: `TUT ${fmtDurationShort(computeIsometricTUT(ex))}`, color: ISO };
   if (ex.kind === "functional")
     return { text: `${ex.minutes} min${ex.distanceKm ? ` · ${ex.distanceKm} km` : ""}`, color: TEAL };
   if (ex.kind === "aerobic")
@@ -93,7 +94,15 @@ function LeafRow({ ex }: { ex: LeafExercise }) {
 
       {sideBreakdown && (
         <div className="pl-[19px] mt-0.5" style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>
-          L: {Math.round(sideBreakdown.L)} · P: {Math.round(sideBreakdown.P)}
+          {ex.kind === "isometric" ? (
+            <>
+              L: {fmtDurationShort(sideBreakdown.L)} · P: {fmtDurationShort(sideBreakdown.P)}
+            </>
+          ) : (
+            <>
+              L: {Math.round(sideBreakdown.L)} · P: {Math.round(sideBreakdown.P)}
+            </>
+          )}
         </div>
       )}
     </div>

@@ -8,7 +8,7 @@ export const MUSTARD = "#B9821E"; // strength / tonnage
 export const PLYO = "#8A6A1F"; // plyo volume
 export const TEAL = "#2F6F63"; // functional minutes
 export const AERO = "#2F5D8C"; // aerobic minutes
-export const ISO = "#6B4C93"; // isometric load (kg·s)
+export const ISO = "#6B4C93"; // isometric time under tension (TUT)
 export const RUST = "#A6402F"; // danger + circuit accent
 
 export const FONT_DISPLAY = "var(--font-oswald), sans-serif";

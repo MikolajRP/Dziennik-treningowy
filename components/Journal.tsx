@@ -22,7 +22,7 @@ import {
   computePRIds,
   computeWorkoutAerobicMinutes,
   computeWorkoutFunctionalMinutes,
-  computeWorkoutIsometricLoad,
+  computeWorkoutIsometricTUT,
   computeWorkoutPlyoReps,
   computeWorkoutTonnage,
   emptyDraft,
@@ -294,13 +294,13 @@ export function Journal({
 
   const tonnageByCat = useMemo(() => groupByCategory(filtered, computeWorkoutTonnage), [filtered]);
   const plyoByCat = useMemo(() => groupByCategory(filtered, computeWorkoutPlyoReps), [filtered]);
-  const isometricByCat = useMemo(() => groupByCategory(filtered, computeWorkoutIsometricLoad), [filtered]);
+  const isometricByCat = useMemo(() => groupByCategory(filtered, computeWorkoutIsometricTUT), [filtered]);
   const functionalByCat = useMemo(() => groupByCategory(filtered, computeWorkoutFunctionalMinutes), [filtered]);
   const aerobicByCat = useMemo(() => groupByCategory(filtered, computeWorkoutAerobicMinutes), [filtered]);
 
   const totalTonnage = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutTonnage(w), 0), [filtered]);
   const totalPlyoReps = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutPlyoReps(w), 0), [filtered]);
-  const totalIsometricLoad = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutIsometricLoad(w), 0), [filtered]);
+  const totalIsometricTUT = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutIsometricTUT(w), 0), [filtered]);
   const totalFunctionalMinutes = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutFunctionalMinutes(w), 0), [filtered]);
   const totalAerobicMinutes = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutAerobicMinutes(w), 0), [filtered]);
 
@@ -444,7 +444,7 @@ export function Journal({
             rangeEnd={rangeEnd}
             totalTonnage={totalTonnage}
             totalPlyoReps={totalPlyoReps}
-            totalIsometricLoad={totalIsometricLoad}
+            totalIsometricTUT={totalIsometricTUT}
             totalFunctionalMinutes={totalFunctionalMinutes}
             totalAerobicMinutes={totalAerobicMinutes}
             filteredCount={filtered.length}

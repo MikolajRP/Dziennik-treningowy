@@ -12,7 +12,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { fmtDate, fmtMinutesLong, fmtShort } from "@/lib/calculations";
+import { fmtDate, fmtDurationShort, fmtMinutesLong, fmtShort } from "@/lib/calculations";
 import type { HrZoneDatum } from "@/lib/stravaCalculations";
 import { STRAVA_ORANGE } from "./StravaConnect";
 import {
@@ -53,7 +53,7 @@ export function ReportsTab({
   rangeEnd,
   totalTonnage,
   totalPlyoReps,
-  totalIsometricLoad,
+  totalIsometricTUT,
   totalFunctionalMinutes,
   totalAerobicMinutes,
   filteredCount,
@@ -90,7 +90,7 @@ export function ReportsTab({
   rangeEnd: string;
   totalTonnage: number;
   totalPlyoReps: number;
-  totalIsometricLoad: number;
+  totalIsometricTUT: number;
   totalFunctionalMinutes: number;
   totalAerobicMinutes: number;
   filteredCount: number;
@@ -226,8 +226,8 @@ export function ReportsTab({
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: PLYO, fontWeight: 600 }}>{totalPlyoReps} powt.</div>
         </div>
         <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>IZOMETRIA</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: ISO, fontWeight: 600 }}>{Math.round(totalIsometricLoad).toLocaleString("pl-PL")} kg·s</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>IZOMETRIA (TUT)</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: ISO, fontWeight: 600 }}>{fmtDurationShort(totalIsometricTUT)}</div>
         </div>
         <div className="p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>FUNKCJONALNE</div>
@@ -251,7 +251,7 @@ export function ReportsTab({
       {/* ---------- detailed / lower-priority breakdowns ---------- */}
       {categoryChart(tonnageByCat, "Tonaż wg kategorii", MUSTARD, (v) => `${Math.round(v)} kg`)}
       {categoryChart(plyoByCat, "Objętość plyo wg kategorii (powtórzenia)", PLYO, (v) => `${v} powt.`)}
-      {categoryChart(isometricByCat, "Obciążenie izometryczne wg kategorii (kg·s)", ISO, (v) => `${Math.round(v)} kg·s`)}
+      {categoryChart(isometricByCat, "Czas pod napięciem (TUT) wg kategorii", ISO, (v) => fmtDurationShort(v))}
       {categoryChart(functionalByCat, "Minuty funkcjonalne wg kategorii", TEAL, (v) => `${v} min`)}
       {categoryChart(aerobicByCat, "Minuty aerobowe wg kategorii", AERO, (v) => `${v} min`)}
 
