@@ -14,6 +14,7 @@ import {
   computeWorkoutStravaAvgSpeedMps,
   computeWorkoutStravaDistanceM,
   computeWorkoutStravaMovingTimeS,
+  isCyclingActivityType,
 } from "@/lib/stravaCalculations";
 import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, PLYO, RUST, TEAL } from "@/lib/design";
 import type { LeafKind, Workout, WorkoutExercise } from "@/lib/types";
@@ -159,6 +160,7 @@ export function LogTab({
           const aerobicMin = computeWorkoutAerobicMinutes(w);
           const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
           const stravaDistanceM = hasStrava ? computeWorkoutStravaDistanceM(w) : 0;
+          const allCycling = hasStrava && w.stravaActivities!.every((a) => isCyclingActivityType(a.type));
           const expanded = expandedId === w.id;
           const isPR = prIds.has(w.id);
           return (
@@ -189,6 +191,7 @@ export function LogTab({
                       distanceM={stravaDistanceM}
                       movingTimeS={computeWorkoutStravaMovingTimeS(w)}
                       avgSpeedMps={computeWorkoutStravaAvgSpeedMps(w)}
+                      mode={allCycling ? "speed" : "pace"}
                     />
                   ) : (
                     <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>

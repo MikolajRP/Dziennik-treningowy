@@ -32,6 +32,9 @@ export const computeWorkoutStravaElevationM = (w: Workout) =>
 
 const RUNNING_TYPES = new Set(["Run", "TrailRun"]);
 export const isRunningActivityType = (type: string) => RUNNING_TYPES.has(type);
+
+const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile", "Handcycle"]);
+export const isCyclingActivityType = (type: string) => CYCLING_TYPES.has(type);
 export const computeWorkoutRunningDistanceM = (w: Workout) =>
   (w.stravaActivities ?? []).filter((a) => isRunningActivityType(a.type)).reduce((s, a) => s + a.distanceM, 0);
 export const computeWorkoutRunningTimeS = (w: Workout) =>

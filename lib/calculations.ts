@@ -55,6 +55,10 @@ export function fmtPaceMinPerKm(mps: number): string {
   const sec = Math.round(secPerKm % 60);
   return `${min}:${String(sec).padStart(2, "0")}/km`;
 }
+export function fmtSpeedKmh(mps: number): string {
+  if (!mps) return "–";
+  return `${(mps * 3.6).toLocaleString("pl-PL", { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km/h`;
+}
 export function fmtKm(meters: number, digits = 2): string {
   return (
     (meters / 1000).toLocaleString("pl-PL", { minimumFractionDigits: digits, maximumFractionDigits: digits }) + " km"
