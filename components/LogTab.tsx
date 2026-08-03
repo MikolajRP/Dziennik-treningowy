@@ -62,6 +62,7 @@ export function LogTab({
   setMergeSourceId,
   onMergeConfirm,
   onDetachActivity,
+  readOnly = false,
 }: {
   showForm: boolean;
   startNew: () => void;
@@ -99,6 +100,7 @@ export function LogTab({
   setMergeSourceId: (id: string | null) => void;
   onMergeConfirm: (sourceId: string, targetId: string) => void;
   onDetachActivity: (activityRowId: string) => void;
+  readOnly?: boolean;
 }) {
   const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
 
@@ -112,13 +114,15 @@ export function LogTab({
               {Math.round(thisWeekTonnage).toLocaleString("pl-PL")} kg
             </div>
           </div>
-          <button onClick={startNew} className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm" style={{ fontFamily: FONT_MONO, background: INK, color: "#fff" }}>
-            <Plus size={16} /> Nowy trening
-          </button>
+          {!readOnly && (
+            <button onClick={startNew} className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm" style={{ fontFamily: FONT_MONO, background: INK, color: "#fff" }}>
+              <Plus size={16} /> Nowy trening
+            </button>
+          )}
         </div>
       )}
 
-      {showForm && (
+      {showForm && !readOnly && (
         <WorkoutForm
           draft={draft}
           setDraft={setDraft}
@@ -224,28 +228,30 @@ export function LogTab({
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 mt-3">
-                    <IconBtn onClick={() => startEdit(w)} title="Edytuj">
-                      <Pencil size={15} />
-                    </IconBtn>
-                    <IconBtn onClick={() => startDuplicate(w)} title="Duplikuj jako nowy trening">
-                      <Copy size={15} />
-                    </IconBtn>
-                    {hasStrava && (
-                      <IconBtn onClick={() => setMergeSourceId(w.id)} title="Połącz z innym treningiem">
-                        <Link2 size={15} />
+                  {!readOnly && (
+                    <div className="flex items-center gap-2 mt-3">
+                      <IconBtn onClick={() => startEdit(w)} title="Edytuj">
+                        <Pencil size={15} />
                       </IconBtn>
-                    )}
-                    {confirmDeleteId === w.id ? (
-                      <button onClick={() => deleteWorkout(w.id)} className="text-xs px-2 py-1 rounded" style={{ fontFamily: FONT_MONO, background: RUST, color: "#fff" }}>
-                        Na pewno usunąć?
-                      </button>
-                    ) : (
-                      <IconBtn onClick={() => setConfirmDeleteId(w.id)} title="Usuń" color={RUST}>
-                        <Trash2 size={15} />
+                      <IconBtn onClick={() => startDuplicate(w)} title="Duplikuj jako nowy trening">
+                        <Copy size={15} />
                       </IconBtn>
-                    )}
-                  </div>
+                      {hasStrava && (
+                        <IconBtn onClick={() => setMergeSourceId(w.id)} title="Połącz z innym treningiem">
+                          <Link2 size={15} />
+                        </IconBtn>
+                      )}
+                      {confirmDeleteId === w.id ? (
+                        <button onClick={() => deleteWorkout(w.id)} className="text-xs px-2 py-1 rounded" style={{ fontFamily: FONT_MONO, background: RUST, color: "#fff" }}>
+                          Na pewno usunąć?
+                        </button>
+                      ) : (
+                        <IconBtn onClick={() => setConfirmDeleteId(w.id)} title="Usuń" color={RUST}>
+                          <Trash2 size={15} />
+                        </IconBtn>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

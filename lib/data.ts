@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { Cycle, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { CoachAccess, Cycle, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
@@ -79,11 +79,10 @@ const cycleFromRow = (r: CycleRow): Cycle => ({
   end: r.end_date,
 });
 
-export async function fetchWorkouts(supabase: SupabaseClient): Promise<Workout[]> {
-  const { data, error } = await supabase
-    .from("workouts")
-    .select(WORKOUT_SELECT)
-    .order("date", { ascending: false });
+export async function fetchWorkouts(supabase: SupabaseClient, forUserId?: string): Promise<Workout[]> {
+  let query = supabase.from("workouts").select(WORKOUT_SELECT).order("date", { ascending: false });
+  if (forUserId) query = query.eq("user_id", forUserId);
+  const { data, error } = await query;
   if (error) throw error;
   return (data as unknown as WorkoutRow[]).map(workoutFromRow);
 }
@@ -163,13 +162,24 @@ export async function addCategoryRow(
   if (error) throw error;
 }
 
-export async function fetchCycles(supabase: SupabaseClient): Promise<Cycle[]> {
-  const { data, error } = await supabase
-    .from("cycles")
-    .select("id, name, type, start_date, end_date")
-    .order("start_date", { ascending: false });
+export async function fetchCycles(supabase: SupabaseClient, forUserId?: string): Promise<Cycle[]> {
+  let query = supabase.from("cycles").select("id, name, type, start_date, end_date").order("start_date", { ascending: false });
+  if (forUserId) query = query.eq("user_id", forUserId);
+  const { data, error } = await query;
   if (error) throw error;
   return (data as CycleRow[]).map(cycleFromRow);
+}
+
+// Read-only variant for a coach viewing an athlete — no seeding (a coach's
+// session can never insert rows owned by the athlete, RLS would reject it).
+export async function fetchCategoriesReadOnly(supabase: SupabaseClient, forUserId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("user_id", forUserId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data.map((r) => r.name as string);
 }
 
 export async function saveCycleRow(
@@ -310,4 +320,145 @@ export async function detachStravaActivity(
     sourceWorkoutId,
     sourceDeleted,
   };
+}
+
+// ---------- coach access ----------
+
+interface CoachAccessRow {
+  id: string;
+  athlete_user_id: string;
+  athlete_email: string;
+  coach_email: string;
+  coach_user_id: string | null;
+  status: CoachAccess["status"];
+  can_view_workouts: boolean;
+  can_view_reports: boolean;
+}
+
+const COACH_ACCESS_SELECT =
+  "id, athlete_user_id, athlete_email, coach_email, coach_user_id, status, can_view_workouts, can_view_reports";
+
+const coachAccessFromRow = (r: CoachAccessRow): CoachAccess => ({
+  id: r.id,
+  athleteUserId: r.athlete_user_id,
+  athleteEmail: r.athlete_email,
+  coachEmail: r.coach_email,
+  coachUserId: r.coach_user_id,
+  status: r.status,
+  canViewWorkouts: r.can_view_workouts,
+  canViewReports: r.can_view_reports,
+});
+
+// Grants this athlete has handed out (to coaches), for the athlete's own
+// management screen.
+export async function fetchCoachGrantsAsAthlete(
+  supabase: SupabaseClient,
+  athleteUserId: string
+): Promise<CoachAccess[]> {
+  const { data, error } = await supabase
+    .from("coach_access")
+    .select(COACH_ACCESS_SELECT)
+    .eq("athlete_user_id", athleteUserId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data as CoachAccessRow[]).map(coachAccessFromRow);
+}
+
+// Pending invites addressed to the current user's own email — shown as
+// "accept this invite" prompts.
+export async function fetchPendingInvitesForMe(
+  supabase: SupabaseClient,
+  myEmail: string
+): Promise<CoachAccess[]> {
+  const { data, error } = await supabase
+    .from("coach_access")
+    .select(COACH_ACCESS_SELECT)
+    .eq("coach_email", myEmail)
+    .eq("status", "pending");
+  if (error) throw error;
+  return (data as CoachAccessRow[]).map(coachAccessFromRow);
+}
+
+// Athletes this user has accepted a coach invite for — populates the
+// "podopieczni" picker.
+export async function fetchAthletesForCoach(supabase: SupabaseClient, coachUserId: string): Promise<CoachAccess[]> {
+  const { data, error } = await supabase
+    .from("coach_access")
+    .select(COACH_ACCESS_SELECT)
+    .eq("coach_user_id", coachUserId)
+    .eq("status", "active");
+  if (error) throw error;
+  return (data as CoachAccessRow[]).map(coachAccessFromRow);
+}
+
+// The specific grant a coach is viewing an athlete under — used to gate
+// the read-only view and decide which tabs to show.
+export async function fetchCoachGrantForAthlete(
+  supabase: SupabaseClient,
+  coachUserId: string,
+  athleteUserId: string
+): Promise<CoachAccess | null> {
+  const { data, error } = await supabase
+    .from("coach_access")
+    .select(COACH_ACCESS_SELECT)
+    .eq("coach_user_id", coachUserId)
+    .eq("athlete_user_id", athleteUserId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (error) throw error;
+  return data ? coachAccessFromRow(data as CoachAccessRow) : null;
+}
+
+export async function inviteCoach(
+  supabase: SupabaseClient,
+  athleteUserId: string,
+  athleteEmail: string,
+  coachEmail: string
+): Promise<CoachAccess> {
+  const { data, error } = await supabase
+    .from("coach_access")
+    .insert({
+      athlete_user_id: athleteUserId,
+      athlete_email: athleteEmail,
+      coach_email: coachEmail.trim().toLowerCase(),
+    })
+    .select(COACH_ACCESS_SELECT)
+    .single();
+  if (error) throw error;
+  return coachAccessFromRow(data as CoachAccessRow);
+}
+
+export async function acceptCoachInvite(
+  supabase: SupabaseClient,
+  id: string,
+  coachUserId: string
+): Promise<CoachAccess> {
+  const { data, error } = await supabase
+    .from("coach_access")
+    .update({ coach_user_id: coachUserId, status: "active" })
+    .eq("id", id)
+    .select(COACH_ACCESS_SELECT)
+    .single();
+  if (error) throw error;
+  return coachAccessFromRow(data as CoachAccessRow);
+}
+
+export async function updateCoachPermissions(
+  supabase: SupabaseClient,
+  id: string,
+  patch: { canViewWorkouts?: boolean; canViewReports?: boolean }
+): Promise<void> {
+  const { error } = await supabase
+    .from("coach_access")
+    .update({
+      ...(patch.canViewWorkouts !== undefined && { can_view_workouts: patch.canViewWorkouts }),
+      ...(patch.canViewReports !== undefined && { can_view_reports: patch.canViewReports }),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function revokeCoachAccess(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("coach_access").delete().eq("id", id);
+  if (error) throw error;
 }

@@ -131,3 +131,16 @@ export interface Cycle {
 }
 
 export type Period = "week" | "month" | "all" | "cycle" | "custom";
+
+export type CoachAccessStatus = "pending" | "active" | "revoked";
+
+export interface CoachAccess {
+  id: string;
+  athleteUserId: string;
+  athleteEmail: string;
+  coachEmail: string;
+  coachUserId: string | null;
+  status: CoachAccessStatus;
+  canViewWorkouts: boolean;
+  canViewReports: boolean;
+}

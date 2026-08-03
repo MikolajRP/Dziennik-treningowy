@@ -1,6 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { fetchCategories, fetchCycles, fetchStravaConnected, fetchWorkouts } from "@/lib/data";
+import {
+  fetchAthletesForCoach,
+  fetchCategories,
+  fetchCoachGrantsAsAthlete,
+  fetchCycles,
+  fetchPendingInvitesForMe,
+  fetchStravaConnected,
+  fetchWorkouts,
+} from "@/lib/data";
 import { Journal } from "@/components/Journal";
 
 export default async function Home() {
@@ -13,20 +21,28 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const [workouts, categories, cycles, stravaConnected] = await Promise.all([
-    fetchWorkouts(supabase),
-    fetchCategories(supabase, user.id),
-    fetchCycles(supabase),
-    fetchStravaConnected(supabase),
-  ]);
+  const [workouts, categories, cycles, stravaConnected, coachGrants, pendingInvites, athletesForCoach] =
+    await Promise.all([
+      fetchWorkouts(supabase),
+      fetchCategories(supabase, user.id),
+      fetchCycles(supabase),
+      fetchStravaConnected(supabase),
+      fetchCoachGrantsAsAthlete(supabase, user.id),
+      user.email ? fetchPendingInvitesForMe(supabase, user.email) : Promise.resolve([]),
+      fetchAthletesForCoach(supabase, user.id),
+    ]);
 
   return (
     <Journal
       userId={user.id}
+      userEmail={user.email ?? ""}
       initialWorkouts={workouts}
       initialCategories={categories}
       initialCycles={cycles}
       initialStravaConnected={stravaConnected}
+      initialCoachGrants={coachGrants}
+      initialPendingInvites={pendingInvites}
+      initialAthletesForCoach={athletesForCoach}
     />
   );
 }

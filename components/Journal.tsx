@@ -1,77 +1,69 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, Dumbbell, LogOut } from "lucide-react";
+import { BarChart3, BookOpen, Dumbbell, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
+  acceptCoachInvite,
   addCategoryRow,
   attachStravaActivities,
   deleteCycleRow,
   deleteWorkoutRow,
   detachStravaActivity,
+  inviteCoach,
+  revokeCoachAccess,
   saveCycleRow,
   saveWorkout as saveWorkoutRow,
+  updateCoachPermissions,
 } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
+import { CoachTab } from "./CoachTab";
 import {
   addDays,
   addExerciseToList,
   addSetInList,
-  collectKnownExerciseNames,
-  computePRIds,
-  computeWorkoutAerobicMinutes,
-  computeWorkoutFunctionalMinutes,
-  computeWorkoutIsometricTUT,
-  computeWorkoutPlyoReps,
-  computeWorkoutTonnage,
   emptyDraft,
-  fmtShort,
-  getRange,
-  groupByCategory,
   isLeafExerciseValid,
   cleanLeafExercise,
   removeExerciseFromList,
   removeSetInList,
-  startOfWeek,
   todayISO,
   toggleUnilateralInList,
   updateExerciseInList,
   updateSetInList,
 } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
-import type { Circuit, Cycle, LeafExercise, LeafKind, Period, Workout, WorkoutExercise } from "@/lib/types";
-import {
-  aggregateHrZones,
-  computeLast12WeeksRunning,
-  computeThisWeekRunning,
-  computeWorkoutRunningDistanceM,
-  computeWorkoutRunningTimeS,
-  computeWorkoutTotalMinutes,
-  groupDistanceByActivityType,
-  groupTimeByActivityType,
-} from "@/lib/stravaCalculations";
-import { computeTonnageByMuscleGroup } from "@/lib/muscleGroups";
+import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, Period, Workout, WorkoutExercise } from "@/lib/types";
+import { useReportsData } from "@/lib/useReportsData";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
 export function Journal({
   userId,
+  userEmail,
   initialWorkouts,
   initialCategories,
   initialCycles,
   initialStravaConnected,
+  initialCoachGrants,
+  initialPendingInvites,
+  initialAthletesForCoach,
 }: {
   userId: string;
+  userEmail: string;
   initialWorkouts: Workout[];
   initialCategories: string[];
   initialCycles: Cycle[];
   initialStravaConnected: boolean;
+  initialCoachGrants: CoachAccess[];
+  initialPendingInvites: CoachAccess[];
+  initialAthletesForCoach: CoachAccess[];
 }) {
   const supabase = useMemo(() => createClient(), []);
 
-  const [tab, setTab] = useState<"log" | "reports">("log");
+  const [tab, setTab] = useState<"log" | "reports" | "coach">("log");
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useState<string[]>(initialCategories);
@@ -80,6 +72,11 @@ export function Journal({
   // already up to date without needing client-side state.
   const stravaConnected = initialStravaConnected;
   const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+
+  const [coachGrants, setCoachGrants] = useState<CoachAccess[]>(initialCoachGrants);
+  const [pendingInvites, setPendingInvites] = useState<CoachAccess[]>(initialPendingInvites);
+  const [athletesForCoach] = useState<CoachAccess[]>(initialAthletesForCoach);
+  const [newCoachEmail, setNewCoachEmail] = useState("");
 
   useEffect(() => {
     if (window.location.search.includes("strava=")) {
@@ -270,6 +267,32 @@ export function Journal({
     setNewCategory("");
   }
 
+  // ---------- coach access ----------
+  async function handleInviteCoach() {
+    const email = newCoachEmail.trim().toLowerCase();
+    if (!email) return;
+    try {
+      const grant = await inviteCoach(supabase, userId, userEmail, email);
+      setCoachGrants((prev) => [...prev, grant]);
+      setNewCoachEmail("");
+    } catch {
+      // most likely: already invited this email (unique constraint) — ignore
+    }
+  }
+  async function handleAcceptInvite(id: string) {
+    const grant = await acceptCoachInvite(supabase, id, userId);
+    setPendingInvites((prev) => prev.filter((p) => p.id !== id));
+    setCoachGrants((prev) => [...prev, grant]);
+  }
+  async function handleTogglePermission(id: string, field: "canViewWorkouts" | "canViewReports", value: boolean) {
+    setCoachGrants((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
+    await updateCoachPermissions(supabase, id, { [field]: value });
+  }
+  async function handleRevokeCoach(id: string) {
+    await revokeCoachAccess(supabase, id);
+    setCoachGrants((prev) => prev.filter((g) => g.id !== id));
+  }
+
   // ---------- cycles ----------
   async function saveCycle() {
     if (!cycleDraft.name.trim()) return;
@@ -285,78 +308,36 @@ export function Journal({
   }
 
   // ---------- derived ----------
-  const prIds = useMemo(() => computePRIds(workouts), [workouts]);
-  const knownExerciseNames = useMemo(() => collectKnownExerciseNames(workouts), [workouts]);
-  const sortedWorkouts = useMemo(() => [...workouts].sort((a, b) => (a.date < b.date ? 1 : -1)), [workouts]);
-
-  const [rangeStart, rangeEnd] = useMemo(
-    () => getRange(period, cycles, selectedCycleId, customStart, customEnd),
-    [period, cycles, selectedCycleId, customStart, customEnd]
-  );
-  const filtered = useMemo(() => workouts.filter((w) => w.date >= rangeStart && w.date <= rangeEnd), [workouts, rangeStart, rangeEnd]);
-
-  const tonnageByCat = useMemo(() => groupByCategory(filtered, computeWorkoutTonnage), [filtered]);
-  const plyoByCat = useMemo(() => groupByCategory(filtered, computeWorkoutPlyoReps), [filtered]);
-  const isometricByCat = useMemo(() => groupByCategory(filtered, computeWorkoutIsometricTUT), [filtered]);
-  const functionalByCat = useMemo(() => groupByCategory(filtered, computeWorkoutFunctionalMinutes), [filtered]);
-  const aerobicByCat = useMemo(() => groupByCategory(filtered, computeWorkoutAerobicMinutes), [filtered]);
-
-  const totalTonnage = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutTonnage(w), 0), [filtered]);
-  const totalPlyoReps = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutPlyoReps(w), 0), [filtered]);
-  const totalIsometricTUT = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutIsometricTUT(w), 0), [filtered]);
-  const totalFunctionalMinutes = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutFunctionalMinutes(w), 0), [filtered]);
-  const totalAerobicMinutes = useMemo(() => filtered.reduce((s, w) => s + computeWorkoutAerobicMinutes(w), 0), [filtered]);
-
-  const weeklySeries = useMemo(() => {
-    const map: Record<string, number> = {};
-    filtered.forEach((w) => {
-      const key = startOfWeek(w.date);
-      map[key] = (map[key] || 0) + computeWorkoutTonnage(w);
-    });
-    return Object.entries(map)
-      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-      .map(([week, tonnage]) => ({ week: fmtShort(week), tonnage: Math.round(tonnage) }));
-  }, [filtered]);
-
-  const thisWeekTonnage = useMemo(() => {
-    const start = addDays(todayISO(), -6);
-    return workouts.filter((w) => w.date >= start).reduce((s, w) => s + computeWorkoutTonnage(w), 0);
-  }, [workouts]);
-
-  // ---------- running / Strava-derived report data ----------
-  const totalRunningKm = useMemo(
-    () => filtered.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000,
-    [filtered]
-  );
-  const totalRunningMinutes = useMemo(
-    () => filtered.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60,
-    [filtered]
-  );
-  const weeklyRunningKmSeries = useMemo(() => {
-    const map: Record<string, number> = {};
-    filtered.forEach((w) => {
-      const km = computeWorkoutRunningDistanceM(w) / 1000;
-      if (km <= 0) return;
-      const key = startOfWeek(w.date);
-      map[key] = (map[key] || 0) + km;
-    });
-    return Object.entries(map)
-      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-      .map(([week, km]) => ({ week: fmtShort(week), km: Math.round(km * 10) / 10 }));
-  }, [filtered]);
-  const kmByActivityType = useMemo(() => groupDistanceByActivityType(filtered), [filtered]);
-  const timeByActivityType = useMemo(() => groupTimeByActivityType(filtered), [filtered]);
-  const hrZones = useMemo(() => aggregateHrZones(filtered), [filtered]);
-  const totalOverallMinutes = useMemo(
-    () => filtered.reduce((s, w) => s + computeWorkoutTotalMinutes(w), 0),
-    [filtered]
-  );
-  const tonnageByMuscleGroup = useMemo(() => computeTonnageByMuscleGroup(filtered), [filtered]);
-
-  // Independent of the period filter — always "this calendar week" and
-  // "the trailing 12 weeks", matching Strava's own progress widget.
-  const thisWeekRunning = useMemo(() => computeThisWeekRunning(workouts), [workouts]);
-  const last12WeeksRunning = useMemo(() => computeLast12WeeksRunning(workouts), [workouts]);
+  const {
+    prIds,
+    knownExerciseNames,
+    sortedWorkouts,
+    rangeStart,
+    rangeEnd,
+    filtered,
+    tonnageByCat,
+    plyoByCat,
+    isometricByCat,
+    functionalByCat,
+    aerobicByCat,
+    totalTonnage,
+    totalPlyoReps,
+    totalIsometricTUT,
+    totalFunctionalMinutes,
+    totalAerobicMinutes,
+    weeklySeries,
+    thisWeekTonnage,
+    totalRunningKm,
+    totalRunningMinutes,
+    weeklyRunningKmSeries,
+    kmByActivityType,
+    timeByActivityType,
+    hrZones,
+    totalOverallMinutes,
+    tonnageByMuscleGroup,
+    thisWeekRunning,
+    last12WeeksRunning,
+  } = useReportsData(workouts, cycles, period, selectedCycleId, customStart, customEnd);
 
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
@@ -392,6 +373,21 @@ export function Journal({
             style={{ fontFamily: FONT_MONO, color: tab === "reports" ? INK : INK_SOFT, borderBottom: tab === "reports" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <BarChart3 size={14} /> RAPORTY
+          </button>
+          <button
+            onClick={() => setTab("coach")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "coach" ? INK : INK_SOFT, borderBottom: tab === "coach" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <Users size={14} /> TRENER
+            {pendingInvites.length > 0 && (
+              <span
+                className="rounded-full text-[10px] px-1.5"
+                style={{ fontFamily: FONT_MONO, background: "#A6402F", color: "#fff" }}
+              >
+                {pendingInvites.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -479,6 +475,20 @@ export function Journal({
             setCycleDraft={setCycleDraft}
             saveCycle={saveCycle}
             deleteCycle={deleteCycle}
+          />
+        )}
+
+        {tab === "coach" && (
+          <CoachTab
+            coachGrants={coachGrants}
+            pendingInvites={pendingInvites}
+            athletesForCoach={athletesForCoach}
+            newCoachEmail={newCoachEmail}
+            setNewCoachEmail={setNewCoachEmail}
+            onInvite={handleInviteCoach}
+            onAccept={handleAcceptInvite}
+            onTogglePermission={handleTogglePermission}
+            onRevoke={handleRevokeCoach}
           />
         )}
       </div>

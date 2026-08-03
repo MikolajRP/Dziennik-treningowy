@@ -86,6 +86,7 @@ export function ReportsTab({
   setCycleDraft,
   saveCycle,
   deleteCycle,
+  readOnly = false,
 }: {
   period: Period;
   setPeriod: (p: Period) => void;
@@ -126,6 +127,7 @@ export function ReportsTab({
   setCycleDraft: (updater: (c: Cycle) => Cycle) => void;
   saveCycle: () => void;
   deleteCycle: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const [subTab, setSubTab] = useState<ReportSubTab>("general");
 
@@ -467,14 +469,14 @@ export function ReportsTab({
       <div className="mt-6 pt-4" style={{ borderTop: `1px solid ${LINE}` }}>
         <div className="flex items-center justify-between mb-2">
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color: INK, fontWeight: 600 }}>CYKLE TRENINGOWE</div>
-          {!showCycleForm && (
+          {!readOnly && !showCycleForm && (
             <button onClick={() => setShowCycleForm(true)} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
               <Plus size={13} /> Dodaj cykl
             </button>
           )}
         </div>
 
-        {showCycleForm && (
+        {!readOnly && showCycleForm && (
           <div className="p-3 rounded-md mb-3" style={{ background: CARD, border: `1px solid ${INK}` }}>
             <Field label="Nazwa">
               <input
@@ -520,20 +522,22 @@ export function ReportsTab({
                   {c.type} · {fmtShort(c.start)} – {fmtShort(c.end)}
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <IconBtn
-                  onClick={() => {
-                    setCycleDraft(() => c);
-                    setShowCycleForm(true);
-                  }}
-                  title="Edytuj"
-                >
-                  <Pencil size={14} />
-                </IconBtn>
-                <IconBtn onClick={() => deleteCycle(c.id)} title="Usuń" color="#A6402F">
-                  <Trash2 size={14} />
-                </IconBtn>
-              </div>
+              {!readOnly && (
+                <div className="flex items-center gap-1">
+                  <IconBtn
+                    onClick={() => {
+                      setCycleDraft(() => c);
+                      setShowCycleForm(true);
+                    }}
+                    title="Edytuj"
+                  >
+                    <Pencil size={14} />
+                  </IconBtn>
+                  <IconBtn onClick={() => deleteCycle(c.id)} title="Usuń" color="#A6402F">
+                    <Trash2 size={14} />
+                  </IconBtn>
+                </div>
+              )}
             </div>
           ))}
         </div>
