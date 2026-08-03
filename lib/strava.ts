@@ -128,12 +128,25 @@ interface StravaDetailedActivity {
 // row and its linked `strava_activities` row. Used by the webhook (new
 // activity notifications) — every import gets its own standalone workout;
 // merging into other workouts is a separate, manual step (see lib/data.ts).
+//
+// Strava redelivers webhook events that didn't get a fast-enough response,
+// so this has to be safe to call twice for the same activity: it checks
+// for an existing row first (fast path), and if a duplicate still slips
+// through the race, it deletes the workout it just created instead of
+// leaving an orphaned empty one behind.
 export async function importStravaActivity(
   supabase: SupabaseClient,
   userId: string,
   stravaActivityId: number,
   category = "Cardio"
-) {
+): Promise<string | null> {
+  const { data: existing } = await supabase
+    .from("strava_activities")
+    .select("id")
+    .eq("strava_activity_id", stravaActivityId)
+    .maybeSingle();
+  if (existing) return null;
+
   const accessToken = await getValidAccessToken(supabase, userId);
   const activity = (await fetchStravaActivity(stravaActivityId, accessToken)) as StravaDetailedActivity;
   const hrZones = await fetchStravaHrZones(stravaActivityId, accessToken);
@@ -169,7 +182,14 @@ export async function importStravaActivity(
     hr_zones: hrZones,
     polyline: activity.map?.summary_polyline ?? null,
   });
-  if (activityError) throw activityError;
+  if (activityError) {
+    // Lost the race against a concurrent duplicate delivery — the other
+    // call owns this activity now, so don't leave this empty workout behind.
+    await supabase.from("workouts").delete().eq("id", workout.id);
+    const code = (activityError as { code?: string }).code;
+    if (code !== "23505") throw activityError;
+    return null;
+  }
 
   return workout.id as string;
 }
