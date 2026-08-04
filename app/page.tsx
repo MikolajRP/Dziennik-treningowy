@@ -22,7 +22,15 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const [workouts, categories, cycles, stravaConnected, coachGrants, pendingInvites, athletesForCoach, planEntries] =
+  // A coach account (this user has at least one accepted athlete) goes
+  // straight to that athlete's page — no "pick a podopieczny" step, since
+  // right now a coach only ever manages one athlete at a time.
+  const athletesForCoach = await fetchAthletesForCoach(supabase, user.id);
+  if (athletesForCoach.length > 0) {
+    redirect(`/coach/${athletesForCoach[0].athleteUserId}`);
+  }
+
+  const [workouts, categories, cycles, stravaConnected, coachGrants, pendingInvites, planEntries] =
     await Promise.all([
       fetchWorkouts(supabase),
       fetchCategories(supabase, user.id),
@@ -30,7 +38,6 @@ export default async function Home() {
       fetchStravaConnected(supabase),
       fetchCoachGrantsAsAthlete(supabase, user.id),
       user.email ? fetchPendingInvitesForMe(supabase, user.email) : Promise.resolve([]),
-      fetchAthletesForCoach(supabase, user.id),
       fetchPlanEntries(supabase, user.id),
     ]);
 
