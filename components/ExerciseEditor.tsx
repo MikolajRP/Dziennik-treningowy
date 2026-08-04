@@ -171,11 +171,11 @@ export function ExerciseEditor({
                   <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>s ×</span>
                   <input
                     type="text"
-                    placeholder="kg / mc"
-                    title="Podaj kg albo wpisz mc (masa ciała) — mc nie liczy się do tonażu"
+                    placeholder="kg (puste = mc)"
+                    title="Podaj kg, albo zostaw puste / wpisz mc dla masy ciała — nie liczy się do tonażu"
                     value={s.weight}
                     onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
-                    className="w-20 px-2 py-1 rounded text-sm"
+                    className="w-24 px-2 py-1 rounded text-sm"
                     style={inputStyle}
                   />
                   {!isBodyweight(s.weight) && (
@@ -198,11 +198,11 @@ export function ExerciseEditor({
                       <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 12, color: INK_SOFT }}>×</span>
                       <input
                         type="text"
-                        placeholder="kg / mc"
-                        title="Podaj kg albo wpisz mc (masa ciała) — mc nie liczy się do tonażu"
+                        placeholder="kg (puste = mc)"
+                        title="Podaj kg, albo zostaw puste / wpisz mc dla masy ciała — nie liczy się do tonażu"
                         value={s.weight}
                         onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
-                        className="w-20 px-2 py-1 rounded text-sm"
+                        className="w-24 px-2 py-1 rounded text-sm"
                         style={inputStyle}
                       />
                       {!isBodyweight(s.weight) && (

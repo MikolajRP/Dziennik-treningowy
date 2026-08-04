@@ -47,9 +47,14 @@ export const num = (v: unknown) =>
   v === "" || v === null || v === undefined || isNaN(Number(v)) ? 0 : Number(v);
 
 // "mc" (masa ciała / bodyweight) in the weight field means "just my own
-// body" — no known kg figure, so num() already resolves it to 0 and it
-// naturally drops out of tonnage. This just controls how it's displayed.
-export const isBodyweight = (weight: string) => weight.trim().toLowerCase() === "mc";
+// body" — no known kg figure, so num() already resolves it (and a blank
+// field) to 0 and it naturally drops out of tonnage. Leaving the field
+// blank is treated the same as typing "mc" explicitly; this just controls
+// how either is displayed.
+export const isBodyweight = (weight: string) => {
+  const w = weight.trim().toLowerCase();
+  return w === "" || w === "mc";
+};
 export const fmtWeight = (weight: string) => (isBodyweight(weight) ? "mc" : `${weight}kg`);
 
 // ---------- Strava-oriented formatting helpers ----------
