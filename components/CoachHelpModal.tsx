@@ -62,8 +62,7 @@ export function CoachHelpModal({ open, onClose }: { open: boolean; onClose: () =
           </Section>
 
           <Section title="Zakładka Notatki">
-            Prywatne notatki pod konkretnymi dniami — widoczne wyłącznie dla Ciebie, nigdy dla zawodnika (ani
-            dla innego trenera tego samego zawodnika, jeśli taki jest).
+            Prywatne notatki pod konkretnymi dniami — widoczne wyłącznie dla Ciebie, nigdy dla zawodnika.
           </Section>
 
           <Section title="Zakładka Dziennik">
@@ -71,8 +70,7 @@ export function CoachHelpModal({ open, onClose }: { open: boolean; onClose: () =
           </Section>
 
           <Section title="Zakładka Raporty">
-            Statystyki i wykresy zawodnika (jeśli masz do nich dostęp — zależy od uprawnień nadanych przez
-            zawodnika).
+            Statystyki i wykresy zawodnika.
           </Section>
 
           <Section title="Imię i nazwisko zawodnika">

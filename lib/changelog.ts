@@ -9,7 +9,7 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-04",
-    text: "Szkice, notatki i ukryte cykle są teraz prywatne — widzi je tylko trener, który je stworzył, nawet jeśli zawodnik ma więcej niż jednego trenera.",
+    text: "Szkice, notatki i ukryte cykle są teraz w pełni prywatne.",
   },
   {
     date: "2026-08-04",
