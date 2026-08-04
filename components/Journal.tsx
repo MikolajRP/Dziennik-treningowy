@@ -218,7 +218,8 @@ export function Journal({
       })
       .filter((ex) => (ex.kind === "circuit" ? ex.elements.length > 0 : isLeafExerciseValid(ex)));
 
-    if (cleanedExercises.length === 0) {
+    const hasStravaActivity = (draft.stravaActivities?.length ?? 0) > 0;
+    if (cleanedExercises.length === 0 && !hasStravaActivity) {
       setFormError("Dodaj przynajmniej jedno ćwiczenie z nazwą i wypełnioną serią (albo minutami), zanim zapiszesz trening.");
       return;
     }

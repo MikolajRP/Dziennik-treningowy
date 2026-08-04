@@ -11,12 +11,19 @@ import type {
 export const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+// Formats a Date's *local* calendar day as yyyy-mm-dd. Deliberately not
+// `.toISOString().slice(0, 10)` — that reads the UTC day, which is one day
+// behind local midnight in any positive-UTC-offset timezone (e.g. Poland),
+// silently shifting every date this touches back by a day.
+const toISODate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export const todayISO = () => toISODate(new Date());
 
 export const addDays = (iso: string, n: number) => {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return toISODate(d);
 };
 
 export const fmtDate = (iso: string) => {
@@ -33,7 +40,7 @@ export const startOfWeek = (iso: string) => {
   const d = new Date(iso + "T00:00:00");
   const day = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - day);
-  return d.toISOString().slice(0, 10);
+  return toISODate(d);
 };
 
 export const num = (v: unknown) =>

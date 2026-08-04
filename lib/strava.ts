@@ -150,13 +150,27 @@ export async function importStravaActivity(
   const accessToken = await getValidAccessToken(supabase, userId);
   const activity = (await fetchStravaActivity(stravaActivityId, accessToken)) as StravaDetailedActivity;
   const hrZones = await fetchStravaHrZones(stravaActivityId, accessToken);
+  const workoutDate = activity.start_date.slice(0, 10);
+
+  // If a coach planned something for this date, use their description as
+  // the imported workout's name — saves the athlete re-typing what it was.
+  const { data: planEntry } = await supabase
+    .from("plan_entries")
+    .select("notes")
+    .eq("athlete_user_id", userId)
+    .eq("date", workoutDate)
+    .order("slot", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const planName = planEntry?.notes?.trim() || null;
 
   const { data: workout, error: workoutError } = await supabase
     .from("workouts")
     .insert({
       user_id: userId,
-      date: activity.start_date.slice(0, 10),
+      date: workoutDate,
       category,
+      name: planName,
       notes: "",
       exercises: [],
     })
