@@ -158,9 +158,6 @@ export interface ThisWeekRunning {
   km: number;
   minutes: number;
   elevationM: number;
-  // Total training time this calendar week across every activity, not
-  // just running — used by the Dziennik tab's "ten tydzień" card.
-  totalMinutes: number;
 }
 export function computeThisWeekRunning(allWorkouts: Workout[]): ThisWeekRunning {
   const today = todayISO();
@@ -170,7 +167,6 @@ export function computeThisWeekRunning(allWorkouts: Workout[]): ThisWeekRunning 
     km: inWeek.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000,
     minutes: inWeek.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60,
     elevationM: inWeek.reduce((s, w) => s + computeWorkoutRunningElevationM(w), 0),
-    totalMinutes: inWeek.reduce((s, w) => s + computeWorkoutTotalMinutes(w), 0),
   };
 }
 
