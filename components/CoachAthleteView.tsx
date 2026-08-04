@@ -39,7 +39,7 @@ export function CoachAthleteView({
 }) {
   const supabase = useMemo(() => createClient(), []);
 
-  const [tab, setTab] = useState<"log" | "reports" | "plan">("log");
+  const [tab, setTab] = useState<"log" | "reports" | "plan">("plan");
 
   const [period, setPeriod] = useState<Period>("week");
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
@@ -172,6 +172,13 @@ export function CoachAthleteView({
         </div>
         <div className="flex gap-4 mt-3">
           <button
+            onClick={() => setTab("plan")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <CalendarDays size={14} /> PLAN
+          </button>
+          <button
             onClick={() => setTab("log")}
             className="flex items-center gap-1.5 pb-2 text-sm"
             style={{ fontFamily: FONT_MONO, color: tab === "log" ? INK : INK_SOFT, borderBottom: tab === "log" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
@@ -187,13 +194,6 @@ export function CoachAthleteView({
               <BarChart3 size={14} /> RAPORTY
             </button>
           )}
-          <button
-            onClick={() => setTab("plan")}
-            className="flex items-center gap-1.5 pb-2 text-sm"
-            style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <CalendarDays size={14} /> PLAN
-          </button>
         </div>
       </div>
 

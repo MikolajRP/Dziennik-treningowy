@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORIES } from "./design";
 import type { CoachAccess, Cycle, PlanEntry, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
-  "id, date, category, name, subtitle, notes, exercises, duration_minutes, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
+  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
 
 interface StravaActivityRow {
   id: string;
@@ -31,6 +31,7 @@ interface WorkoutRow {
   notes: string | null;
   exercises: WorkoutExercise[];
   duration_minutes: number | null;
+  time_of_day: Workout["timeOfDay"] | null;
   strava_activities: StravaActivityRow[] | null;
 }
 interface CycleRow {
@@ -68,6 +69,7 @@ const workoutFromRow = (r: WorkoutRow): Workout => ({
   notes: r.notes ?? "",
   exercises: r.exercises ?? [],
   durationMinutes: r.duration_minutes ?? undefined,
+  timeOfDay: r.time_of_day ?? undefined,
   stravaActivities: (r.strava_activities ?? []).map(stravaActivityFromRow),
 });
 
@@ -104,6 +106,7 @@ export async function saveWorkout(
         notes: workout.notes,
         exercises: workout.exercises,
         duration_minutes: workout.durationMinutes ?? null,
+        time_of_day: workout.timeOfDay ?? null,
       })
       .eq("id", editingId)
       .select(WORKOUT_SELECT)
@@ -122,6 +125,7 @@ export async function saveWorkout(
       notes: workout.notes,
       exercises: workout.exercises,
       duration_minutes: workout.durationMinutes ?? null,
+      time_of_day: workout.timeOfDay ?? null,
     })
     .select(WORKOUT_SELECT)
     .single();

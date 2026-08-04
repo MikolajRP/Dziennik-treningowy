@@ -70,6 +70,8 @@ export interface Circuit {
 
 export type WorkoutExercise = LeafExercise | Circuit;
 
+export type TimeOfDay = "rano" | "popołudnie";
+
 export interface Workout {
   id: string;
   date: string; // ISO yyyy-mm-dd
@@ -79,6 +81,7 @@ export interface Workout {
   notes: string;
   exercises: WorkoutExercise[];
   durationMinutes?: number;
+  timeOfDay?: TimeOfDay; // lets two same-day workouts be told apart
   stravaActivities?: StravaActivity[];
 }
 

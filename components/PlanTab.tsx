@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { addDays, fmtShort, startOfWeek, todayISO } from "@/lib/calculations";
 import { entriesForDate, type PlanEntryStatus } from "@/lib/planCalculations";
 import {
@@ -24,6 +24,32 @@ const WEEKDAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
 const SLOT_LABEL: Record<PlanEntry["slot"], string> = { am: "RANO", pm: "PO POŁUDNIU", full: "" };
 const STATUS_COLOR: Record<PlanEntryStatus, string> = { planned: PLAN_FUTURE, done: PLAN_DONE, missed: PLAN_MISSED };
 const STATUS_LABEL: Record<PlanEntryStatus, string> = { planned: "zaplanowany", done: "wykonany", missed: "niewykonany" };
+
+const startOfMonth = (iso: string) => iso.slice(0, 8) + "01";
+const addMonths = (iso: string, n: number) => {
+  const [y, m] = iso.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+const daysInMonth = (monthStart: string) => {
+  const [y, m] = monthStart.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+};
+const monthLabel = (monthStart: string) => {
+  const [y, m] = monthStart.split("-").map(Number);
+  const label = new Date(y, m - 1, 1).toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+const getMonthWeeks = (monthStart: string) => {
+  const lastOfMonth = monthStart.slice(0, 8) + String(daysInMonth(monthStart)).padStart(2, "0");
+  const weeks: string[] = [];
+  let cur = startOfWeek(monthStart);
+  while (cur <= lastOfMonth) {
+    weeks.push(cur);
+    cur = addDays(cur, 7);
+  }
+  return weeks;
+};
 
 function PlanEntryCard({
   entry,
@@ -151,117 +177,136 @@ export function PlanTab({
   deleteCycle: (id: string) => void;
 }) {
   const today = todayISO();
-  const [weekStart, setWeekStart] = useState(startOfWeek(today));
-  const [expanded, setExpanded] = useState(false);
-
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const [monthStart, setMonthStart] = useState(startOfMonth(today));
+  const [expandedWeekStart, setExpandedWeekStart] = useState<string | null>(null);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <IconBtn onClick={() => setWeekStart((w) => addDays(w, -7))} title="Poprzedni tydzień">
+        <IconBtn onClick={() => setMonthStart((m) => addMonths(m, -1))} title="Poprzedni miesiąc">
           <ChevronLeft size={18} />
         </IconBtn>
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded"
-          style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK }}
-        >
-          {fmtShort(weekStart)} – {fmtShort(addDays(weekStart, 6))}
-          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-        </button>
-        <IconBtn onClick={() => setWeekStart((w) => addDays(w, 7))} title="Następny tydzień">
+        <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 600 }}>{monthLabel(monthStart)}</div>
+        <IconBtn onClick={() => setMonthStart((m) => addMonths(m, 1))} title="Następny miesiąc">
           <ChevronRight size={18} />
         </IconBtn>
       </div>
 
-      {weekStart !== startOfWeek(today) && (
+      {monthStart !== startOfMonth(today) && (
         <div className="text-center mb-3">
           <button
-            onClick={() => setWeekStart(startOfWeek(today))}
+            onClick={() => setMonthStart(startOfMonth(today))}
             className="text-xs"
             style={{ fontFamily: FONT_MONO, color: INK_SOFT, textDecoration: "underline" }}
           >
-            Wróć do bieżącego tygodnia
+            Wróć do bieżącego miesiąca
           </button>
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-1 mb-4">
-        {weekDates.map((date, i) => {
-          const statuses = entriesForDate(planEntries, workouts, date).map((e) => e.status);
-          const isToday = date === today;
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {WEEKDAY_LABELS.map((l) => (
+          <div key={l} className="text-center" style={{ fontFamily: FONT_MONO, fontSize: 9, color: INK_SOFT }}>
+            {l}
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-6">
+        {getMonthWeeks(monthStart).map((weekStart) => {
+          const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+          const isExpanded = expandedWeekStart === weekStart;
           return (
-            <button
-              key={date}
-              onClick={() => setExpanded(true)}
-              className="flex flex-col items-center py-2 rounded-md"
-              style={{ background: isToday ? "#FBF6EC" : CARD, border: `1px solid ${isToday ? MUSTARD : LINE}` }}
-            >
-              <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: INK_SOFT }}>{WEEKDAY_LABELS[i]}</div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: INK, fontWeight: 600 }}>
-                {date.slice(8, 10)}
-              </div>
-              <div className="flex gap-0.5 mt-1" style={{ minHeight: 4 }}>
-                {statuses.map((s, si) => (
-                  <div key={si} style={{ width: 10, height: 3, borderRadius: 2, background: STATUS_COLOR[s] }} />
-                ))}
-              </div>
-            </button>
+            <div key={weekStart} className="mb-1">
+              <button
+                onClick={() => setExpandedWeekStart(isExpanded ? null : weekStart)}
+                className="grid grid-cols-7 gap-1 w-full rounded-md p-0.5"
+                style={{ background: isExpanded ? "#FBF6EC" : "transparent", border: `1px solid ${isExpanded ? MUSTARD : "transparent"}` }}
+              >
+                {weekDates.map((date) => {
+                  const inMonth = date.slice(0, 7) === monthStart.slice(0, 7);
+                  const statuses = entriesForDate(planEntries, workouts, date).map((e) => e.status);
+                  const isToday = date === today;
+                  return (
+                    <div
+                      key={date}
+                      className="flex flex-col items-center py-1.5 rounded-md"
+                      style={{
+                        background: isToday ? "#fff" : "transparent",
+                        border: `1px solid ${isToday ? MUSTARD : "transparent"}`,
+                        opacity: inMonth ? 1 : 0.35,
+                      }}
+                    >
+                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: INK, fontWeight: 600 }}>
+                        {date.slice(8, 10)}
+                      </div>
+                      <div className="flex gap-0.5 mt-0.5" style={{ minHeight: 4 }}>
+                        {statuses.map((s, si) => (
+                          <div key={si} style={{ width: 8, height: 3, borderRadius: 2, background: STATUS_COLOR[s] }} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </button>
+
+              {isExpanded && (
+                <div className="space-y-2 mt-1.5 mb-2">
+                  {weekDates.map((date, i) => {
+                    const dayEntries = entriesForDate(planEntries, workouts, date);
+                    const canAdd = editable && date >= today;
+                    return (
+                      <div key={date} className="p-2.5 rounded-md" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
+                        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600, marginBottom: 6 }}>
+                          {WEEKDAY_LABELS[i]} {fmtShort(date)}
+                        </div>
+
+                        {dayEntries.map(({ entry, status, matchedWorkoutId }) => (
+                          <PlanEntryCard
+                            key={entry.id}
+                            entry={entry}
+                            status={status}
+                            matchedWorkoutId={matchedWorkoutId}
+                            categories={categories}
+                            editable={editable}
+                            onUpdateEntry={onUpdateEntry}
+                            onDeleteEntry={onDeleteEntry}
+                            onJumpToWorkout={onJumpToWorkout}
+                          />
+                        ))}
+
+                        {dayEntries.length === 0 && (
+                          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: canAdd ? 6 : 0 }}>
+                            Brak planu
+                          </div>
+                        )}
+                        {canAdd && dayEntries.length === 0 && (
+                          <button
+                            onClick={() => onAddEntry(date)}
+                            className="flex items-center gap-1 text-xs px-2 py-1 rounded"
+                            style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
+                          >
+                            <Plus size={12} /> Dodaj plan
+                          </button>
+                        )}
+                        {canAdd && dayEntries.length === 1 && (
+                          <button
+                            onClick={() => onAddSecond(date, dayEntries[0].entry.id)}
+                            className="flex items-center gap-1 text-xs px-2 py-1 rounded"
+                            style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
+                          >
+                            <Plus size={12} /> Drugi trening (rano / po południu)
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
-
-      {expanded && (
-        <div className="space-y-2 mb-6">
-          {weekDates.map((date, i) => {
-            const dayEntries = entriesForDate(planEntries, workouts, date);
-            return (
-              <div key={date} className="p-2.5 rounded-md" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600, marginBottom: 6 }}>
-                  {WEEKDAY_LABELS[i]} {fmtShort(date)}
-                </div>
-
-                {dayEntries.map(({ entry, status, matchedWorkoutId }) => (
-                  <PlanEntryCard
-                    key={entry.id}
-                    entry={entry}
-                    status={status}
-                    matchedWorkoutId={matchedWorkoutId}
-                    categories={categories}
-                    editable={editable}
-                    onUpdateEntry={onUpdateEntry}
-                    onDeleteEntry={onDeleteEntry}
-                    onJumpToWorkout={onJumpToWorkout}
-                  />
-                ))}
-
-                {editable && dayEntries.length === 0 && (
-                  <button
-                    onClick={() => onAddEntry(date)}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded"
-                    style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
-                  >
-                    <Plus size={12} /> Dodaj plan
-                  </button>
-                )}
-                {editable && dayEntries.length === 1 && (
-                  <button
-                    onClick={() => onAddSecond(date, dayEntries[0].entry.id)}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded"
-                    style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
-                  >
-                    <Plus size={12} /> Drugi trening (rano / po południu)
-                  </button>
-                )}
-                {!editable && dayEntries.length === 0 && (
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>Brak planu</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       <div className="pt-3" style={{ borderTop: `1px solid ${LINE}` }}>
         <div className="flex items-center justify-between mb-2">

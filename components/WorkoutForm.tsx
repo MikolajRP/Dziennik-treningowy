@@ -153,6 +153,20 @@ export function WorkoutForm({
         </button>
       </Field>
 
+      <Field label="Pora dnia (opcjonalnie)">
+        <div className="flex gap-1.5">
+          <Chip active={draft.timeOfDay === "rano"} onClick={() => setDraft((d) => ({ ...d, timeOfDay: d.timeOfDay === "rano" ? undefined : "rano" }))}>
+            Rano
+          </Chip>
+          <Chip
+            active={draft.timeOfDay === "popołudnie"}
+            onClick={() => setDraft((d) => ({ ...d, timeOfDay: d.timeOfDay === "popołudnie" ? undefined : "popołudnie" }))}
+          >
+            Popołudnie
+          </Chip>
+        </div>
+      </Field>
+
       <Field label="Czas trwania treningu w minutach (opcjonalnie)">
         <input
           type="number"
