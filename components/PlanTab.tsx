@@ -158,6 +158,7 @@ export function PlanTab({
   setCycleDraft,
   saveCycle,
   deleteCycle,
+  error,
 }: {
   planEntries: PlanEntry[];
   workouts: Workout[];
@@ -175,6 +176,7 @@ export function PlanTab({
   setCycleDraft: (updater: (c: Cycle) => Cycle) => void;
   saveCycle: () => void;
   deleteCycle: (id: string) => void;
+  error?: string | null;
 }) {
   const today = todayISO();
   const [monthStart, setMonthStart] = useState(startOfMonth(today));
@@ -182,6 +184,15 @@ export function PlanTab({
 
   return (
     <div>
+      {error && (
+        <div
+          className="text-xs mb-3 px-2 py-1.5 rounded"
+          style={{ fontFamily: FONT_MONO, background: "#FBEAE7", color: PLAN_MISSED, border: `1px solid ${PLAN_MISSED}` }}
+        >
+          {error}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-3">
         <IconBtn onClick={() => setMonthStart((m) => addMonths(m, -1))} title="Poprzedni miesiąc">
           <ChevronLeft size={18} />

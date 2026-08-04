@@ -47,6 +47,9 @@ export function CoachAthleteView({
   const [customEnd, setCustomEnd] = useState(todayISO());
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const [planError, setPlanError] = useState<string | null>(null);
+  const SAVE_ERROR = "Nie udało się zapisać — spróbuj ponownie.";
+
   const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
   const [showCycleForm, setShowCycleForm] = useState(false);
   const [cycleDraft, setCycleDraftState] = useState<Cycle>({
@@ -61,45 +64,75 @@ export function CoachAthleteView({
   }
   async function saveCycle() {
     if (!cycleDraft.name.trim()) return;
-    const saved = await saveCycleRow(supabase, athleteUserId, cycleDraft);
-    setCycles((prev) => (cycleDraft.id ? prev.map((c) => (c.id === saved.id ? saved : c)) : [...prev, saved]));
-    setShowCycleForm(false);
-    setCycleDraftState({ id: "", name: "", type: "mezocykl", start: todayISO(), end: addDays(todayISO(), 27) });
+    setPlanError(null);
+    try {
+      const saved = await saveCycleRow(supabase, athleteUserId, cycleDraft);
+      setCycles((prev) => (cycleDraft.id ? prev.map((c) => (c.id === saved.id ? saved : c)) : [...prev, saved]));
+      setShowCycleForm(false);
+      setCycleDraftState({ id: "", name: "", type: "mezocykl", start: todayISO(), end: addDays(todayISO(), 27) });
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
   }
   async function deleteCycle(id: string) {
-    await deleteCycleRow(supabase, id);
-    setCycles((prev) => prev.filter((c) => c.id !== id));
-    if (selectedCycleId === id) setSelectedCycleId(null);
+    setPlanError(null);
+    try {
+      await deleteCycleRow(supabase, id);
+      setCycles((prev) => prev.filter((c) => c.id !== id));
+      if (selectedCycleId === id) setSelectedCycleId(null);
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
   }
 
   const [planEntries, setPlanEntries] = useState<PlanEntry[]>(initialPlanEntries);
   async function handleAddEntry(date: string) {
-    const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
-      date,
-      slot: "full",
-      category: categories[0] ?? "",
-      notes: "",
-    });
-    setPlanEntries((prev) => [...prev, entry]);
+    setPlanError(null);
+    try {
+      const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
+        date,
+        slot: "full",
+        category: categories[0] ?? "",
+        notes: "",
+      });
+      setPlanEntries((prev) => [...prev, entry]);
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
   }
   async function handleAddSecond(date: string, firstEntryId: string) {
-    await updatePlanEntry(supabase, firstEntryId, { slot: "am" });
-    setPlanEntries((prev) => prev.map((e) => (e.id === firstEntryId ? { ...e, slot: "am" } : e)));
-    const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
-      date,
-      slot: "pm",
-      category: categories[0] ?? "",
-      notes: "",
-    });
-    setPlanEntries((prev) => [...prev, entry]);
+    setPlanError(null);
+    try {
+      await updatePlanEntry(supabase, firstEntryId, { slot: "am" });
+      setPlanEntries((prev) => prev.map((e) => (e.id === firstEntryId ? { ...e, slot: "am" } : e)));
+      const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
+        date,
+        slot: "pm",
+        category: categories[0] ?? "",
+        notes: "",
+      });
+      setPlanEntries((prev) => [...prev, entry]);
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
   }
   async function handleUpdateEntry(id: string, patch: { category?: string; notes?: string }) {
+    setPlanError(null);
     setPlanEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-    await updatePlanEntry(supabase, id, patch);
+    try {
+      await updatePlanEntry(supabase, id, patch);
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
   }
   async function handleDeleteEntry(id: string) {
-    await deletePlanEntry(supabase, id);
-    setPlanEntries((prev) => prev.filter((e) => e.id !== id));
+    setPlanError(null);
+    try {
+      await deletePlanEntry(supabase, id);
+      setPlanEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
   }
 
   function jumpToWorkout(workoutId: string) {
@@ -303,6 +336,7 @@ export function CoachAthleteView({
             setCycleDraft={setCycleDraft}
             saveCycle={saveCycle}
             deleteCycle={deleteCycle}
+            error={planError}
           />
         )}
       </div>
