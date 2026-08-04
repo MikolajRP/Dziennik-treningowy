@@ -275,6 +275,7 @@ export function CoachAthleteView({
             deleteWorkout={noop}
             prIds={prIds}
             thisWeekKm={thisWeekRunning.km}
+            thisWeekTotalMinutes={thisWeekRunning.totalMinutes}
             formError={null}
             saveStatus={null}
             knownExerciseNames={knownExerciseNames}

@@ -461,6 +461,7 @@ export function Journal({
             deleteWorkout={deleteWorkout}
             prIds={prIds}
             thisWeekKm={thisWeekRunning.km}
+            thisWeekTotalMinutes={thisWeekRunning.totalMinutes}
             formError={formError}
             saveStatus={saveStatus}
             knownExerciseNames={knownExerciseNames}

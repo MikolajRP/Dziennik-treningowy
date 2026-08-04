@@ -9,6 +9,7 @@ import {
   computeWorkoutTonnage,
   fmtDate,
   fmtDurationShort,
+  fmtMinutesLong,
 } from "@/lib/calculations";
 import {
   computeWorkoutStravaAvgSpeedMps,
@@ -55,6 +56,7 @@ export function LogTab({
   deleteWorkout,
   prIds,
   thisWeekKm,
+  thisWeekTotalMinutes,
   formError,
   saveStatus,
   knownExerciseNames,
@@ -93,6 +95,7 @@ export function LogTab({
   deleteWorkout: (id: string) => void;
   prIds: Set<string>;
   thisWeekKm: number;
+  thisWeekTotalMinutes: number;
   formError: string | null;
   saveStatus: "saving" | null;
   knownExerciseNames: string[];
@@ -119,8 +122,13 @@ export function LogTab({
         <div className="mb-4 p-3 rounded-md flex items-center justify-between" style={{ background: CARD, border: `1px solid ${LINE}` }}>
           <div style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 12 }}>
             TEN TYDZIEŃ
-            <div style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 22, fontWeight: 600 }}>
-              {thisWeekKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km biegowe
+            <div className="flex items-baseline gap-2 flex-wrap mt-0.5">
+              <span style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 20, fontWeight: 600 }}>
+                Dystans: {thisWeekKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km
+              </span>
+              <span style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 11 }}>
+                czas treningów: {fmtMinutesLong(thisWeekTotalMinutes)}
+              </span>
             </div>
           </div>
           {!readOnly && (
