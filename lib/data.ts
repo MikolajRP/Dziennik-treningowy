@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { CoachAccess, Cycle, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { CoachAccess, Cycle, PlanEntry, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
@@ -333,10 +333,11 @@ interface CoachAccessRow {
   status: CoachAccess["status"];
   can_view_workouts: boolean;
   can_view_reports: boolean;
+  can_edit_plan: boolean;
 }
 
 const COACH_ACCESS_SELECT =
-  "id, athlete_user_id, athlete_email, coach_email, coach_user_id, status, can_view_workouts, can_view_reports";
+  "id, athlete_user_id, athlete_email, coach_email, coach_user_id, status, can_view_workouts, can_view_reports, can_edit_plan";
 
 const coachAccessFromRow = (r: CoachAccessRow): CoachAccess => ({
   id: r.id,
@@ -347,6 +348,7 @@ const coachAccessFromRow = (r: CoachAccessRow): CoachAccess => ({
   status: r.status,
   canViewWorkouts: r.can_view_workouts,
   canViewReports: r.can_view_reports,
+  canEditPlan: r.can_edit_plan,
 });
 
 // Grants this athlete has handed out (to coaches), for the athlete's own
@@ -446,13 +448,14 @@ export async function acceptCoachInvite(
 export async function updateCoachPermissions(
   supabase: SupabaseClient,
   id: string,
-  patch: { canViewWorkouts?: boolean; canViewReports?: boolean }
+  patch: { canViewWorkouts?: boolean; canViewReports?: boolean; canEditPlan?: boolean }
 ): Promise<void> {
   const { error } = await supabase
     .from("coach_access")
     .update({
       ...(patch.canViewWorkouts !== undefined && { can_view_workouts: patch.canViewWorkouts }),
       ...(patch.canViewReports !== undefined && { can_view_reports: patch.canViewReports }),
+      ...(patch.canEditPlan !== undefined && { can_edit_plan: patch.canEditPlan }),
     })
     .eq("id", id);
   if (error) throw error;
@@ -460,5 +463,82 @@ export async function updateCoachPermissions(
 
 export async function revokeCoachAccess(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("coach_access").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------- training plan ----------
+
+interface PlanEntryRow {
+  id: string;
+  athlete_user_id: string;
+  created_by: string;
+  date: string;
+  slot: PlanEntry["slot"];
+  category: string;
+  notes: string;
+}
+
+const PLAN_ENTRY_SELECT = "id, athlete_user_id, created_by, date, slot, category, notes";
+
+const planEntryFromRow = (r: PlanEntryRow): PlanEntry => ({
+  id: r.id,
+  athleteUserId: r.athlete_user_id,
+  createdBy: r.created_by,
+  date: r.date,
+  slot: r.slot,
+  category: r.category,
+  notes: r.notes,
+});
+
+export async function fetchPlanEntries(supabase: SupabaseClient, athleteUserId: string): Promise<PlanEntry[]> {
+  const { data, error } = await supabase
+    .from("plan_entries")
+    .select(PLAN_ENTRY_SELECT)
+    .eq("athlete_user_id", athleteUserId)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return (data as PlanEntryRow[]).map(planEntryFromRow);
+}
+
+export async function addPlanEntry(
+  supabase: SupabaseClient,
+  athleteUserId: string,
+  coachUserId: string,
+  entry: { date: string; slot: PlanEntry["slot"]; category: string; notes: string }
+): Promise<PlanEntry> {
+  const { data, error } = await supabase
+    .from("plan_entries")
+    .insert({
+      athlete_user_id: athleteUserId,
+      created_by: coachUserId,
+      date: entry.date,
+      slot: entry.slot,
+      category: entry.category,
+      notes: entry.notes,
+    })
+    .select(PLAN_ENTRY_SELECT)
+    .single();
+  if (error) throw error;
+  return planEntryFromRow(data as PlanEntryRow);
+}
+
+export async function updatePlanEntry(
+  supabase: SupabaseClient,
+  id: string,
+  patch: { slot?: PlanEntry["slot"]; category?: string; notes?: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from("plan_entries")
+    .update({
+      ...(patch.slot !== undefined && { slot: patch.slot }),
+      ...(patch.category !== undefined && { category: patch.category }),
+      ...(patch.notes !== undefined && { notes: patch.notes }),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deletePlanEntry(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("plan_entries").delete().eq("id", id);
   if (error) throw error;
 }

@@ -1,38 +1,116 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowLeft, BarChart3, BookOpen } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { addPlanEntry, deleteCycleRow, deletePlanEntry, saveCycleRow, updatePlanEntry } from "@/lib/data";
 import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
-import type { Cycle, Period, Workout } from "@/lib/types";
+import type { Cycle, PlanEntry, Period, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
+import { PlanTab } from "./PlanTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
 const noop = () => {};
 
 export function CoachAthleteView({
+  athleteUserId,
+  coachUserId,
   athleteEmail,
   workouts,
   categories,
-  cycles,
+  initialCycles,
+  initialPlanEntries,
   canViewReports,
+  canEditPlan,
 }: {
+  athleteUserId: string;
+  coachUserId: string;
   athleteEmail: string;
   workouts: Workout[];
   categories: string[];
-  cycles: Cycle[];
+  initialCycles: Cycle[];
+  initialPlanEntries: PlanEntry[];
   canViewReports: boolean;
+  canEditPlan: boolean;
 }) {
-  const [tab, setTab] = useState<"log" | "reports">("log");
+  const supabase = useMemo(() => createClient(), []);
+
+  const [tab, setTab] = useState<"log" | "reports" | "plan">("log");
 
   const [period, setPeriod] = useState<Period>("week");
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [customStart, setCustomStart] = useState(addDays(todayISO(), -29));
   const [customEnd, setCustomEnd] = useState(todayISO());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
+  const [showCycleForm, setShowCycleForm] = useState(false);
+  const [cycleDraft, setCycleDraftState] = useState<Cycle>({
+    id: "",
+    name: "",
+    type: "mezocykl",
+    start: todayISO(),
+    end: addDays(todayISO(), 27),
+  });
+  function setCycleDraft(updater: (c: Cycle) => Cycle) {
+    setCycleDraftState(updater);
+  }
+  async function saveCycle() {
+    if (!cycleDraft.name.trim()) return;
+    const saved = await saveCycleRow(supabase, athleteUserId, cycleDraft);
+    setCycles((prev) => (cycleDraft.id ? prev.map((c) => (c.id === saved.id ? saved : c)) : [...prev, saved]));
+    setShowCycleForm(false);
+    setCycleDraftState({ id: "", name: "", type: "mezocykl", start: todayISO(), end: addDays(todayISO(), 27) });
+  }
+  async function deleteCycle(id: string) {
+    await deleteCycleRow(supabase, id);
+    setCycles((prev) => prev.filter((c) => c.id !== id));
+    if (selectedCycleId === id) setSelectedCycleId(null);
+  }
+
+  const [planEntries, setPlanEntries] = useState<PlanEntry[]>(initialPlanEntries);
+  async function handleAddEntry(date: string) {
+    const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
+      date,
+      slot: "full",
+      category: categories[0] ?? "",
+      notes: "",
+    });
+    setPlanEntries((prev) => [...prev, entry]);
+  }
+  async function handleAddSecond(date: string, firstEntryId: string) {
+    await updatePlanEntry(supabase, firstEntryId, { slot: "am" });
+    setPlanEntries((prev) => prev.map((e) => (e.id === firstEntryId ? { ...e, slot: "am" } : e)));
+    const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
+      date,
+      slot: "pm",
+      category: categories[0] ?? "",
+      notes: "",
+    });
+    setPlanEntries((prev) => [...prev, entry]);
+  }
+  async function handleUpdateEntry(id: string, patch: { category?: string; notes?: string }) {
+    setPlanEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    await updatePlanEntry(supabase, id, patch);
+  }
+  async function handleDeleteEntry(id: string) {
+    await deletePlanEntry(supabase, id);
+    setPlanEntries((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function jumpToWorkout(workoutId: string) {
+    setTab("log");
+    setExpandedId(workoutId);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.getElementById(`workout-${workoutId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
+  }
 
   const {
     prIds,
@@ -109,6 +187,13 @@ export function CoachAthleteView({
               <BarChart3 size={14} /> RAPORTY
             </button>
           )}
+          <button
+            onClick={() => setTab("plan")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <CalendarDays size={14} /> PLAN
+          </button>
         </div>
       </div>
 
@@ -197,6 +282,27 @@ export function CoachAthleteView({
             setCycleDraft={noop}
             saveCycle={noop}
             deleteCycle={noop}
+          />
+        )}
+
+        {tab === "plan" && (
+          <PlanTab
+            planEntries={planEntries}
+            workouts={workouts}
+            categories={categories}
+            cycles={cycles}
+            editable={canEditPlan}
+            onAddEntry={handleAddEntry}
+            onAddSecond={handleAddSecond}
+            onUpdateEntry={handleUpdateEntry}
+            onDeleteEntry={handleDeleteEntry}
+            onJumpToWorkout={jumpToWorkout}
+            showCycleForm={showCycleForm}
+            setShowCycleForm={setShowCycleForm}
+            cycleDraft={cycleDraft}
+            setCycleDraft={setCycleDraft}
+            saveCycle={saveCycle}
+            deleteCycle={deleteCycle}
           />
         )}
       </div>

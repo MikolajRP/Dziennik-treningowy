@@ -6,6 +6,7 @@ import {
   fetchCoachGrantsAsAthlete,
   fetchCycles,
   fetchPendingInvitesForMe,
+  fetchPlanEntries,
   fetchStravaConnected,
   fetchWorkouts,
 } from "@/lib/data";
@@ -21,7 +22,7 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const [workouts, categories, cycles, stravaConnected, coachGrants, pendingInvites, athletesForCoach] =
+  const [workouts, categories, cycles, stravaConnected, coachGrants, pendingInvites, athletesForCoach, planEntries] =
     await Promise.all([
       fetchWorkouts(supabase),
       fetchCategories(supabase, user.id),
@@ -30,6 +31,7 @@ export default async function Home() {
       fetchCoachGrantsAsAthlete(supabase, user.id),
       user.email ? fetchPendingInvitesForMe(supabase, user.email) : Promise.resolve([]),
       fetchAthletesForCoach(supabase, user.id),
+      fetchPlanEntries(supabase, user.id),
     ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function Home() {
       initialCoachGrants={coachGrants}
       initialPendingInvites={pendingInvites}
       initialAthletesForCoach={athletesForCoach}
+      initialPlanEntries={planEntries}
     />
   );
 }

@@ -30,7 +30,7 @@ export function CoachTab({
   setNewCoachEmail: (v: string) => void;
   onInvite: () => void;
   onAccept: (id: string) => void;
-  onTogglePermission: (id: string, field: "canViewWorkouts" | "canViewReports", value: boolean) => void;
+  onTogglePermission: (id: string, field: "canViewWorkouts" | "canViewReports" | "canEditPlan", value: boolean) => void;
   onRevoke: (id: string) => void;
 }) {
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
@@ -161,6 +161,14 @@ export function CoachTab({
                     onChange={(e) => onTogglePermission(g.id, "canViewReports", e.target.checked)}
                   />
                   widzi statystyki
+                </label>
+                <label className="flex items-center gap-1.5 text-xs" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
+                  <input
+                    type="checkbox"
+                    checked={g.canEditPlan}
+                    onChange={(e) => onTogglePermission(g.id, "canEditPlan", e.target.checked)}
+                  />
+                  edytuje plan
                 </label>
               </div>
             </div>

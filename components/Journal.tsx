@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, Dumbbell, LogOut, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Dumbbell, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
 import { CoachTab } from "./CoachTab";
+import { PlanTab } from "./PlanTab";
 import {
   addDays,
   addExerciseToList,
@@ -34,7 +35,7 @@ import {
   updateSetInList,
 } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
-import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, Period, Workout, WorkoutExercise } from "@/lib/types";
+import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
@@ -50,6 +51,7 @@ export function Journal({
   initialCoachGrants,
   initialPendingInvites,
   initialAthletesForCoach,
+  initialPlanEntries,
 }: {
   userId: string;
   userEmail: string;
@@ -60,13 +62,15 @@ export function Journal({
   initialCoachGrants: CoachAccess[];
   initialPendingInvites: CoachAccess[];
   initialAthletesForCoach: CoachAccess[];
+  initialPlanEntries: PlanEntry[];
 }) {
   const supabase = useMemo(() => createClient(), []);
 
-  const [tab, setTab] = useState<"log" | "reports" | "coach">("log");
+  const [tab, setTab] = useState<"log" | "reports" | "plan" | "coach">("log");
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useState<string[]>(initialCategories);
+  const [planEntries] = useState<PlanEntry[]>(initialPlanEntries);
   // Reflects the server's fresh read on this page load — the Strava OAuth
   // callback does a full server-driven redirect back to "/", so this is
   // already up to date without needing client-side state.
@@ -284,7 +288,7 @@ export function Journal({
     setPendingInvites((prev) => prev.filter((p) => p.id !== id));
     setCoachGrants((prev) => [...prev, grant]);
   }
-  async function handleTogglePermission(id: string, field: "canViewWorkouts" | "canViewReports", value: boolean) {
+  async function handleTogglePermission(id: string, field: "canViewWorkouts" | "canViewReports" | "canEditPlan", value: boolean) {
     setCoachGrants((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
     await updateCoachPermissions(supabase, id, { [field]: value });
   }
@@ -305,6 +309,17 @@ export function Journal({
     await deleteCycleRow(supabase, id);
     setCycles((prev) => prev.filter((c) => c.id !== id));
     if (selectedCycleId === id) setSelectedCycleId(null);
+  }
+
+  // ---------- training plan (read-only for the athlete) ----------
+  function jumpToWorkout(workoutId: string) {
+    setTab("log");
+    setExpandedId(workoutId);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.getElementById(`workout-${workoutId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
   }
 
   // ---------- derived ----------
@@ -373,6 +388,13 @@ export function Journal({
             style={{ fontFamily: FONT_MONO, color: tab === "reports" ? INK : INK_SOFT, borderBottom: tab === "reports" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <BarChart3 size={14} /> RAPORTY
+          </button>
+          <button
+            onClick={() => setTab("plan")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <CalendarDays size={14} /> PLAN
           </button>
           <button
             onClick={() => setTab("coach")}
@@ -469,6 +491,27 @@ export function Journal({
             tonnageByMuscleGroup={tonnageByMuscleGroup}
             thisWeekRunning={thisWeekRunning}
             last12WeeksRunning={last12WeeksRunning}
+            showCycleForm={showCycleForm}
+            setShowCycleForm={setShowCycleForm}
+            cycleDraft={cycleDraft}
+            setCycleDraft={setCycleDraft}
+            saveCycle={saveCycle}
+            deleteCycle={deleteCycle}
+          />
+        )}
+
+        {tab === "plan" && (
+          <PlanTab
+            planEntries={planEntries}
+            workouts={workouts}
+            categories={categories}
+            cycles={cycles}
+            editable={false}
+            onAddEntry={() => {}}
+            onAddSecond={() => {}}
+            onUpdateEntry={() => {}}
+            onDeleteEntry={() => {}}
+            onJumpToWorkout={jumpToWorkout}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}

@@ -11,6 +11,11 @@ export const AERO = "#2F5D8C"; // aerobic minutes
 export const ISO = "#6B4C93"; // isometric time under tension (TUT)
 export const RUST = "#A6402F"; // danger + circuit accent
 
+// training-plan calendar entry status
+export const PLAN_FUTURE = "#9AA5AE"; // planned, date not yet due
+export const PLAN_DONE = "#2F7D52"; // matched to a real completed workout
+export const PLAN_MISSED = "#C97A2E"; // date passed, no matching workout
+
 export const FONT_DISPLAY = "var(--font-oswald), sans-serif";
 export const FONT_MONO = "var(--font-ibm-plex-mono), monospace";
 

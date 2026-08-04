@@ -168,7 +168,7 @@ export function LogTab({
           const expanded = expandedId === w.id;
           const isPR = prIds.has(w.id);
           return (
-            <div key={w.id} className="rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div key={w.id} id={`workout-${w.id}`} className="rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
               <button className="w-full flex items-center justify-between p-3 text-left" onClick={() => setExpandedId(expanded ? null : w.id)}>
                 <div>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>{fmtDate(w.date)}</div>

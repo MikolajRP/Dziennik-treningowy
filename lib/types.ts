@@ -143,4 +143,20 @@ export interface CoachAccess {
   status: CoachAccessStatus;
   canViewWorkouts: boolean;
   canViewReports: boolean;
+  canEditPlan: boolean;
+}
+
+// A coach-authored slot on the training-plan calendar. Whether it was
+// actually done is never stored here — it's inferred by matching `date`
+// against the athlete's real `workouts` (see lib/planCalculations.ts).
+export type PlanSlot = "full" | "am" | "pm";
+
+export interface PlanEntry {
+  id: string;
+  athleteUserId: string;
+  createdBy: string;
+  date: string; // ISO yyyy-mm-dd
+  slot: PlanSlot;
+  category: string;
+  notes: string;
 }
