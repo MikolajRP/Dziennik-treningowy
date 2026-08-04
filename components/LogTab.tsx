@@ -54,7 +54,7 @@ export function LogTab({
   setConfirmDeleteId,
   deleteWorkout,
   prIds,
-  thisWeekTonnage,
+  thisWeekKm,
   formError,
   saveStatus,
   knownExerciseNames,
@@ -92,7 +92,7 @@ export function LogTab({
   setConfirmDeleteId: (id: string | null) => void;
   deleteWorkout: (id: string) => void;
   prIds: Set<string>;
-  thisWeekTonnage: number;
+  thisWeekKm: number;
   formError: string | null;
   saveStatus: "saving" | null;
   knownExerciseNames: string[];
@@ -120,7 +120,7 @@ export function LogTab({
           <div style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 12 }}>
             TEN TYDZIEŃ
             <div style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 22, fontWeight: 600 }}>
-              {Math.round(thisWeekTonnage).toLocaleString("pl-PL")} kg
+              {thisWeekKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km biegowe
             </div>
           </div>
           {!readOnly && (

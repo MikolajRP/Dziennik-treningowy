@@ -357,7 +357,6 @@ export function Journal({
     totalFunctionalMinutes,
     totalAerobicMinutes,
     weeklySeries,
-    thisWeekTonnage,
     totalRunningKm,
     totalRunningMinutes,
     weeklyRunningKmSeries,
@@ -461,7 +460,7 @@ export function Journal({
             setConfirmDeleteId={setConfirmDeleteId}
             deleteWorkout={deleteWorkout}
             prIds={prIds}
-            thisWeekTonnage={thisWeekTonnage}
+            thisWeekKm={thisWeekRunning.km}
             formError={formError}
             saveStatus={saveStatus}
             knownExerciseNames={knownExerciseNames}

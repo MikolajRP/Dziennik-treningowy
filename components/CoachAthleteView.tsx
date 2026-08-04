@@ -176,7 +176,6 @@ export function CoachAthleteView({
     totalFunctionalMinutes,
     totalAerobicMinutes,
     weeklySeries,
-    thisWeekTonnage,
     totalRunningKm,
     totalRunningMinutes,
     weeklyRunningKmSeries,
@@ -275,7 +274,7 @@ export function CoachAthleteView({
             setConfirmDeleteId={noop}
             deleteWorkout={noop}
             prIds={prIds}
-            thisWeekTonnage={thisWeekTonnage}
+            thisWeekKm={thisWeekRunning.km}
             formError={null}
             saveStatus={null}
             knownExerciseNames={knownExerciseNames}
