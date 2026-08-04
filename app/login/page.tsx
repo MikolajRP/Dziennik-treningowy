@@ -81,15 +81,15 @@ export default function LoginPage() {
         ) : (
           <>
             <p className="text-xs mb-5" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
-              Wysłaliśmy 6-cyfrowy kod na {email}. Wpisz go poniżej.
+              Wysłaliśmy kod logowania na {email}. Wpisz go poniżej.
             </p>
             <input
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={6}
+              maxLength={10}
               autoFocus
-              placeholder="123456"
+              placeholder="kod z e-maila"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && verifyCode()}
