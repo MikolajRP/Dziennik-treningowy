@@ -122,13 +122,11 @@ export function LogTab({
         <div className="mb-4 p-3 rounded-md flex items-center justify-between" style={{ background: CARD, border: `1px solid ${LINE}` }}>
           <div style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 12 }}>
             TEN TYDZIEŃ
-            <div className="flex items-baseline gap-2 flex-wrap mt-0.5">
-              <span style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 20, fontWeight: 600 }}>
-                Dystans: {thisWeekKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km
-              </span>
-              <span style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 11 }}>
-                czas treningów: {fmtMinutesLong(thisWeekTotalMinutes)}
-              </span>
+            <div
+              style={{ fontFamily: FONT_DISPLAY, color: INK, fontSize: 14, fontWeight: 700, whiteSpace: "nowrap" }}
+              className="mt-0.5"
+            >
+              Dystans: {thisWeekKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km · czas treningów: {fmtMinutesLong(thisWeekTotalMinutes)}
             </div>
           </div>
           {!readOnly && (
