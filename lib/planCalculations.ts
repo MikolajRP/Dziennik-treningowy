@@ -1,5 +1,5 @@
 import { todayISO } from "./calculations";
-import type { PlanEntry, Workout } from "./types";
+import type { Cycle, PlanEntry, Workout } from "./types";
 
 // Whether a plan entry was actually done is never stored — it's inferred at
 // read time by matching its date against the athlete's real `workouts`.
@@ -31,4 +31,20 @@ export function entriesForDate(planEntries: PlanEntry[], workouts: Workout[], da
     if (date < today) return { entry, status: "missed" as const, matchedWorkoutId: null };
     return { entry, status: "planned" as const, matchedWorkoutId: null };
   });
+}
+
+// Distinct, previously-written plan descriptions — feeds the same kind of
+// autocomplete suggestion dropdown exercise names already get.
+export function collectKnownPlanNotes(planEntries: PlanEntry[]): string[] {
+  const names = new Set<string>();
+  planEntries.forEach((e) => e.notes.trim() && names.add(e.notes.trim()));
+  return Array.from(names).sort((a, b) => a.localeCompare(b, "pl"));
+}
+
+// The cycle (if any) whose range covers `date`, for calendar highlighting.
+// A mezocykl is more specific than a makrocykl, so it wins when both match.
+export function cycleForDate(cycles: Cycle[], date: string): Cycle | null {
+  const matches = cycles.filter((c) => date >= c.start && date <= c.end);
+  if (matches.length === 0) return null;
+  return matches.find((c) => c.type === "mezocykl") ?? matches[0];
 }

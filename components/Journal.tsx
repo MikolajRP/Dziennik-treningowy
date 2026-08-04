@@ -316,7 +316,7 @@ export function Journal({
   // ---------- cycles ----------
   async function saveCycle() {
     if (!cycleDraft.name.trim()) return;
-    const saved = await saveCycleRow(supabase, userId, cycleDraft);
+    const saved = await saveCycleRow(supabase, userId, userId, cycleDraft);
     setCycles((prev) => (cycleDraft.id ? prev.map((c) => (c.id === saved.id ? saved : c)) : [...prev, saved]));
     setShowCycleForm(false);
     setCycleDraftState({ id: "", name: "", type: "mezocykl", start: todayISO(), end: addDays(todayISO(), 27) });
@@ -519,14 +519,16 @@ export function Journal({
           <PlanTab
             planEntries={planEntries}
             workouts={workouts}
-            categories={categories}
             cycles={cycles}
+            coachNotes={[]}
             editable={false}
+            knownPlanNotes={[]}
             onAddEntry={() => {}}
             onAddSecond={() => {}}
             onUpdateEntry={() => {}}
             onDeleteEntry={() => {}}
             onJumpToWorkout={jumpToWorkout}
+            onSaveNote={() => {}}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}

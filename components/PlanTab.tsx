@@ -1,29 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { addDays, fmtShort, startOfWeek, todayISO } from "@/lib/calculations";
-import { entriesForDate, type PlanEntryStatus } from "@/lib/planCalculations";
+import { cycleForDate, entriesForDate, type PlanEntryStatus } from "@/lib/planCalculations";
 import {
+  AERO,
   CARD,
   FONT_DISPLAY,
   FONT_MONO,
   INK,
   INK_SOFT,
+  ISO,
   LINE,
   MUSTARD,
   PLAN_DONE,
   PLAN_FUTURE,
   PLAN_MISSED,
+  PLYO,
+  RUST,
+  TEAL,
   inputStyle,
 } from "@/lib/design";
-import type { Cycle, CycleType, PlanEntry, Workout } from "@/lib/types";
+import type { CoachNote, Cycle, CycleType, PlanEntry, Workout } from "@/lib/types";
 import { Chip, Field, IconBtn } from "./atoms";
 
 const WEEKDAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
 const SLOT_LABEL: Record<PlanEntry["slot"], string> = { am: "RANO", pm: "PO POŁUDNIU", full: "" };
 const STATUS_COLOR: Record<PlanEntryStatus, string> = { planned: PLAN_FUTURE, done: PLAN_DONE, missed: PLAN_MISSED };
 const STATUS_LABEL: Record<PlanEntryStatus, string> = { planned: "zaplanowany", done: "wykonany", missed: "niewykonany" };
+const CYCLE_COLORS = [MUSTARD, PLYO, TEAL, AERO, ISO, RUST];
 
 const startOfMonth = (iso: string) => iso.slice(0, 8) + "01";
 const addMonths = (iso: string, n: number) => {
@@ -55,8 +61,8 @@ function PlanEntryCard({
   entry,
   status,
   matchedWorkoutId,
-  categories,
   editable,
+  knownPlanNotes,
   onUpdateEntry,
   onDeleteEntry,
   onJumpToWorkout,
@@ -64,22 +70,40 @@ function PlanEntryCard({
   entry: PlanEntry;
   status: PlanEntryStatus;
   matchedWorkoutId: string | null;
-  categories: string[];
   editable: boolean;
-  onUpdateEntry: (id: string, patch: { category?: string; notes?: string }) => void;
+  knownPlanNotes: string[];
+  onUpdateEntry: (id: string, patch: { notes?: string; isDraft?: boolean }) => void;
   onDeleteEntry: (id: string) => void;
   onJumpToWorkout: (workoutId: string) => void;
 }) {
   const [notes, setNotes] = useState(entry.notes);
+  const [notesOpen, setNotesOpen] = useState(false);
   const color = STATUS_COLOR[status];
+
+  const suggestions = useMemo(() => {
+    const q = notes.trim().toLowerCase();
+    const pool = q
+      ? knownPlanNotes.filter((n) => n.toLowerCase().includes(q) && n.toLowerCase() !== q)
+      : knownPlanNotes;
+    return pool.slice(0, 6);
+  }, [notes, knownPlanNotes]);
+
+  function commitNotes(value: string) {
+    setNotes(value);
+    if (value !== entry.notes) onUpdateEntry(entry.id, { notes: value });
+  }
 
   return (
     <div
       className="p-2.5 rounded-md mb-1.5"
-      style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${color}` }}
+      style={{
+        background: CARD,
+        border: `1px ${entry.isDraft ? "dashed" : "solid"} ${LINE}`,
+        borderLeft: `3px solid ${color}`,
+      }}
     >
       <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {SLOT_LABEL[entry.slot] && (
             <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>{SLOT_LABEL[entry.slot]}</span>
           )}
@@ -89,41 +113,67 @@ function PlanEntryCard({
           >
             {STATUS_LABEL[status]}
           </span>
+          {entry.isDraft && (
+            <span
+              className="px-1.5 py-0.5 rounded-full text-[10px]"
+              style={{ fontFamily: FONT_MONO, border: `1px dashed ${INK_SOFT}`, color: INK_SOFT }}
+            >
+              SZKIC
+            </span>
+          )}
         </div>
         {editable && (
-          <IconBtn onClick={() => onDeleteEntry(entry.id)} title="Usuń z planu" color={PLAN_MISSED}>
-            <Trash2 size={13} />
-          </IconBtn>
+          <div className="flex items-center gap-1">
+            <IconBtn
+              onClick={() => onUpdateEntry(entry.id, { isDraft: !entry.isDraft })}
+              title={entry.isDraft ? "Opublikuj — zawodnik zobaczy" : "Cofnij do szkicu — ukryj przed zawodnikiem"}
+            >
+              {entry.isDraft ? <Eye size={13} /> : <EyeOff size={13} />}
+            </IconBtn>
+            <IconBtn onClick={() => onDeleteEntry(entry.id)} title="Usuń z planu" color={PLAN_MISSED}>
+              <Trash2 size={13} />
+            </IconBtn>
+          </div>
         )}
       </div>
 
       {editable ? (
-        <select
-          value={entry.category}
-          onChange={(e) => onUpdateEntry(entry.id, { category: e.target.value })}
-          className="w-full px-2 py-1 rounded text-xs mb-1.5"
-          style={inputStyle}
-        >
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600 }}>{entry.category}</div>
-      )}
-
-      {editable ? (
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={() => notes !== entry.notes && onUpdateEntry(entry.id, { notes })}
-          placeholder="np. 6×800m tempo, przerwa 2 min"
-          rows={2}
-          className="w-full px-2 py-1 rounded text-xs"
-          style={inputStyle}
-        />
+        <div className="relative">
+          <input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onFocus={() => setNotesOpen(true)}
+            onBlur={() => {
+              setTimeout(() => setNotesOpen(false), 150);
+              commitNotes(notes);
+            }}
+            placeholder="np. 6×800m tempo, przerwa 2 min"
+            className="w-full px-2 py-1 rounded text-xs"
+            style={inputStyle}
+          />
+          {notesOpen && suggestions.length > 0 && (
+            <div
+              className="absolute left-0 right-0 mt-1 rounded-md overflow-hidden z-10"
+              style={{ background: "#fff", border: `1px solid ${INK}`, boxShadow: "0 4px 10px rgba(27,42,58,0.15)" }}
+            >
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commitNotes(s);
+                    setNotesOpen(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs"
+                  style={{ fontFamily: FONT_MONO, color: INK, background: CARD }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         entry.notes && <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK_SOFT }}>{entry.notes}</div>
       )}
@@ -141,17 +191,47 @@ function PlanEntryCard({
   );
 }
 
+function DayNoteField({
+  date,
+  existingNote,
+  onSaveNote,
+}: {
+  date: string;
+  existingNote: CoachNote | undefined;
+  onSaveNote: (date: string, text: string, existingId?: string) => void;
+}) {
+  const [text, setText] = useState(existingNote?.text ?? "");
+  return (
+    <div className="mt-2 pt-2" style={{ borderTop: `1px dashed ${LINE}` }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 4 }}>
+        NOTATKA (widoczna tylko dla Ciebie)
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => text !== (existingNote?.text ?? "") && onSaveNote(date, text, existingNote?.id)}
+        placeholder="prywatna notatka…"
+        rows={2}
+        className="w-full px-2 py-1 rounded text-xs"
+        style={inputStyle}
+      />
+    </div>
+  );
+}
+
 export function PlanTab({
   planEntries,
   workouts,
-  categories,
   cycles,
+  coachNotes,
   editable,
+  knownPlanNotes,
   onAddEntry,
   onAddSecond,
   onUpdateEntry,
   onDeleteEntry,
   onJumpToWorkout,
+  onSaveNote,
   showCycleForm,
   setShowCycleForm,
   cycleDraft,
@@ -162,14 +242,16 @@ export function PlanTab({
 }: {
   planEntries: PlanEntry[];
   workouts: Workout[];
-  categories: string[];
   cycles: Cycle[];
+  coachNotes: CoachNote[];
   editable: boolean;
+  knownPlanNotes: string[];
   onAddEntry: (date: string) => void;
   onAddSecond: (date: string, firstEntryId: string) => void;
-  onUpdateEntry: (id: string, patch: { category?: string; notes?: string }) => void;
+  onUpdateEntry: (id: string, patch: { notes?: string; isDraft?: boolean }) => void;
   onDeleteEntry: (id: string) => void;
   onJumpToWorkout: (workoutId: string) => void;
+  onSaveNote: (date: string, text: string, existingId?: string) => void;
   showCycleForm: boolean;
   setShowCycleForm: (v: boolean) => void;
   cycleDraft: Cycle;
@@ -236,14 +318,15 @@ export function PlanTab({
               >
                 {weekDates.map((date) => {
                   const inMonth = date.slice(0, 7) === monthStart.slice(0, 7);
-                  const statuses = entriesForDate(planEntries, workouts, date).map((e) => e.status);
+                  const dayEntries = entriesForDate(planEntries, workouts, date);
                   const isToday = date === today;
+                  const cycle = cycleForDate(cycles, date);
                   return (
                     <div
                       key={date}
                       className="flex flex-col items-center py-1.5 rounded-md"
                       style={{
-                        background: isToday ? "#fff" : "transparent",
+                        background: isToday ? "#fff" : cycle ? `${cycle.color}2A` : "transparent",
                         border: `1px solid ${isToday ? MUSTARD : "transparent"}`,
                         opacity: inMonth ? 1 : 0.35,
                       }}
@@ -252,8 +335,17 @@ export function PlanTab({
                         {date.slice(8, 10)}
                       </div>
                       <div className="flex gap-0.5 mt-0.5" style={{ minHeight: 4 }}>
-                        {statuses.map((s, si) => (
-                          <div key={si} style={{ width: 8, height: 3, borderRadius: 2, background: STATUS_COLOR[s] }} />
+                        {dayEntries.map(({ entry, status }, si) => (
+                          <div
+                            key={si}
+                            style={{
+                              width: 8,
+                              height: 3,
+                              borderRadius: 2,
+                              background: entry.isDraft ? "transparent" : STATUS_COLOR[status],
+                              border: entry.isDraft ? `1px dashed ${INK_SOFT}` : "none",
+                            }}
+                          />
                         ))}
                       </div>
                     </div>
@@ -266,10 +358,19 @@ export function PlanTab({
                   {weekDates.map((date, i) => {
                     const dayEntries = entriesForDate(planEntries, workouts, date);
                     const canAdd = editable && date >= today;
+                    const cycle = cycleForDate(cycles, date);
+                    const dayNote = coachNotes.find((n) => n.date === date);
                     return (
                       <div key={date} className="p-2.5 rounded-md" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
-                        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600, marginBottom: 6 }}>
-                          {WEEKDAY_LABELS[i]} {fmtShort(date)}
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600 }}>
+                            {WEEKDAY_LABELS[i]} {fmtShort(date)}
+                          </div>
+                          {cycle && (
+                            <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: cycle.color ?? INK_SOFT }}>
+                              ● {cycle.name}
+                            </span>
+                          )}
                         </div>
 
                         {dayEntries.map(({ entry, status, matchedWorkoutId }) => (
@@ -278,8 +379,8 @@ export function PlanTab({
                             entry={entry}
                             status={status}
                             matchedWorkoutId={matchedWorkoutId}
-                            categories={categories}
                             editable={editable}
+                            knownPlanNotes={knownPlanNotes}
                             onUpdateEntry={onUpdateEntry}
                             onDeleteEntry={onDeleteEntry}
                             onJumpToWorkout={onJumpToWorkout}
@@ -309,6 +410,8 @@ export function PlanTab({
                             <Plus size={12} /> Drugi trening (rano / po południu)
                           </button>
                         )}
+
+                        {editable && <DayNoteField date={date} existingNote={dayNote} onSaveNote={onSaveNote} />}
                       </div>
                     );
                   })}
@@ -377,6 +480,42 @@ export function PlanTab({
                 style={inputStyle}
               />
             </div>
+            <Field label="Kolor w kalendarzu">
+              <div className="flex gap-1.5">
+                {CYCLE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCycleDraft((d) => ({ ...d, color: c }))}
+                    title={c}
+                    className="rounded-full"
+                    style={{
+                      width: 22,
+                      height: 22,
+                      background: c,
+                      border: cycleDraft.color === c ? `2px solid ${INK}` : "2px solid transparent",
+                      boxShadow: cycleDraft.color === c ? "0 0 0 1px #fff inset" : "none",
+                    }}
+                  />
+                ))}
+              </div>
+            </Field>
+            <Field label="Notatki (widoczne tylko dla Ciebie)">
+              <textarea
+                value={cycleDraft.notes ?? ""}
+                onChange={(e) => setCycleDraft((c) => ({ ...c, notes: e.target.value }))}
+                rows={2}
+                className="w-full px-2 py-1.5 rounded text-sm"
+                style={inputStyle}
+              />
+            </Field>
+            <label className="flex items-center gap-1.5 text-xs mb-3" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
+              <input
+                type="checkbox"
+                checked={cycleDraft.visibleToAthlete ?? true}
+                onChange={(e) => setCycleDraft((c) => ({ ...c, visibleToAthlete: e.target.checked }))}
+              />
+              Widoczny dla zawodnika
+            </label>
             <div className="flex gap-2">
               <button onClick={saveCycle} className="flex-1 py-2 rounded-md text-sm" style={{ fontFamily: FONT_MONO, background: INK, color: "#fff" }}>
                 Zapisz cykl
@@ -395,10 +534,14 @@ export function PlanTab({
         <div className="space-y-1.5">
           {cycles.map((c) => (
             <div key={c.id} className="flex items-center justify-between p-2.5 rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-              <div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK }}>{c.name}</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>
-                  {c.type} · {fmtShort(c.start)} – {fmtShort(c.end)}
+              <div className="flex items-center gap-2">
+                {c.color && <div className="rounded-full shrink-0" style={{ width: 10, height: 10, background: c.color }} />}
+                <div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK }}>{c.name}</div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT }}>
+                    {c.type} · {fmtShort(c.start)} – {fmtShort(c.end)}
+                    {editable && (c.visibleToAthlete === false ? " · ukryty dla zawodnika" : " · widoczny dla zawodnika")}
+                  </div>
                 </div>
               </div>
               {editable && (

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { CoachAccess, Cycle, PlanEntry, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { CoachAccess, CoachNote, Cycle, PlanEntry, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
@@ -40,6 +40,10 @@ interface CycleRow {
   type: Cycle["type"];
   start_date: string;
   end_date: string;
+  color: string | null;
+  notes: string;
+  visible_to_athlete: boolean;
+  created_by: string | null;
 }
 
 const stravaActivityFromRow = (r: StravaActivityRow): StravaActivity => ({
@@ -73,12 +77,18 @@ const workoutFromRow = (r: WorkoutRow): Workout => ({
   stravaActivities: (r.strava_activities ?? []).map(stravaActivityFromRow),
 });
 
+const CYCLE_SELECT = "id, name, type, start_date, end_date, color, notes, visible_to_athlete, created_by";
+
 const cycleFromRow = (r: CycleRow): Cycle => ({
   id: r.id,
   name: r.name,
   type: r.type,
   start: r.start_date,
   end: r.end_date,
+  color: r.color,
+  notes: r.notes,
+  visibleToAthlete: r.visible_to_athlete,
+  createdBy: r.created_by ?? undefined,
 });
 
 export async function fetchWorkouts(supabase: SupabaseClient, forUserId?: string): Promise<Workout[]> {
@@ -167,7 +177,7 @@ export async function addCategoryRow(
 }
 
 export async function fetchCycles(supabase: SupabaseClient, forUserId?: string): Promise<Cycle[]> {
-  let query = supabase.from("cycles").select("id, name, type, start_date, end_date").order("start_date", { ascending: false });
+  let query = supabase.from("cycles").select(CYCLE_SELECT).order("start_date", { ascending: false });
   if (forUserId) query = query.eq("user_id", forUserId);
   const { data, error } = await query;
   if (error) throw error;
@@ -189,14 +199,23 @@ export async function fetchCategoriesReadOnly(supabase: SupabaseClient, forUserI
 export async function saveCycleRow(
   supabase: SupabaseClient,
   userId: string,
+  createdBy: string,
   cycle: Cycle
 ): Promise<Cycle> {
   if (cycle.id) {
     const { data, error } = await supabase
       .from("cycles")
-      .update({ name: cycle.name, type: cycle.type, start_date: cycle.start, end_date: cycle.end })
+      .update({
+        name: cycle.name,
+        type: cycle.type,
+        start_date: cycle.start,
+        end_date: cycle.end,
+        color: cycle.color || null,
+        notes: cycle.notes ?? "",
+        visible_to_athlete: cycle.visibleToAthlete ?? true,
+      })
       .eq("id", cycle.id)
-      .select("id, name, type, start_date, end_date")
+      .select(CYCLE_SELECT)
       .single();
     if (error) throw error;
     return cycleFromRow(data as CycleRow);
@@ -205,12 +224,16 @@ export async function saveCycleRow(
     .from("cycles")
     .insert({
       user_id: userId,
+      created_by: createdBy,
       name: cycle.name,
       type: cycle.type,
       start_date: cycle.start,
       end_date: cycle.end,
+      color: cycle.color || null,
+      notes: cycle.notes ?? "",
+      visible_to_athlete: cycle.visibleToAthlete ?? true,
     })
-    .select("id, name, type, start_date, end_date")
+    .select(CYCLE_SELECT)
     .single();
   if (error) throw error;
   return cycleFromRow(data as CycleRow);
@@ -332,6 +355,7 @@ interface CoachAccessRow {
   id: string;
   athlete_user_id: string;
   athlete_email: string;
+  athlete_name: string | null;
   coach_email: string;
   coach_user_id: string | null;
   status: CoachAccess["status"];
@@ -341,12 +365,13 @@ interface CoachAccessRow {
 }
 
 const COACH_ACCESS_SELECT =
-  "id, athlete_user_id, athlete_email, coach_email, coach_user_id, status, can_view_workouts, can_view_reports, can_edit_plan";
+  "id, athlete_user_id, athlete_email, athlete_name, coach_email, coach_user_id, status, can_view_workouts, can_view_reports, can_edit_plan";
 
 const coachAccessFromRow = (r: CoachAccessRow): CoachAccess => ({
   id: r.id,
   athleteUserId: r.athlete_user_id,
   athleteEmail: r.athlete_email,
+  athleteName: r.athlete_name,
   coachEmail: r.coach_email,
   coachUserId: r.coach_user_id,
   status: r.status,
@@ -470,6 +495,16 @@ export async function revokeCoachAccess(supabase: SupabaseClient, id: string): P
   if (error) throw error;
 }
 
+// Coach-only label for an athlete, shown instead of their email. A DB
+// trigger locks this update to just this column even if the app sent more.
+export async function updateAthleteName(supabase: SupabaseClient, id: string, name: string): Promise<void> {
+  const { error } = await supabase
+    .from("coach_access")
+    .update({ athlete_name: name.trim() || null })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // ---------- training plan ----------
 
 interface PlanEntryRow {
@@ -480,9 +515,10 @@ interface PlanEntryRow {
   slot: PlanEntry["slot"];
   category: string;
   notes: string;
+  is_draft: boolean;
 }
 
-const PLAN_ENTRY_SELECT = "id, athlete_user_id, created_by, date, slot, category, notes";
+const PLAN_ENTRY_SELECT = "id, athlete_user_id, created_by, date, slot, category, notes, is_draft";
 
 const planEntryFromRow = (r: PlanEntryRow): PlanEntry => ({
   id: r.id,
@@ -492,6 +528,7 @@ const planEntryFromRow = (r: PlanEntryRow): PlanEntry => ({
   slot: r.slot,
   category: r.category,
   notes: r.notes,
+  isDraft: r.is_draft,
 });
 
 export async function fetchPlanEntries(supabase: SupabaseClient, athleteUserId: string): Promise<PlanEntry[]> {
@@ -508,7 +545,7 @@ export async function addPlanEntry(
   supabase: SupabaseClient,
   athleteUserId: string,
   coachUserId: string,
-  entry: { date: string; slot: PlanEntry["slot"]; category: string; notes: string }
+  entry: { date: string; slot: PlanEntry["slot"]; category: string; notes: string; isDraft?: boolean }
 ): Promise<PlanEntry> {
   const { data, error } = await supabase
     .from("plan_entries")
@@ -519,6 +556,7 @@ export async function addPlanEntry(
       slot: entry.slot,
       category: entry.category,
       notes: entry.notes,
+      is_draft: entry.isDraft ?? false,
     })
     .select(PLAN_ENTRY_SELECT)
     .single();
@@ -529,11 +567,12 @@ export async function addPlanEntry(
 export async function updatePlanEntry(
   supabase: SupabaseClient,
   id: string,
-  patch: { slot?: PlanEntry["slot"]; category?: string; notes?: string }
+  patch: { slot?: PlanEntry["slot"]; category?: string; notes?: string; isDraft?: boolean }
 ): Promise<void> {
   const { error } = await supabase
     .from("plan_entries")
     .update({
+      ...(patch.isDraft !== undefined && { is_draft: patch.isDraft }),
       ...(patch.slot !== undefined && { slot: patch.slot }),
       ...(patch.category !== undefined && { category: patch.category }),
       ...(patch.notes !== undefined && { notes: patch.notes }),
@@ -544,5 +583,67 @@ export async function updatePlanEntry(
 
 export async function deletePlanEntry(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("plan_entries").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------- coach notes (private, never read by the athlete) ----------
+
+interface CoachNoteRow {
+  id: string;
+  athlete_user_id: string;
+  coach_user_id: string;
+  date: string;
+  text: string;
+}
+
+const COACH_NOTE_SELECT = "id, athlete_user_id, coach_user_id, date, text";
+
+const coachNoteFromRow = (r: CoachNoteRow): CoachNote => ({
+  id: r.id,
+  athleteUserId: r.athlete_user_id,
+  coachUserId: r.coach_user_id,
+  date: r.date,
+  text: r.text,
+});
+
+export async function fetchCoachNotes(supabase: SupabaseClient, athleteUserId: string): Promise<CoachNote[]> {
+  const { data, error } = await supabase
+    .from("coach_notes")
+    .select(COACH_NOTE_SELECT)
+    .eq("athlete_user_id", athleteUserId)
+    .order("date", { ascending: false });
+  if (error) throw error;
+  return (data as CoachNoteRow[]).map(coachNoteFromRow);
+}
+
+// One note per (athlete, date) by convention — pass the existing note's id
+// to update it, or omit it to create a new one.
+export async function saveCoachNote(
+  supabase: SupabaseClient,
+  athleteUserId: string,
+  coachUserId: string,
+  note: { id?: string; date: string; text: string }
+): Promise<CoachNote> {
+  if (note.id) {
+    const { data, error } = await supabase
+      .from("coach_notes")
+      .update({ text: note.text })
+      .eq("id", note.id)
+      .select(COACH_NOTE_SELECT)
+      .single();
+    if (error) throw error;
+    return coachNoteFromRow(data as CoachNoteRow);
+  }
+  const { data, error } = await supabase
+    .from("coach_notes")
+    .insert({ athlete_user_id: athleteUserId, coach_user_id: coachUserId, date: note.date, text: note.text })
+    .select(COACH_NOTE_SELECT)
+    .single();
+  if (error) throw error;
+  return coachNoteFromRow(data as CoachNoteRow);
+}
+
+export async function deleteCoachNote(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("coach_notes").delete().eq("id", id);
   if (error) throw error;
 }

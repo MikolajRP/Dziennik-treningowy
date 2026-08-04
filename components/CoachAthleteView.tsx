@@ -3,17 +3,29 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarDays } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { addPlanEntry, deleteCycleRow, deletePlanEntry, saveCycleRow, updatePlanEntry } from "@/lib/data";
+import {
+  addPlanEntry,
+  deleteCoachNote,
+  deleteCycleRow,
+  deletePlanEntry,
+  saveCoachNote,
+  saveCycleRow,
+  updateAthleteName,
+  updatePlanEntry,
+} from "@/lib/data";
 import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
-import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
-import type { Cycle, PlanEntry, Period, Workout } from "@/lib/types";
+import { collectKnownPlanNotes } from "@/lib/planCalculations";
+import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg, inputStyle } from "@/lib/design";
+import type { CoachNote, Cycle, PlanEntry, Period, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import { PlanTab } from "./PlanTab";
+import { NotesTab } from "./NotesTab";
+import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
 const noop = () => {};
@@ -21,28 +33,34 @@ const noop = () => {};
 export function CoachAthleteView({
   athleteUserId,
   coachUserId,
+  coachAccessId,
   athleteEmail,
+  athleteName,
   workouts,
   categories,
   initialCycles,
   initialPlanEntries,
+  initialCoachNotes,
   canViewReports,
   canEditPlan,
 }: {
   athleteUserId: string;
   coachUserId: string;
+  coachAccessId: string;
   athleteEmail: string;
+  athleteName: string | null;
   workouts: Workout[];
   categories: string[];
   initialCycles: Cycle[];
   initialPlanEntries: PlanEntry[];
+  initialCoachNotes: CoachNote[];
   canViewReports: boolean;
   canEditPlan: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "reports" | "plan">("plan");
+  const [tab, setTab] = useState<"log" | "reports" | "plan" | "notes">("plan");
 
   // The app never syncs live — re-pull everything (via the server component
   // above us) whenever the tab/installed app comes back to the foreground.
@@ -63,6 +81,22 @@ export function CoachAthleteView({
   const [planError, setPlanError] = useState<string | null>(null);
   const SAVE_ERROR = "Nie udało się zapisać — spróbuj ponownie.";
 
+  // ---------- athlete display name ----------
+  const [displayName, setDisplayName] = useSyncedState<string | null>(athleteName);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(displayName ?? "");
+  async function saveAthleteName() {
+    const trimmed = nameInput.trim();
+    setDisplayName(trimmed || null);
+    setEditingName(false);
+    try {
+      await updateAthleteName(supabase, coachAccessId, trimmed);
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
+  }
+
+  // ---------- cycles ----------
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [showCycleForm, setShowCycleForm] = useState(false);
   const [cycleDraft, setCycleDraftState] = useState<Cycle>({
@@ -71,18 +105,31 @@ export function CoachAthleteView({
     type: "mezocykl",
     start: todayISO(),
     end: addDays(todayISO(), 27),
+    color: null,
+    notes: "",
+    visibleToAthlete: true,
   });
   function setCycleDraft(updater: (c: Cycle) => Cycle) {
     setCycleDraftState(updater);
   }
+  const emptyCycleDraft = (): Cycle => ({
+    id: "",
+    name: "",
+    type: "mezocykl",
+    start: todayISO(),
+    end: addDays(todayISO(), 27),
+    color: null,
+    notes: "",
+    visibleToAthlete: true,
+  });
   async function saveCycle() {
     if (!cycleDraft.name.trim()) return;
     setPlanError(null);
     try {
-      const saved = await saveCycleRow(supabase, athleteUserId, cycleDraft);
+      const saved = await saveCycleRow(supabase, athleteUserId, coachUserId, cycleDraft);
       setCycles((prev) => (cycleDraft.id ? prev.map((c) => (c.id === saved.id ? saved : c)) : [...prev, saved]));
       setShowCycleForm(false);
-      setCycleDraftState({ id: "", name: "", type: "mezocykl", start: todayISO(), end: addDays(todayISO(), 27) });
+      setCycleDraftState(emptyCycleDraft());
     } catch {
       setPlanError(SAVE_ERROR);
     }
@@ -98,15 +145,18 @@ export function CoachAthleteView({
     }
   }
 
+  // ---------- plan entries ----------
   const [planEntries, setPlanEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
+  const knownPlanNotes = useMemo(() => collectKnownPlanNotes(planEntries), [planEntries]);
   async function handleAddEntry(date: string) {
     setPlanError(null);
     try {
       const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
         date,
         slot: "full",
-        category: categories[0] ?? "",
+        category: "",
         notes: "",
+        isDraft: true,
       });
       setPlanEntries((prev) => [...prev, entry]);
     } catch {
@@ -121,15 +171,16 @@ export function CoachAthleteView({
       const entry = await addPlanEntry(supabase, athleteUserId, coachUserId, {
         date,
         slot: "pm",
-        category: categories[0] ?? "",
+        category: "",
         notes: "",
+        isDraft: true,
       });
       setPlanEntries((prev) => [...prev, entry]);
     } catch {
       setPlanError(SAVE_ERROR);
     }
   }
-  async function handleUpdateEntry(id: string, patch: { category?: string; notes?: string }) {
+  async function handleUpdateEntry(id: string, patch: { notes?: string; isDraft?: boolean }) {
     setPlanError(null);
     setPlanEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
     try {
@@ -143,6 +194,27 @@ export function CoachAthleteView({
     try {
       await deletePlanEntry(supabase, id);
       setPlanEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
+  }
+
+  // ---------- private coach notes ----------
+  const [coachNotes, setCoachNotes] = useSyncedState<CoachNote[]>(initialCoachNotes);
+  async function handleSaveNote(date: string, text: string, existingId?: string) {
+    setPlanError(null);
+    try {
+      const saved = await saveCoachNote(supabase, athleteUserId, coachUserId, { id: existingId, date, text });
+      setCoachNotes((prev) => (existingId ? prev.map((n) => (n.id === saved.id ? saved : n)) : [saved, ...prev]));
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
+  }
+  async function handleDeleteNote(id: string) {
+    setPlanError(null);
+    try {
+      await deleteCoachNote(supabase, id);
+      setCoachNotes((prev) => prev.filter((n) => n.id !== id));
     } catch {
       setPlanError(SAVE_ERROR);
     }
@@ -210,9 +282,35 @@ export function CoachAthleteView({
             >
               <ArrowLeft size={13} /> Powrót
             </Link>
-            <h1 className="text-xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
-              {athleteEmail}
-            </h1>
+            {editingName ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveAthleteName()}
+                  placeholder="Imię i nazwisko zawodnika"
+                  className="px-2 py-1 rounded text-sm"
+                  style={inputStyle}
+                />
+                <IconBtn onClick={saveAthleteName} title="Zapisz">
+                  <Check size={16} />
+                </IconBtn>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setNameInput(displayName ?? "");
+                  setEditingName(true);
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <h1 className="text-xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
+                  {displayName || athleteEmail}
+                </h1>
+                <Pencil size={13} color={INK_SOFT} />
+              </button>
+            )}
           </div>
         </div>
         <div className="flex gap-4 mt-3">
@@ -222,6 +320,13 @@ export function CoachAthleteView({
             style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <CalendarDays size={14} /> PLAN
+          </button>
+          <button
+            onClick={() => setTab("notes")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "notes" ? INK : INK_SOFT, borderBottom: tab === "notes" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <StickyNote size={14} /> NOTATKI
           </button>
           <button
             onClick={() => setTab("log")}
@@ -323,7 +428,7 @@ export function CoachAthleteView({
             last12WeeksRunning={last12WeeksRunning}
             showCycleForm={false}
             setShowCycleForm={noop}
-            cycleDraft={{ id: "", name: "", type: "mezocykl", start: todayISO(), end: addDays(todayISO(), 27) }}
+            cycleDraft={emptyCycleDraft()}
             setCycleDraft={noop}
             saveCycle={noop}
             deleteCycle={noop}
@@ -334,14 +439,16 @@ export function CoachAthleteView({
           <PlanTab
             planEntries={planEntries}
             workouts={workouts}
-            categories={categories}
             cycles={cycles}
+            coachNotes={coachNotes}
             editable={canEditPlan}
+            knownPlanNotes={knownPlanNotes}
             onAddEntry={handleAddEntry}
             onAddSecond={handleAddSecond}
             onUpdateEntry={handleUpdateEntry}
             onDeleteEntry={handleDeleteEntry}
             onJumpToWorkout={jumpToWorkout}
+            onSaveNote={handleSaveNote}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}
@@ -350,6 +457,10 @@ export function CoachAthleteView({
             deleteCycle={deleteCycle}
             error={planError}
           />
+        )}
+
+        {tab === "notes" && (
+          <NotesTab notes={coachNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} />
         )}
       </div>
     </div>

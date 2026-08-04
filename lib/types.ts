@@ -137,6 +137,10 @@ export interface Cycle {
   type: CycleType;
   start: string;
   end: string;
+  color?: string | null; // highlights the cycle's date range on the plan calendar
+  notes?: string; // coach-private; never rendered in athlete-facing UI
+  visibleToAthlete?: boolean; // coach decides whether the athlete sees this cycle at all
+  createdBy?: string;
 }
 
 export type Period = "week" | "month" | "all" | "cycle" | "custom";
@@ -147,6 +151,7 @@ export interface CoachAccess {
   id: string;
   athleteUserId: string;
   athleteEmail: string;
+  athleteName: string | null; // coach-set display label, falls back to email
   coachEmail: string;
   coachUserId: string | null;
   status: CoachAccessStatus;
@@ -168,4 +173,15 @@ export interface PlanEntry {
   slot: PlanSlot;
   category: string;
   notes: string;
+  isDraft: boolean; // coach-only until published — see 0007 migration
+}
+
+// A private, coach-only annotation on a specific date. Never fetched or
+// shown for the athlete's own account.
+export interface CoachNote {
+  id: string;
+  athleteUserId: string;
+  coachUserId: string;
+  date: string; // ISO yyyy-mm-dd
+  text: string;
 }
