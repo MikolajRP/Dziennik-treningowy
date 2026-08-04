@@ -484,6 +484,7 @@ export function CoachAthleteView({
             saveCycle={saveCycle}
             deleteCycle={deleteCycle}
             error={planError}
+            coachUserId={coachUserId}
           />
         )}
 

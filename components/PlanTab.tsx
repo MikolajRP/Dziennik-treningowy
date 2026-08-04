@@ -344,6 +344,7 @@ export function PlanTab({
   saveCycle,
   deleteCycle,
   error,
+  coachUserId,
 }: {
   planEntries: PlanEntry[];
   workouts: Workout[];
@@ -367,6 +368,7 @@ export function PlanTab({
   saveCycle: () => void;
   deleteCycle: (id: string) => void;
   error?: string | null;
+  coachUserId?: string;
 }) {
   const today = todayISO();
   const [monthStart, setMonthStart] = useState(startOfMonth(today));
@@ -611,15 +613,21 @@ export function PlanTab({
                 ))}
               </div>
             </Field>
-            <Field label="Notatki (widoczne tylko dla Ciebie)">
-              <textarea
-                value={cycleDraft.notes ?? ""}
-                onChange={(e) => setCycleDraft((c) => ({ ...c, notes: e.target.value }))}
-                rows={2}
-                className="w-full px-2 py-1.5 rounded text-sm"
-                style={inputStyle}
-              />
-            </Field>
+            {!cycleDraft.createdBy || cycleDraft.createdBy === coachUserId ? (
+              <Field label="Notatki (widoczne tylko dla Ciebie)">
+                <textarea
+                  value={cycleDraft.notes ?? ""}
+                  onChange={(e) => setCycleDraft((c) => ({ ...c, notes: e.target.value }))}
+                  rows={2}
+                  className="w-full px-2 py-1.5 rounded text-sm"
+                  style={inputStyle}
+                />
+              </Field>
+            ) : (
+              <div className="mb-3 text-xs" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
+                Notatki widoczne tylko dla trenera, który utworzył ten cykl.
+              </div>
+            )}
             <label className="flex items-center gap-1.5 text-xs mb-3" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
               <input
                 type="checkbox"
