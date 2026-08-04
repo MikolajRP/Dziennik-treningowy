@@ -46,6 +46,12 @@ export const startOfWeek = (iso: string) => {
 export const num = (v: unknown) =>
   v === "" || v === null || v === undefined || isNaN(Number(v)) ? 0 : Number(v);
 
+// "mc" (masa ciała / bodyweight) in the weight field means "just my own
+// body" — no known kg figure, so num() already resolves it to 0 and it
+// naturally drops out of tonnage. This just controls how it's displayed.
+export const isBodyweight = (weight: string) => weight.trim().toLowerCase() === "mc";
+export const fmtWeight = (weight: string) => (isBodyweight(weight) ? "mc" : `${weight}kg`);
+
 // ---------- Strava-oriented formatting helpers ----------
 export function fmtDurationShort(totalSeconds: number): string {
   const s = Math.max(0, Math.round(totalSeconds));
@@ -344,7 +350,7 @@ export function exerciseSummaryText(ex: LeafExercise): { text: string; color: st
     const sets = ex.sets
       .map(
         (s) =>
-          `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${s.rir ? ` RIR${s.rir}` : ""}${ex.unilateral ? ` (${s.side})` : ""}`
+          `${s.reps}×${fmtWeight(s.weight)}${s.tempo ? ` @${s.tempo}` : ""}${s.rir ? ` RIR${s.rir}` : ""}${ex.unilateral ? ` (${s.side})` : ""}`
       )
       .join(", ");
     const tut = computeIsometricTUT(ex);
@@ -357,7 +363,7 @@ export function exerciseSummaryText(ex: LeafExercise): { text: string; color: st
   }
   if (ex.kind === "isometric") {
     const sets = ex.sets
-      .map((s) => `${s.seconds}s×${s.weight}kg${ex.unilateral ? ` (${s.side})` : ""}`)
+      .map((s) => `${s.seconds}s×${fmtWeight(s.weight)}${ex.unilateral ? ` (${s.side})` : ""}`)
       .join(", ");
     return { text: `${sets}  = TUT ${fmtDurationShort(computeIsometricTUT(ex))}`, color: "iso" };
   }

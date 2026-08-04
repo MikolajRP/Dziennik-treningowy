@@ -7,6 +7,7 @@ import {
   computePlyoReps,
   computeSideBreakdown,
   fmtDurationShort,
+  fmtWeight,
 } from "@/lib/calculations";
 import {
   CARD,
@@ -36,11 +37,11 @@ function setPills(ex: LeafExercise) {
   if (ex.kind === "strength")
     return ex.sets.map(
       (s) =>
-        `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${s.rir ? ` RIR${s.rir}` : ""}${ex.unilateral ? ` ${s.side}` : ""}`
+        `${s.reps}×${fmtWeight(s.weight)}${s.tempo ? ` @${s.tempo}` : ""}${s.rir ? ` RIR${s.rir}` : ""}${ex.unilateral ? ` ${s.side}` : ""}`
     );
   if (ex.kind === "plyo") return ex.sets.map((s) => `${s.reps}p${ex.unilateral ? ` ${s.side}` : ""}`);
   if (ex.kind === "isometric")
-    return ex.sets.map((s) => `${s.seconds}s×${s.weight}kg${ex.unilateral ? ` ${s.side}` : ""}`);
+    return ex.sets.map((s) => `${s.seconds}s×${fmtWeight(s.weight)}${ex.unilateral ? ` ${s.side}` : ""}`);
   return [];
 }
 

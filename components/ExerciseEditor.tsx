@@ -9,6 +9,7 @@ import {
   computeSideBreakdown,
   fmtDurationShort,
   formatTempoInput,
+  isBodyweight,
 } from "@/lib/calculations";
 import { CARD, INK, INK_SOFT, ISO, KIND_COLOR, KIND_LABEL, LINE, MUSTARD, PLYO, inputStyle } from "@/lib/design";
 import type { LeafExercise, LeafKind, Side } from "@/lib/types";
@@ -169,15 +170,17 @@ export function ExerciseEditor({
                   />
                   <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>s ×</span>
                   <input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="kg"
+                    type="text"
+                    placeholder="kg / mc"
+                    title="Podaj kg albo wpisz mc (masa ciała) — mc nie liczy się do tonażu"
                     value={s.weight}
                     onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
                     className="w-20 px-2 py-1 rounded text-sm"
                     style={inputStyle}
                   />
-                  <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>kg</span>
+                  {!isBodyweight(s.weight) && (
+                    <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>kg</span>
+                  )}
                 </>
               ) : (
                 <>
@@ -194,15 +197,17 @@ export function ExerciseEditor({
                     <>
                       <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 12, color: INK_SOFT }}>×</span>
                       <input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="kg"
+                        type="text"
+                        placeholder="kg / mc"
+                        title="Podaj kg albo wpisz mc (masa ciała) — mc nie liczy się do tonażu"
                         value={s.weight}
                         onChange={(e) => onUpdateSet(i, "weight", e.target.value)}
                         className="w-20 px-2 py-1 rounded text-sm"
                         style={inputStyle}
                       />
-                      <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>kg</span>
+                      {!isBodyweight(s.weight) && (
+                        <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>kg</span>
+                      )}
                       <input
                         placeholder="tempo"
                         title="Tempo powtórzenia: 4 fazy w sekundach, np. 3-1-2-0, albo X dla ruchu z intencją maksymalną, np. 3-1-X-0"
