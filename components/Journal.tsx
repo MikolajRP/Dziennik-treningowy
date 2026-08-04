@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BarChart3, BookOpen, CalendarDays, Dumbbell, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
@@ -37,6 +38,7 @@ import {
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
 import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
+import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -65,21 +67,22 @@ export function Journal({
   initialPlanEntries: PlanEntry[];
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [tab, setTab] = useState<"log" | "reports" | "plan" | "coach">("log");
-  const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
-  const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
-  const [categories, setCategories] = useState<string[]>(initialCategories);
-  const [planEntries] = useState<PlanEntry[]>(initialPlanEntries);
+  const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
+  const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
+  const [categories, setCategories] = useSyncedState<string[]>(initialCategories);
+  const [planEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
   // Reflects the server's fresh read on this page load — the Strava OAuth
   // callback does a full server-driven redirect back to "/", so this is
   // already up to date without needing client-side state.
   const stravaConnected = initialStravaConnected;
   const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
 
-  const [coachGrants, setCoachGrants] = useState<CoachAccess[]>(initialCoachGrants);
-  const [pendingInvites, setPendingInvites] = useState<CoachAccess[]>(initialPendingInvites);
-  const [athletesForCoach] = useState<CoachAccess[]>(initialAthletesForCoach);
+  const [coachGrants, setCoachGrants] = useSyncedState<CoachAccess[]>(initialCoachGrants);
+  const [pendingInvites, setPendingInvites] = useSyncedState<CoachAccess[]>(initialPendingInvites);
+  const [athletesForCoach] = useSyncedState<CoachAccess[]>(initialAthletesForCoach);
   const [newCoachEmail, setNewCoachEmail] = useState("");
 
   useEffect(() => {
@@ -87,6 +90,18 @@ export function Journal({
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  // The app never syncs live — re-pull everything (via the server component
+  // above us) whenever the tab/installed app comes back to the foreground,
+  // so switching away and back is enough to see e.g. a plan a coach just
+  // added, without needing a hard reload.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") router.refresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

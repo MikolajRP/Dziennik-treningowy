@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, BarChart3, BookOpen, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { addPlanEntry, deleteCycleRow, deletePlanEntry, saveCycleRow, updatePlanEntry } from "@/lib/data";
@@ -9,6 +10,7 @@ import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
 import type { Cycle, PlanEntry, Period, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
+import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import { PlanTab } from "./PlanTab";
@@ -38,8 +40,19 @@ export function CoachAthleteView({
   canEditPlan: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [tab, setTab] = useState<"log" | "reports" | "plan">("plan");
+
+  // The app never syncs live — re-pull everything (via the server component
+  // above us) whenever the tab/installed app comes back to the foreground.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") router.refresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
 
   const [period, setPeriod] = useState<Period>("week");
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
@@ -50,7 +63,7 @@ export function CoachAthleteView({
   const [planError, setPlanError] = useState<string | null>(null);
   const SAVE_ERROR = "Nie udało się zapisać — spróbuj ponownie.";
 
-  const [cycles, setCycles] = useState<Cycle[]>(initialCycles);
+  const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [showCycleForm, setShowCycleForm] = useState(false);
   const [cycleDraft, setCycleDraftState] = useState<Cycle>({
     id: "",
@@ -85,7 +98,7 @@ export function CoachAthleteView({
     }
   }
 
-  const [planEntries, setPlanEntries] = useState<PlanEntry[]>(initialPlanEntries);
+  const [planEntries, setPlanEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
   async function handleAddEntry(date: string) {
     setPlanError(null);
     try {
