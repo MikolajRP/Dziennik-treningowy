@@ -28,11 +28,13 @@ create trigger plan_entries_set_updated_at
   for each row execute function public.set_updated_at();
 
 -- Athlete: read-only access to their own plan.
+drop policy if exists "plan_entries_athlete_select" on public.plan_entries;
 create policy "plan_entries_athlete_select" on public.plan_entries
   for select using (auth.uid() = athlete_user_id);
 
 -- Coach: full read/write access to an athlete's plan, gated by an active
 -- grant with can_edit_plan.
+drop policy if exists "plan_entries_coach_manage" on public.plan_entries;
 create policy "plan_entries_coach_manage" on public.plan_entries
   for all using (
     exists (
@@ -57,6 +59,7 @@ create policy "plan_entries_coach_manage" on public.plan_entries
 -- (mezocykl/makrocykl) — same permission gate as the plan, since cycles are
 -- part of the same periodization planning. The athlete keeps their existing
 -- "cycles_select_via_coach" read policy from 0004 regardless of this flag.
+drop policy if exists "cycles_coach_manage" on public.cycles;
 create policy "cycles_coach_manage" on public.cycles
   for all using (
     exists (
