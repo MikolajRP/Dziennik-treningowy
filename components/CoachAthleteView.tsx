@@ -10,15 +10,17 @@ import {
   deleteCoachNote,
   deleteCycleRow,
   deletePlanEntry,
+  deleteRace,
   saveCoachNote,
   saveCycleRow,
+  saveRace,
   updateAthleteName,
   updatePlanEntry,
 } from "@/lib/data";
 import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg, inputStyle } from "@/lib/design";
-import type { CoachNote, Cycle, PlanEntry, Period, Workout } from "@/lib/types";
+import type { CoachNote, Cycle, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
@@ -41,6 +43,7 @@ export function CoachAthleteView({
   initialCycles,
   initialPlanEntries,
   initialCoachNotes,
+  initialRaces,
   canViewReports,
   canEditPlan,
 }: {
@@ -54,6 +57,7 @@ export function CoachAthleteView({
   initialCycles: Cycle[];
   initialPlanEntries: PlanEntry[];
   initialCoachNotes: CoachNote[];
+  initialRaces: Race[];
   canViewReports: boolean;
   canEditPlan: boolean;
 }) {
@@ -215,6 +219,27 @@ export function CoachAthleteView({
     try {
       await deleteCoachNote(supabase, id);
       setCoachNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
+  }
+
+  // ---------- races ----------
+  const [races, setRaces] = useSyncedState<Race[]>(initialRaces);
+  async function handleSaveRace(date: string, name: string, existingId?: string) {
+    setPlanError(null);
+    try {
+      const saved = await saveRace(supabase, athleteUserId, coachUserId, { id: existingId, date, name });
+      setRaces((prev) => (existingId ? prev.map((r) => (r.id === saved.id ? saved : r)) : [...prev, saved]));
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
+  }
+  async function handleDeleteRace(id: string) {
+    setPlanError(null);
+    try {
+      await deleteRace(supabase, id);
+      setRaces((prev) => prev.filter((r) => r.id !== id));
     } catch {
       setPlanError(SAVE_ERROR);
     }
@@ -440,6 +465,7 @@ export function CoachAthleteView({
             planEntries={planEntries}
             workouts={workouts}
             cycles={cycles}
+            races={races}
             coachNotes={coachNotes}
             editable={canEditPlan}
             knownPlanNotes={knownPlanNotes}
@@ -449,6 +475,8 @@ export function CoachAthleteView({
             onDeleteEntry={handleDeleteEntry}
             onJumpToWorkout={jumpToWorkout}
             onSaveNote={handleSaveNote}
+            onSaveRace={handleSaveRace}
+            onDeleteRace={handleDeleteRace}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}

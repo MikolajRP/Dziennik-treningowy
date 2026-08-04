@@ -36,7 +36,7 @@ import {
   updateSetInList,
 } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
-import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Workout, WorkoutExercise } from "@/lib/types";
+import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
@@ -54,6 +54,7 @@ export function Journal({
   initialPendingInvites,
   initialAthletesForCoach,
   initialPlanEntries,
+  initialRaces,
 }: {
   userId: string;
   userEmail: string;
@@ -65,6 +66,7 @@ export function Journal({
   initialPendingInvites: CoachAccess[];
   initialAthletesForCoach: CoachAccess[];
   initialPlanEntries: PlanEntry[];
+  initialRaces: Race[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -74,6 +76,7 @@ export function Journal({
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useSyncedState<string[]>(initialCategories);
   const [planEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
+  const [races] = useSyncedState<Race[]>(initialRaces);
   // Reflects the server's fresh read on this page load — the Strava OAuth
   // callback does a full server-driven redirect back to "/", so this is
   // already up to date without needing client-side state.
@@ -529,6 +532,9 @@ export function Journal({
             onDeleteEntry={() => {}}
             onJumpToWorkout={jumpToWorkout}
             onSaveNote={() => {}}
+            races={races}
+            onSaveRace={() => {}}
+            onDeleteRace={() => {}}
             showCycleForm={showCycleForm}
             setShowCycleForm={setShowCycleForm}
             cycleDraft={cycleDraft}

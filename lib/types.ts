@@ -185,3 +185,13 @@ export interface CoachNote {
   date: string; // ISO yyyy-mm-dd
   text: string;
 }
+
+// A named event on a date — unlike CoachNote, this IS visible to the
+// athlete (it's their race day), highlighted strongly on the plan calendar.
+export interface Race {
+  id: string;
+  athleteUserId: string;
+  createdBy: string | null;
+  date: string; // ISO yyyy-mm-dd
+  name: string;
+}

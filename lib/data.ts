@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { CoachAccess, CoachNote, Cycle, PlanEntry, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { CoachAccess, CoachNote, Cycle, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
@@ -645,5 +645,67 @@ export async function saveCoachNote(
 
 export async function deleteCoachNote(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("coach_notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------- races (visible to the athlete, unlike coach notes) ----------
+
+interface RaceRow {
+  id: string;
+  athlete_user_id: string;
+  created_by: string | null;
+  date: string;
+  name: string;
+}
+
+const RACE_SELECT = "id, athlete_user_id, created_by, date, name";
+
+const raceFromRow = (r: RaceRow): Race => ({
+  id: r.id,
+  athleteUserId: r.athlete_user_id,
+  createdBy: r.created_by,
+  date: r.date,
+  name: r.name,
+});
+
+export async function fetchRaces(supabase: SupabaseClient, athleteUserId: string): Promise<Race[]> {
+  const { data, error } = await supabase
+    .from("races")
+    .select(RACE_SELECT)
+    .eq("athlete_user_id", athleteUserId)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return (data as RaceRow[]).map(raceFromRow);
+}
+
+// One race per date by convention — pass the existing race's id to rename
+// it, or omit it to create a new one.
+export async function saveRace(
+  supabase: SupabaseClient,
+  athleteUserId: string,
+  coachUserId: string,
+  race: { id?: string; date: string; name: string }
+): Promise<Race> {
+  if (race.id) {
+    const { data, error } = await supabase
+      .from("races")
+      .update({ name: race.name })
+      .eq("id", race.id)
+      .select(RACE_SELECT)
+      .single();
+    if (error) throw error;
+    return raceFromRow(data as RaceRow);
+  }
+  const { data, error } = await supabase
+    .from("races")
+    .insert({ athlete_user_id: athleteUserId, created_by: coachUserId, date: race.date, name: race.name })
+    .select(RACE_SELECT)
+    .single();
+  if (error) throw error;
+  return raceFromRow(data as RaceRow);
+}
+
+export async function deleteRace(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("races").delete().eq("id", id);
   if (error) throw error;
 }

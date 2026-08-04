@@ -16,6 +16,10 @@ export const PLAN_FUTURE = "#9AA5AE"; // planned, date not yet due
 export const PLAN_DONE = "#2F7D52"; // matched to a real completed workout
 export const PLAN_MISSED = "#C97A2E"; // date passed, no matching workout
 
+// a race day — deliberately a much stronger, more saturated red than RUST
+// (which means "danger/delete" elsewhere) so it reads as its own thing
+export const RACE = "#D7263D";
+
 export const FONT_DISPLAY = "var(--font-oswald), sans-serif";
 export const FONT_MONO = "var(--font-ibm-plex-mono), monospace";
 

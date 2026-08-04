@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Flag, Pencil, Plus, Trash2, X } from "lucide-react";
 import { addDays, fmtShort, startOfWeek, todayISO } from "@/lib/calculations";
-import { cycleForDate, entriesForDate, type PlanEntryStatus } from "@/lib/planCalculations";
+import { cycleForDate, entriesForDate, raceForDate, type PlanEntryStatus } from "@/lib/planCalculations";
 import {
   AERO,
   CARD,
@@ -18,11 +18,12 @@ import {
   PLAN_FUTURE,
   PLAN_MISSED,
   PLYO,
+  RACE,
   RUST,
   TEAL,
   inputStyle,
 } from "@/lib/design";
-import type { CoachNote, Cycle, CycleType, PlanEntry, Workout } from "@/lib/types";
+import type { CoachNote, Cycle, CycleType, PlanEntry, Race, Workout } from "@/lib/types";
 import { Chip, Field, IconBtn } from "./atoms";
 
 const WEEKDAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
@@ -219,10 +220,112 @@ function DayNoteField({
   );
 }
 
+function DayRaceField({
+  date,
+  race,
+  editable,
+  onSaveRace,
+  onDeleteRace,
+}: {
+  date: string;
+  race: Race | null;
+  editable: boolean;
+  onSaveRace: (date: string, name: string, existingId?: string) => void;
+  onDeleteRace: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(race?.name ?? "");
+
+  if (!editable) {
+    if (!race) return null;
+    return (
+      <div className="mb-2 px-2 py-1.5 rounded-md flex items-center gap-1.5" style={{ background: RACE }}>
+        <Flag size={13} color="#fff" />
+        <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 700, color: "#fff" }}>{race.name}</span>
+      </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="mb-2 flex items-center gap-1.5">
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && name.trim()) {
+              onSaveRace(date, name.trim(), race?.id);
+              setEditing(false);
+            }
+          }}
+          placeholder="Nazwa zawodów"
+          className="flex-1 px-2 py-1 rounded text-xs"
+          style={inputStyle}
+        />
+        <IconBtn
+          onClick={() => {
+            if (name.trim()) {
+              onSaveRace(date, name.trim(), race?.id);
+              setEditing(false);
+            }
+          }}
+          title="Zapisz"
+        >
+          <Check size={14} />
+        </IconBtn>
+        <IconBtn onClick={() => setEditing(false)} title="Anuluj">
+          <X size={14} />
+        </IconBtn>
+      </div>
+    );
+  }
+
+  if (race) {
+    return (
+      <div className="mb-2 px-2 py-1.5 rounded-md flex items-center justify-between" style={{ background: RACE }}>
+        <div className="flex items-center gap-1.5">
+          <Flag size={13} color="#fff" />
+          <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 700, color: "#fff" }}>{race.name}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <IconBtn
+            onClick={() => {
+              setName(race.name);
+              setEditing(true);
+            }}
+            title="Edytuj"
+            color="#fff"
+          >
+            <Pencil size={13} />
+          </IconBtn>
+          <IconBtn onClick={() => onDeleteRace(race.id)} title="Usuń" color="#fff">
+            <Trash2 size={13} />
+          </IconBtn>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setName("");
+        setEditing(true);
+      }}
+      className="mb-2 flex items-center gap-1 text-xs px-2 py-1 rounded"
+      style={{ fontFamily: FONT_MONO, border: `1px dashed ${RACE}`, color: RACE }}
+    >
+      <Flag size={12} /> Dodaj zawody
+    </button>
+  );
+}
+
 export function PlanTab({
   planEntries,
   workouts,
   cycles,
+  races,
   coachNotes,
   editable,
   knownPlanNotes,
@@ -232,6 +335,8 @@ export function PlanTab({
   onDeleteEntry,
   onJumpToWorkout,
   onSaveNote,
+  onSaveRace,
+  onDeleteRace,
   showCycleForm,
   setShowCycleForm,
   cycleDraft,
@@ -243,6 +348,7 @@ export function PlanTab({
   planEntries: PlanEntry[];
   workouts: Workout[];
   cycles: Cycle[];
+  races: Race[];
   coachNotes: CoachNote[];
   editable: boolean;
   knownPlanNotes: string[];
@@ -252,6 +358,8 @@ export function PlanTab({
   onDeleteEntry: (id: string) => void;
   onJumpToWorkout: (workoutId: string) => void;
   onSaveNote: (date: string, text: string, existingId?: string) => void;
+  onSaveRace: (date: string, name: string, existingId?: string) => void;
+  onDeleteRace: (id: string) => void;
   showCycleForm: boolean;
   setShowCycleForm: (v: boolean) => void;
   cycleDraft: Cycle;
@@ -321,17 +429,18 @@ export function PlanTab({
                   const dayEntries = entriesForDate(planEntries, workouts, date);
                   const isToday = date === today;
                   const cycle = cycleForDate(cycles, date);
+                  const race = raceForDate(races, date);
                   return (
                     <div
                       key={date}
                       className="flex flex-col items-center py-1.5 rounded-md"
                       style={{
-                        background: isToday ? "#fff" : cycle ? `${cycle.color}2A` : "transparent",
-                        border: `1px solid ${isToday ? MUSTARD : "transparent"}`,
+                        background: race ? RACE : isToday ? "#fff" : cycle ? `${cycle.color}2A` : "transparent",
+                        border: `1px solid ${!race && isToday ? MUSTARD : "transparent"}`,
                         opacity: inMonth ? 1 : 0.35,
                       }}
                     >
-                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: INK, fontWeight: 600 }}>
+                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: race ? "#fff" : INK, fontWeight: 600 }}>
                         {date.slice(8, 10)}
                       </div>
                       <div className="flex gap-0.5 mt-0.5" style={{ minHeight: 4 }}>
@@ -359,6 +468,7 @@ export function PlanTab({
                     const dayEntries = entriesForDate(planEntries, workouts, date);
                     const canAdd = editable && date >= today;
                     const cycle = cycleForDate(cycles, date);
+                    const race = raceForDate(races, date);
                     const dayNote = coachNotes.find((n) => n.date === date);
                     return (
                       <div key={date} className="p-2.5 rounded-md" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
@@ -372,6 +482,8 @@ export function PlanTab({
                             </span>
                           )}
                         </div>
+
+                        <DayRaceField date={date} race={race} editable={editable} onSaveRace={onSaveRace} onDeleteRace={onDeleteRace} />
 
                         {dayEntries.map(({ entry, status, matchedWorkoutId }) => (
                           <PlanEntryCard

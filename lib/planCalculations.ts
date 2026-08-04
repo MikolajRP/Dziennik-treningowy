@@ -1,5 +1,5 @@
 import { todayISO } from "./calculations";
-import type { Cycle, PlanEntry, Workout } from "./types";
+import type { Cycle, PlanEntry, Race, Workout } from "./types";
 
 // Whether a plan entry was actually done is never stored — it's inferred at
 // read time by matching its date against the athlete's real `workouts`.
@@ -47,4 +47,9 @@ export function cycleForDate(cycles: Cycle[], date: string): Cycle | null {
   const matches = cycles.filter((c) => date >= c.start && date <= c.end);
   if (matches.length === 0) return null;
   return matches.find((c) => c.type === "mezocykl") ?? matches[0];
+}
+
+// The race (if any) on this date, for calendar highlighting.
+export function raceForDate(races: Race[], date: string): Race | null {
+  return races.find((r) => r.date === date) ?? null;
 }
