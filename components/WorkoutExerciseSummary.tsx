@@ -34,7 +34,9 @@ const KIND_ICON: Record<LeafKind, typeof Dumbbell> = {
 
 function setPills(ex: LeafExercise) {
   if (ex.kind === "strength")
-    return ex.sets.map((s) => `${s.reps}×${s.weight}kg${ex.unilateral ? ` ${s.side}` : ""}`);
+    return ex.sets.map(
+      (s) => `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${ex.unilateral ? ` ${s.side}` : ""}`
+    );
   if (ex.kind === "plyo") return ex.sets.map((s) => `${s.reps}p${ex.unilateral ? ` ${s.side}` : ""}`);
   if (ex.kind === "isometric")
     return ex.sets.map((s) => `${s.seconds}s×${s.weight}kg${ex.unilateral ? ` ${s.side}` : ""}`);
@@ -42,7 +44,13 @@ function setPills(ex: LeafExercise) {
 }
 
 function metricLine(ex: LeafExercise): { text: string; color: string } | null {
-  if (ex.kind === "strength") return { text: `${Math.round(computeExerciseTonnage(ex))} kg`, color: MUSTARD };
+  if (ex.kind === "strength") {
+    const tut = computeIsometricTUT(ex);
+    return {
+      text: `${Math.round(computeExerciseTonnage(ex))} kg${tut > 0 ? ` · TUT ${fmtDurationShort(tut)}` : ""}`,
+      color: MUSTARD,
+    };
+  }
   if (ex.kind === "plyo") return { text: `${computePlyoReps(ex)} powt.`, color: PLYO };
   if (ex.kind === "isometric") return { text: `TUT ${fmtDurationShort(computeIsometricTUT(ex))}`, color: ISO };
   if (ex.kind === "functional")

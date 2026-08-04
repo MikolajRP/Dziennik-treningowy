@@ -74,7 +74,7 @@ function ExerciseNameField({
 // The three set shapes (Strength/Plyo/Isometric) share fields loosely —
 // this view type lets the JSX below read whichever fields apply to the
 // exercise's own kind without fighting the sets' discriminated union.
-type AnySet = { reps: string; weight: string; seconds: string; side: Side };
+type AnySet = { reps: string; weight: string; seconds: string; side: Side; tempo?: string };
 
 const KIND_ICON: Record<LeafKind, typeof Dumbbell> = {
   strength: Dumbbell,
@@ -202,6 +202,15 @@ export function ExerciseEditor({
                         style={inputStyle}
                       />
                       <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>kg</span>
+                      <input
+                        placeholder="tempo"
+                        title="Tempo powtórzenia: 4 fazy w sekundach, np. 3120, albo X dla ruchu z intencją maksymalną, np. 31X0"
+                        value={s.tempo ?? ""}
+                        onChange={(e) => onUpdateSet(i, "tempo", e.target.value)}
+                        maxLength={6}
+                        className="w-16 px-2 py-1 rounded text-sm"
+                        style={inputStyle}
+                      />
                     </>
                   )}
                   {ex.kind === "plyo" && (
@@ -228,7 +237,12 @@ export function ExerciseEditor({
           >
             {ex.kind === "plyo" && `Objętość plyo: ${computePlyoReps(ex)} powt.`}
             {ex.kind === "isometric" && `TUT (czas pod napięciem): ${fmtDurationShort(computeIsometricTUT(ex))}`}
-            {ex.kind === "strength" && `Tonaż: ${Math.round(computeExerciseTonnage(ex))} kg`}
+            {ex.kind === "strength" && (
+              <>
+                Tonaż: {Math.round(computeExerciseTonnage(ex))} kg
+                {computeIsometricTUT(ex) > 0 && `  ·  TUT: ${fmtDurationShort(computeIsometricTUT(ex))}`}
+              </>
+            )}
             {ex.unilateral &&
               (() => {
                 const b = computeSideBreakdown(ex);

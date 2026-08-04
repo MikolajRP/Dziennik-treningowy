@@ -189,10 +189,29 @@ export const computeExerciseTonnage = (ex: LeafExercise) =>
   ex.kind === "strength" ? ex.sets.reduce((sum, s) => sum + num(s.reps) * num(s.weight), 0) : 0;
 export const computePlyoReps = (ex: LeafExercise) =>
   ex.kind === "plyo" ? ex.sets.reduce((sum, s) => sum + num(s.reps), 0) : 0;
-// Time under tension (TUT), in seconds — weight isn't factored in, it's
-// just recorded per set for reference.
-export const computeIsometricTUT = (ex: LeafExercise) =>
-  ex.kind === "isometric" ? ex.sets.reduce((sum, s) => sum + num(s.seconds), 0) : 0;
+
+// Sums the digits of a tempo string like "3120" or "31X0" (seconds per
+// phase: eccentric / pause / concentric / pause). "X" means that phase is
+// done with maximal/explosive intent rather than a fixed duration, so it
+// doesn't contribute a number to the sum.
+export function tempoSumSeconds(tempo: string | undefined): number {
+  if (!tempo) return 0;
+  let sum = 0;
+  for (const ch of tempo) {
+    const d = Number(ch);
+    if (!isNaN(d)) sum += d;
+  }
+  return sum;
+}
+
+// Time under tension (TUT), in seconds. Isometric sets record it directly;
+// strength sets with a tempo set derive it as (seconds per rep × reps) —
+// weight isn't factored into either, it's just recorded for reference.
+export const computeIsometricTUT = (ex: LeafExercise) => {
+  if (ex.kind === "isometric") return ex.sets.reduce((sum, s) => sum + num(s.seconds), 0);
+  if (ex.kind === "strength") return ex.sets.reduce((sum, s) => sum + tempoSumSeconds(s.tempo) * num(s.reps), 0);
+  return 0;
+};
 export const computeFunctionalMinutes = (ex: LeafExercise) =>
   ex.kind === "functional" ? num(ex.minutes) : 0;
 export const computeAerobicMinutes = (ex: LeafExercise) =>
@@ -310,9 +329,11 @@ export function getRange(
 export function exerciseSummaryText(ex: LeafExercise): { text: string; color: string } {
   if (ex.kind === "strength") {
     const sets = ex.sets
-      .map((s) => `${s.reps}×${s.weight}kg${ex.unilateral ? ` (${s.side})` : ""}`)
+      .map((s) => `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${ex.unilateral ? ` (${s.side})` : ""}`)
       .join(", ");
-    return { text: `${sets}  = ${Math.round(computeExerciseTonnage(ex))} kg`, color: "ink-soft" };
+    const tut = computeIsometricTUT(ex);
+    const tutText = tut > 0 ? `, TUT ${fmtDurationShort(tut)}` : "";
+    return { text: `${sets}  = ${Math.round(computeExerciseTonnage(ex))} kg${tutText}`, color: "ink-soft" };
   }
   if (ex.kind === "plyo") {
     const sets = ex.sets.map((s) => `${s.reps}p${ex.unilateral ? ` (${s.side})` : ""}`).join(", ");

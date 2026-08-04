@@ -6,6 +6,10 @@ export interface StrengthSet {
   reps: string;
   weight: string;
   side: Side;
+  // Optional tempo, e.g. "3120" or "31X0" — four phases (eccentric / pause /
+  // concentric / pause) in seconds, or "X" for a phase done with maximal
+  // (explosive) intent rather than a fixed duration.
+  tempo?: string;
 }
 export interface PlyoSet {
   reps: string;
