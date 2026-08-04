@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, Pencil, StickyNote } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HelpCircle, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   addPlanEntry,
@@ -19,7 +19,8 @@ import {
 } from "@/lib/data";
 import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { collectKnownPlanNotes } from "@/lib/planCalculations";
-import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg, inputStyle } from "@/lib/design";
+import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
+import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, RACE, gridBg, inputStyle } from "@/lib/design";
 import type { CoachNote, Cycle, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
@@ -27,6 +28,7 @@ import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import { PlanTab } from "./PlanTab";
 import { NotesTab } from "./NotesTab";
+import { CoachHelpModal } from "./CoachHelpModal";
 import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
@@ -75,6 +77,27 @@ export function CoachAthleteView({
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [router]);
+
+  // ---------- help / onboarding ----------
+  const [showHelp, setShowHelp] = useState(false);
+  const [hasUnreadChangelog, setHasUnreadChangelog] = useState(false);
+  const tutorialSeenKey = `coachTutorialSeen:${coachUserId}`;
+  const changelogSeenKey = `coachChangelogSeen:${coachUserId}`;
+  useEffect(() => {
+    // localStorage only exists client-side, so this can't be read during the
+    // initial (server) render — it has to be synchronized here, once, after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!localStorage.getItem(tutorialSeenKey)) setShowHelp(true);
+    const lastSeenChangelog = localStorage.getItem(changelogSeenKey);
+    if (lastSeenChangelog !== LATEST_CHANGELOG_DATE) setHasUnreadChangelog(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function closeHelp() {
+    setShowHelp(false);
+    setHasUnreadChangelog(false);
+    localStorage.setItem(tutorialSeenKey, "1");
+    localStorage.setItem(changelogSeenKey, LATEST_CHANGELOG_DATE);
+  }
 
   const [period, setPeriod] = useState<Period>("week");
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
@@ -337,6 +360,12 @@ export function CoachAthleteView({
               </button>
             )}
           </div>
+          <button onClick={() => setShowHelp(true)} title="Pomoc" className="relative p-1">
+            <HelpCircle size={22} color={INK_SOFT} />
+            {hasUnreadChangelog && (
+              <div className="absolute top-0 right-0 rounded-full" style={{ width: 8, height: 8, background: RACE }} />
+            )}
+          </button>
         </div>
         <div className="flex gap-4 mt-3">
           <button
@@ -492,6 +521,8 @@ export function CoachAthleteView({
           <NotesTab notes={coachNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} />
         )}
       </div>
+
+      <CoachHelpModal open={showHelp} onClose={closeHelp} />
     </div>
   );
 }
