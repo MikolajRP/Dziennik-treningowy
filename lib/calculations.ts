@@ -190,10 +190,23 @@ export const computeExerciseTonnage = (ex: LeafExercise) =>
 export const computePlyoReps = (ex: LeafExercise) =>
   ex.kind === "plyo" ? ex.sets.reduce((sum, s) => sum + num(s.reps), 0) : 0;
 
-// Sums the digits of a tempo string like "3120" or "31X0" (seconds per
-// phase: eccentric / pause / concentric / pause). "X" means that phase is
-// done with maximal/explosive intent rather than a fixed duration, so it
-// doesn't contribute a number to the sum.
+// Auto-inserts dashes as the tempo is typed ("3120" -> "3-1-2-0"), keeping
+// only digits and X/x (uppercased), capped at the 4 phases. Called on every
+// keystroke with the field's current full value, so it has to be
+// idempotent on its own output (re-formatting "3-1-2-0" gives "3-1-2-0").
+export function formatTempoInput(raw: string): string {
+  return raw
+    .toUpperCase()
+    .replace(/[^0-9X]/g, "")
+    .slice(0, 4)
+    .split("")
+    .join("-");
+}
+
+// Sums the digits of a tempo string like "3-1-2-0" or "3-1-X-0" (seconds
+// per phase: eccentric / pause / concentric / pause). "X" means that phase
+// is done with maximal/explosive intent rather than a fixed duration, so
+// it doesn't contribute a number to the sum — dashes are likewise ignored.
 export function tempoSumSeconds(tempo: string | undefined): number {
   if (!tempo) return 0;
   let sum = 0;
@@ -329,7 +342,10 @@ export function getRange(
 export function exerciseSummaryText(ex: LeafExercise): { text: string; color: string } {
   if (ex.kind === "strength") {
     const sets = ex.sets
-      .map((s) => `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${ex.unilateral ? ` (${s.side})` : ""}`)
+      .map(
+        (s) =>
+          `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${s.rir ? ` RIR${s.rir}` : ""}${ex.unilateral ? ` (${s.side})` : ""}`
+      )
       .join(", ");
     const tut = computeIsometricTUT(ex);
     const tutText = tut > 0 ? `, TUT ${fmtDurationShort(tut)}` : "";

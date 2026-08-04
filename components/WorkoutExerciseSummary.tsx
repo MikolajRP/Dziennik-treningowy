@@ -35,7 +35,8 @@ const KIND_ICON: Record<LeafKind, typeof Dumbbell> = {
 function setPills(ex: LeafExercise) {
   if (ex.kind === "strength")
     return ex.sets.map(
-      (s) => `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${ex.unilateral ? ` ${s.side}` : ""}`
+      (s) =>
+        `${s.reps}×${s.weight}kg${s.tempo ? ` @${s.tempo}` : ""}${s.rir ? ` RIR${s.rir}` : ""}${ex.unilateral ? ` ${s.side}` : ""}`
     );
   if (ex.kind === "plyo") return ex.sets.map((s) => `${s.reps}p${ex.unilateral ? ` ${s.side}` : ""}`);
   if (ex.kind === "isometric")

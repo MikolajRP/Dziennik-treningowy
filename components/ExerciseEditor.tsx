@@ -8,6 +8,7 @@ import {
   computePlyoReps,
   computeSideBreakdown,
   fmtDurationShort,
+  formatTempoInput,
 } from "@/lib/calculations";
 import { CARD, INK, INK_SOFT, ISO, KIND_COLOR, KIND_LABEL, LINE, MUSTARD, PLYO, inputStyle } from "@/lib/design";
 import type { LeafExercise, LeafKind, Side } from "@/lib/types";
@@ -74,7 +75,7 @@ function ExerciseNameField({
 // The three set shapes (Strength/Plyo/Isometric) share fields loosely —
 // this view type lets the JSX below read whichever fields apply to the
 // exercise's own kind without fighting the sets' discriminated union.
-type AnySet = { reps: string; weight: string; seconds: string; side: Side; tempo?: string };
+type AnySet = { reps: string; weight: string; seconds: string; side: Side; tempo?: string; rir?: string };
 
 const KIND_ICON: Record<LeafKind, typeof Dumbbell> = {
   strength: Dumbbell,
@@ -133,7 +134,7 @@ export function ExerciseEditor({
           </button>
 
           {(ex.sets as unknown as AnySet[]).map((s, i) => (
-            <div key={i} className="flex items-center gap-1.5 mb-1">
+            <div key={i} className="flex items-center flex-wrap gap-1.5 mb-1">
               <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT, width: 14 }}>
                 {i + 1}.
               </span>
@@ -204,11 +205,21 @@ export function ExerciseEditor({
                       <span style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", fontSize: 11, color: INK_SOFT }}>kg</span>
                       <input
                         placeholder="tempo"
-                        title="Tempo powtórzenia: 4 fazy w sekundach, np. 3120, albo X dla ruchu z intencją maksymalną, np. 31X0"
+                        title="Tempo powtórzenia: 4 fazy w sekundach, np. 3-1-2-0, albo X dla ruchu z intencją maksymalną, np. 3-1-X-0"
                         value={s.tempo ?? ""}
-                        onChange={(e) => onUpdateSet(i, "tempo", e.target.value)}
-                        maxLength={6}
-                        className="w-16 px-2 py-1 rounded text-sm"
+                        onChange={(e) => onUpdateSet(i, "tempo", formatTempoInput(e.target.value))}
+                        maxLength={7}
+                        className="w-20 px-2 py-1 rounded text-sm"
+                        style={inputStyle}
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder="RIR"
+                        title="Reps in reserve — ile powtórzeń jeszcze zostało w zapasie"
+                        value={s.rir ?? ""}
+                        onChange={(e) => onUpdateSet(i, "rir", e.target.value)}
+                        className="w-14 px-2 py-1 rounded text-sm"
                         style={inputStyle}
                       />
                     </>
