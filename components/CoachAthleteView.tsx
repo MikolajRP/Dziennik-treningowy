@@ -322,54 +322,52 @@ export function CoachAthleteView({
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
-        <div className="flex items-baseline justify-between">
-          <div>
-            {editingName ? (
-              <div className="flex items-center gap-1.5">
-                <input
-                  autoFocus
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && saveAthleteName()}
-                  placeholder="Imię i nazwisko zawodnika"
-                  className="px-2 py-1 rounded text-sm"
-                  style={inputStyle}
-                />
-                <IconBtn onClick={saveAthleteName} title="Zapisz">
-                  <Check size={16} />
-                </IconBtn>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setNameInput(displayName ?? "");
-                  setEditingName(true);
-                }}
-                className="flex items-center gap-1.5"
-              >
-                <h1 className="text-xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
-                  {displayName || athleteEmail}
-                </h1>
-                <Pencil size={13} color={INK_SOFT} />
-              </button>
+        <div className="flex items-center justify-end gap-3">
+          <button
+            onClick={() => signOut()}
+            title="Wyloguj"
+            className="flex items-center gap-1 text-xs"
+            style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+          >
+            <LogOut size={14} /> Wyloguj
+          </button>
+          <button onClick={() => setShowHelp(true)} title="Pomoc" className="relative p-1">
+            <HelpCircle size={22} color={INK_SOFT} />
+            {hasUnreadChangelog && (
+              <div className="absolute top-0 right-0 rounded-full" style={{ width: 8, height: 8, background: RACE }} />
             )}
-          </div>
-          <div className="flex items-center gap-3">
+          </button>
+        </div>
+        <div className="mt-2">
+          {editingName ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveAthleteName()}
+                placeholder="Imię i nazwisko zawodnika"
+                className="px-2 py-1 rounded text-sm"
+                style={inputStyle}
+              />
+              <IconBtn onClick={saveAthleteName} title="Zapisz">
+                <Check size={16} />
+              </IconBtn>
+            </div>
+          ) : (
             <button
-              onClick={() => signOut()}
-              title="Wyloguj"
-              className="flex items-center gap-1 text-xs"
-              style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+              onClick={() => {
+                setNameInput(displayName ?? "");
+                setEditingName(true);
+              }}
+              className="flex items-center gap-1.5"
             >
-              <LogOut size={14} /> Wyloguj
+              <h1 className="text-xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
+                {displayName || athleteEmail}
+              </h1>
+              <Pencil size={13} color={INK_SOFT} />
             </button>
-            <button onClick={() => setShowHelp(true)} title="Pomoc" className="relative p-1">
-              <HelpCircle size={22} color={INK_SOFT} />
-              {hasUnreadChangelog && (
-                <div className="absolute top-0 right-0 rounded-full" style={{ width: 8, height: 8, background: RACE }} />
-              )}
-            </button>
-          </div>
+          )}
         </div>
         <div className="flex gap-4 mt-3">
           <button
