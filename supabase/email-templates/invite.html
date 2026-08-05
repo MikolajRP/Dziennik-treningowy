@@ -4,10 +4,13 @@
   Source/HTML mode first). Not deployed automatically; this file is just a
   version-controlled reference copy.
 
-  Uses table-based layout + inline styles + a solid background-color
+  Copy matches the existing "Siemano trenerze!" wording, just repackaged
+  into a card with a background pattern and a real button instead of a bare
+  link. Uses table-based layout + inline styles + a solid background-color
   fallback, since most email clients (Outlook especially) ignore modern CSS.
   {{ .ConfirmationURL }} is Supabase's built-in template variable — leave it
-  exactly as-is.
+  exactly as-is. Emoji are HTML entities so they survive whatever encoding
+  Supabase's editor applies on save.
 -->
 <div style="background-color:#ECEEE3;background-image:linear-gradient(rgba(27,42,58,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(27,42,58,0.06) 1px, transparent 1px);background-size:22px 22px;padding:32px 16px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background-color:#F6F6EF;border:1px solid #1B2A3A;border-radius:10px;">
@@ -20,20 +23,17 @@
           alt="Dziennik Treningowy"
           style="border-radius:14px;display:block;margin:0 auto 20px auto;"
         />
-        <div style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#5A6B7A;margin-bottom:10px;">
-          Zaproszenie
-        </div>
         <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#1B2A3A;margin:0 0 16px 0;font-weight:700;">
-          Dziennik Treningowy
+          Siemano trenerze!
         </h1>
         <p style="font-family:'Courier New',Courier,monospace;font-size:14px;line-height:1.6;color:#1B2A3A;margin:0 0 28px 0;">
-          Zostałeś zaproszony jako trener. Będziesz mógł planować treningi, dodawać notatki i śledzić postępy swojego zawodnika.
+          Kliknij w link żeby założyć konto w dzienniku treningowym i wznieść kontrolę treningu na wyższy poziom&#128170;
         </p>
         <a
           href="{{ .ConfirmationURL }}"
           style="display:inline-block;background-color:#1B2A3A;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:14px;text-decoration:none;padding:14px 32px;border-radius:6px;"
         >
-          Otwórz aplikację
+          Akceptuj zaproszenie&#129372;&#129371;
         </a>
         <p style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#5A6B7A;margin:28px 0 0 0;">
           Jeśli nie spodziewałeś się tej wiadomości, zignoruj ją.
