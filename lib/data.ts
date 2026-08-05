@@ -459,6 +459,21 @@ export async function inviteCoach(
   return coachAccessFromRow(data as CoachAccessRow);
 }
 
+// Best-effort — the coach_access grant row above is the source of truth;
+// this just triggers Supabase's invite email so a brand-new coach gets a
+// link straight into the app instead of having to know to sign up first.
+export async function sendCoachInviteEmail(coachEmail: string): Promise<void> {
+  try {
+    await fetch("/api/coach-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: coachEmail }),
+    });
+  } catch {
+    // network hiccup — the pending grant still exists, ignore
+  }
+}
+
 export async function acceptCoachInvite(
   supabase: SupabaseClient,
   id: string,

@@ -16,6 +16,7 @@ import {
   revokeCoachAccess,
   saveCycleRow,
   saveWorkout as saveWorkoutRow,
+  sendCoachInviteEmail,
   updateCoachPermissions,
 } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
@@ -298,6 +299,7 @@ export function Journal({
       const grant = await inviteCoach(supabase, userId, userEmail, email);
       setCoachGrants((prev) => [...prev, grant]);
       setNewCoachEmail("");
+      sendCoachInviteEmail(email);
     } catch {
       // most likely: already invited this email (unique constraint) — ignore
     }
