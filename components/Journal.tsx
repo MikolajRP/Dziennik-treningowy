@@ -21,6 +21,7 @@ import {
 } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
 import { CoachTab } from "./CoachTab";
+import { CoachHelpModal } from "./CoachHelpModal";
 import { PlanTab } from "./PlanTab";
 import {
   addDays,
@@ -94,6 +95,25 @@ export function Journal({
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  // A brand-new coach who just clicked their invite email lands here (they
+  // have no active grant yet, so they're not redirected into /coach/...) —
+  // greet them with the same tutorial a coach sees later, with the pending
+  // invite front and center so they don't have to go hunting for the accept
+  // button buried in the Coach tab.
+  const [showWelcome, setShowWelcome] = useState(false);
+  const welcomeSeenKey = `newCoachWelcomeSeen:${userId}`;
+  useEffect(() => {
+    // localStorage only exists client-side, so this can't be read during the
+    // initial (server) render — it has to be synchronized here, once, after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (pendingInvites.length > 0 && !localStorage.getItem(welcomeSeenKey)) setShowWelcome(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function closeWelcome() {
+    setShowWelcome(false);
+    localStorage.setItem(welcomeSeenKey, "1");
+  }
 
   // The app never syncs live — re-pull everything (via the server component
   // above us) whenever the tab/installed app comes back to the foreground,
@@ -308,6 +328,8 @@ export function Journal({
     const grant = await acceptCoachInvite(supabase, id, userId);
     setPendingInvites((prev) => prev.filter((p) => p.id !== id));
     setCoachGrants((prev) => [...prev, grant]);
+    setShowWelcome(false);
+    router.push(`/coach/${grant.athleteUserId}`);
   }
   async function handleTogglePermission(id: string, field: "canViewWorkouts" | "canViewReports" | "canEditPlan", value: boolean) {
     setCoachGrants((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
@@ -560,6 +582,13 @@ export function Journal({
           />
         )}
       </div>
+
+      <CoachHelpModal
+        open={showWelcome}
+        onClose={closeWelcome}
+        pendingInvites={pendingInvites}
+        onAcceptInvite={handleAcceptInvite}
+      />
     </div>
   );
 }

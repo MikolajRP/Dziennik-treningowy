@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
 import { CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, LINE, MUSTARD, RACE } from "@/lib/design";
+import type { CoachAccess } from "@/lib/types";
 import { IconBtn } from "./atoms";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -20,7 +21,17 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-export function CoachHelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function CoachHelpModal({
+  open,
+  onClose,
+  pendingInvites,
+  onAcceptInvite,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pendingInvites?: CoachAccess[];
+  onAcceptInvite?: (id: string) => void;
+}) {
   if (!open) return null;
 
   return (
@@ -97,6 +108,34 @@ export function CoachHelpModal({ open, onClose }: { open: boolean; onClose: () =
               ))}
             </div>
           </div>
+
+          {pendingInvites && pendingInvites.length > 0 && (
+            <div
+              className="mt-5 p-3.5 rounded-md"
+              style={{ background: "#fff", border: `1px solid ${INK}` }}
+            >
+              <div
+                className="text-[11px] uppercase tracking-wide mb-2"
+                style={{ fontFamily: FONT_MONO, color: INK_SOFT, letterSpacing: "0.06em" }}
+              >
+                Zaproszenie czeka
+              </div>
+              {pendingInvites.map((invite) => (
+                <div key={invite.id} className="flex items-center justify-between gap-2 mb-2 last:mb-0">
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: INK }}>
+                    Zawodnik: <strong>{invite.athleteEmail}</strong>
+                  </div>
+                  <button
+                    onClick={() => onAcceptInvite?.(invite.id)}
+                    className="px-3 py-1.5 rounded-md text-xs whitespace-nowrap"
+                    style={{ fontFamily: FONT_MONO, background: INK, color: "#fff" }}
+                  >
+                    Zaakceptuj zaproszenie
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
