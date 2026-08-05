@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HelpCircle, Pencil, StickyNote } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Check, HelpCircle, LogOut, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/app/auth/actions";
 import {
   addPlanEntry,
   deleteCoachNote,
@@ -324,13 +324,6 @@ export function CoachAthleteView({
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
         <div className="flex items-baseline justify-between">
           <div>
-            <Link
-              href="/"
-              className="flex items-center gap-1 text-xs mb-1"
-              style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
-            >
-              <ArrowLeft size={13} /> Powrót
-            </Link>
             {editingName ? (
               <div className="flex items-center gap-1.5">
                 <input
@@ -361,12 +354,22 @@ export function CoachAthleteView({
               </button>
             )}
           </div>
-          <button onClick={() => setShowHelp(true)} title="Pomoc" className="relative p-1">
-            <HelpCircle size={22} color={INK_SOFT} />
-            {hasUnreadChangelog && (
-              <div className="absolute top-0 right-0 rounded-full" style={{ width: 8, height: 8, background: RACE }} />
-            )}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => signOut()}
+              title="Wyloguj"
+              className="flex items-center gap-1 text-xs"
+              style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+            >
+              <LogOut size={14} /> Wyloguj
+            </button>
+            <button onClick={() => setShowHelp(true)} title="Pomoc" className="relative p-1">
+              <HelpCircle size={22} color={INK_SOFT} />
+              {hasUnreadChangelog && (
+                <div className="absolute top-0 right-0 rounded-full" style={{ width: 8, height: 8, background: RACE }} />
+              )}
+            </button>
+          </div>
         </div>
         <div className="flex gap-4 mt-3">
           <button
