@@ -11,11 +11,24 @@
   {{ .ConfirmationURL }} is Supabase's built-in template variable — leave it
   exactly as-is. Emoji are HTML entities so they survive whatever encoding
   Supabase's editor applies on save.
+
+  The <meta color-scheme/supported-color-schemes> tags tell mail apps this
+  template is light-only, so they don't auto-invert it for a phone in dark
+  mode — Apple Mail respects this reliably, Gmail's apps are hit-or-miss.
+  bgcolor/color HTML attributes are added alongside the CSS as a second line
+  of defense, since some auto-dark-mode engines only scan inline CSS.
 -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+</head>
+<body style="margin:0;padding:0;background-color:#ECEEE3;">
 <div style="background-color:#ECEEE3;background-image:linear-gradient(rgba(27,42,58,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(27,42,58,0.06) 1px, transparent 1px);background-size:22px 22px;padding:32px 16px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background-color:#F6F6EF;border:1px solid #1B2A3A;border-radius:10px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ECEEE3" style="max-width:480px;margin:0 auto;background-color:#F6F6EF;border:1px solid #1B2A3A;border-radius:10px;">
     <tr>
-      <td style="padding:36px 32px;text-align:center;">
+      <td bgcolor="#F6F6EF" style="background-color:#F6F6EF;padding:36px 32px;text-align:center;">
         <img
           src="https://dziennik-treningowy-sigma.vercel.app/icon.png"
           width="64"
@@ -23,22 +36,24 @@
           alt="Dziennik Treningowy"
           style="border-radius:14px;display:block;margin:0 auto 20px auto;"
         />
-        <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#1B2A3A;margin:0 0 16px 0;font-weight:700;">
-          Siemano trenerze!
+        <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#1B2A3A !important;margin:0 0 16px 0;font-weight:700;">
+          <font color="#1B2A3A">Siemano trenerze!</font>
         </h1>
-        <p style="font-family:'Courier New',Courier,monospace;font-size:14px;line-height:1.6;color:#1B2A3A;margin:0 0 28px 0;">
-          Kliknij w link żeby założyć konto w dzienniku treningowym i wznieść kontrolę treningu na wyższy poziom&#128170;
+        <p style="font-family:'Courier New',Courier,monospace;font-size:14px;line-height:1.6;color:#1B2A3A !important;margin:0 0 28px 0;">
+          <font color="#1B2A3A">Kliknij w link żeby założyć konto w dzienniku treningowym i wznieść kontrolę treningu na wyższy poziom&#128170;</font>
         </p>
         <a
           href="{{ .ConfirmationURL }}"
-          style="display:inline-block;background-color:#1B2A3A;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:14px;text-decoration:none;padding:14px 32px;border-radius:6px;"
+          style="display:inline-block;background-color:#1B2A3A !important;color:#ffffff !important;font-family:'Courier New',Courier,monospace;font-size:14px;text-decoration:none;padding:14px 32px;border-radius:6px;"
         >
-          Akceptuj zaproszenie&#129372;&#129371;
+          <font color="#ffffff">Akceptuj zaproszenie&#129372;&#129371;</font>
         </a>
-        <p style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#5A6B7A;margin:28px 0 0 0;">
-          Jeśli nie spodziewałeś się tej wiadomości, zignoruj ją.
+        <p style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#5A6B7A !important;margin:28px 0 0 0;">
+          <font color="#5A6B7A">Jeśli nie spodziewałeś się tej wiadomości, zignoruj ją.</font>
         </p>
       </td>
     </tr>
   </table>
 </div>
+</body>
+</html>
