@@ -38,6 +38,7 @@ import {
   updateSetInList,
 } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
+import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
 import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
@@ -102,7 +103,7 @@ export function Journal({
   // invite front and center so they don't have to go hunting for the accept
   // button buried in the Coach tab.
   const [showWelcome, setShowWelcome] = useState(false);
-  const welcomeSeenKey = `newCoachWelcomeSeen:${userId}`;
+  const welcomeSeenKey = newCoachWelcomeSeenKey(userId);
   useEffect(() => {
     // localStorage only exists client-side, so this can't be read during the
     // initial (server) render — it has to be synchronized here, once, after mount.
@@ -329,6 +330,10 @@ export function Journal({
     setPendingInvites((prev) => prev.filter((p) => p.id !== id));
     setCoachGrants((prev) => [...prev, grant]);
     setShowWelcome(false);
+    localStorage.setItem(welcomeSeenKey, "1");
+    // Already saw the same tutorial content just now — don't show it again
+    // right after landing on the coach page.
+    localStorage.setItem(coachTutorialSeenKey(userId), "1");
     router.push(`/coach/${grant.athleteUserId}`);
   }
   async function handleTogglePermission(id: string, field: "canViewWorkouts" | "canViewReports" | "canEditPlan", value: boolean) {

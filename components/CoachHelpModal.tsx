@@ -121,13 +121,13 @@ export function CoachHelpModal({
                 Zaproszenie czeka
               </div>
               {pendingInvites.map((invite) => (
-                <div key={invite.id} className="flex items-center justify-between gap-2 mb-2 last:mb-0">
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: INK }}>
+                <div key={invite.id} className="mb-3 last:mb-0">
+                  <div className="mb-1.5" style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: INK, wordBreak: "break-word" }}>
                     Zawodnik: <strong>{invite.athleteEmail}</strong>
                   </div>
                   <button
                     onClick={() => onAcceptInvite?.(invite.id)}
-                    className="px-3 py-1.5 rounded-md text-xs whitespace-nowrap"
+                    className="w-full py-2 rounded-md text-xs"
                     style={{ fontFamily: FONT_MONO, background: INK, color: "#fff" }}
                   >
                     Zaakceptuj zaproszenie

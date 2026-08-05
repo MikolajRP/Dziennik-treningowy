@@ -20,6 +20,7 @@ import {
 import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
+import { coachTutorialSeenKey } from "@/lib/onboarding";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, RACE, gridBg, inputStyle } from "@/lib/design";
 import type { CoachNote, Cycle, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
@@ -81,7 +82,7 @@ export function CoachAthleteView({
   // ---------- help / onboarding ----------
   const [showHelp, setShowHelp] = useState(false);
   const [hasUnreadChangelog, setHasUnreadChangelog] = useState(false);
-  const tutorialSeenKey = `coachTutorialSeen:${coachUserId}`;
+  const tutorialSeenKey = coachTutorialSeenKey(coachUserId);
   const changelogSeenKey = `coachChangelogSeen:${coachUserId}`;
   useEffect(() => {
     // localStorage only exists client-side, so this can't be read during the
