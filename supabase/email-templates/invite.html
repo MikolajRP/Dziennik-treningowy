@@ -4,31 +4,40 @@
   Source/HTML mode first). Not deployed automatically; this file is just a
   version-controlled reference copy.
 
-  Copy matches the existing "Siemano trenerze!" wording, just repackaged
-  into a card with a background pattern and a real button instead of a bare
-  link. Uses table-based layout + inline styles + a solid background-color
-  fallback, since most email clients (Outlook especially) ignore modern CSS.
+  Copy matches the existing "Siemano trenerze!" wording, repackaged into a
+  card with a background pattern and a real button instead of a bare link.
   {{ .ConfirmationURL }} is Supabase's built-in template variable — leave it
   exactly as-is. Emoji are HTML entities so they survive whatever encoding
   Supabase's editor applies on save.
 
-  The <meta color-scheme/supported-color-schemes> tags tell mail apps this
-  template is light-only, so they don't auto-invert it for a phone in dark
-  mode — Apple Mail respects this reliably, Gmail's apps are hit-or-miss.
-  bgcolor/color HTML attributes are added alongside the CSS as a second line
-  of defense, since some auto-dark-mode engines only scan inline CSS.
+  Gmail's mobile apps auto-invert email colors for a phone in dark mode and
+  largely ignore the color-scheme/supported-color-schemes meta tags that
+  work for Apple Mail — so instead of fighting that, this supplies real
+  dark-mode colors via @media (prefers-color-scheme: dark), which Gmail's
+  apps have supported since ~2020. Dark mode gets the app's own ink/paper
+  palette inverted (navy card, cream text, mustard button) instead of
+  Gmail's own auto-guessed colors; light mode is unchanged.
 -->
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="color-scheme" content="light">
-<meta name="supported-color-schemes" content="light">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+  @media (prefers-color-scheme: dark) {
+    .eb-bg { background-color: #10181F !important; }
+    .eb-card { background-color: #1B2A3A !important; border-color: #3A4A5C !important; }
+    .eb-heading, .eb-body { color: #ECEEE3 !important; }
+    .eb-footer { color: #8B98A5 !important; }
+    .eb-button { background-color: #B9821E !important; color: #1B2A3A !important; }
+  }
+</style>
 </head>
 <body style="margin:0;padding:0;background-color:#ECEEE3;">
-<div style="background-color:#ECEEE3;background-image:linear-gradient(rgba(27,42,58,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(27,42,58,0.06) 1px, transparent 1px);background-size:22px 22px;padding:32px 16px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ECEEE3" style="max-width:480px;margin:0 auto;background-color:#F6F6EF;border:1px solid #1B2A3A;border-radius:10px;">
+<div class="eb-bg" style="background-color:#ECEEE3;background-image:linear-gradient(rgba(27,42,58,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(27,42,58,0.06) 1px, transparent 1px);background-size:22px 22px;padding:32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;">
     <tr>
-      <td bgcolor="#F6F6EF" style="background-color:#F6F6EF;padding:36px 32px;text-align:center;">
+      <td class="eb-card" style="background-color:#F6F6EF;border:1px solid #1B2A3A;border-radius:10px;padding:36px 32px;text-align:center;">
         <img
           src="https://dziennik-treningowy-sigma.vercel.app/icon.png"
           width="64"
@@ -36,20 +45,21 @@
           alt="Dziennik Treningowy"
           style="border-radius:14px;display:block;margin:0 auto 20px auto;"
         />
-        <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#1B2A3A !important;margin:0 0 16px 0;font-weight:700;">
-          <font color="#1B2A3A">Siemano trenerze!</font>
+        <h1 class="eb-heading" style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#1B2A3A;margin:0 0 16px 0;font-weight:700;">
+          Siemano trenerze!
         </h1>
-        <p style="font-family:'Courier New',Courier,monospace;font-size:14px;line-height:1.6;color:#1B2A3A !important;margin:0 0 28px 0;">
-          <font color="#1B2A3A">Kliknij w link żeby założyć konto w dzienniku treningowym i wznieść kontrolę treningu na wyższy poziom&#128170;</font>
+        <p class="eb-body" style="font-family:'Courier New',Courier,monospace;font-size:14px;line-height:1.6;color:#1B2A3A;margin:0 0 28px 0;">
+          Kliknij w link żeby założyć konto w dzienniku treningowym i wznieść kontrolę treningu na wyższy poziom&#128170;
         </p>
         <a
           href="{{ .ConfirmationURL }}"
-          style="display:inline-block;background-color:#1B2A3A !important;color:#ffffff !important;font-family:'Courier New',Courier,monospace;font-size:14px;text-decoration:none;padding:14px 32px;border-radius:6px;"
+          class="eb-button"
+          style="display:inline-block;background-color:#1B2A3A;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:14px;text-decoration:none;padding:14px 32px;border-radius:6px;"
         >
-          <font color="#ffffff">Akceptuj zaproszenie&#129372;&#129371;</font>
+          Akceptuj zaproszenie&#129372;&#129371;
         </a>
-        <p style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#5A6B7A !important;margin:28px 0 0 0;">
-          <font color="#5A6B7A">Jeśli nie spodziewałeś się tej wiadomości, zignoruj ją.</font>
+        <p class="eb-footer" style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#5A6B7A;margin:28px 0 0 0;">
+          Jeśli nie spodziewałeś się tej wiadomości, zignoruj ją.
         </p>
       </td>
     </tr>
