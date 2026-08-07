@@ -138,7 +138,7 @@ export function WorkoutForm({
         />
       </Field>
 
-      <Field label="Kategoria">
+      <Field label="Kategoria (opcjonalnie)">
         {CATEGORY_GROUPS.map((group) => {
           const groupCategories = categories.filter((c) => c.group === group);
           const isOpen = openGroup === group;
@@ -162,7 +162,11 @@ export function WorkoutForm({
                   {groupCategories.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-1.5">
                       {groupCategories.map((c) => (
-                        <Chip key={c.name} active={draft.category === c.name} onClick={() => setDraft((d) => ({ ...d, category: c.name }))}>
+                        <Chip
+                          key={c.name}
+                          active={draft.category === c.name}
+                          onClick={() => setDraft((d) => ({ ...d, category: d.category === c.name ? "" : c.name }))}
+                        >
                           {c.name}
                         </Chip>
                       ))}

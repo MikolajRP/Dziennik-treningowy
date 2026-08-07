@@ -51,12 +51,14 @@ export function MergeWorkoutPicker({
             >
               <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>{fmtDate(w.date)}</div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span
-                  className="px-2 py-0.5 rounded-full text-[11px]"
-                  style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
-                >
-                  {w.category}
-                </span>
+                {w.category && (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[11px]"
+                    style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
+                  >
+                    {w.category}
+                  </span>
+                )}
                 <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>
                   {w.exercises.length > 0 ? `${w.exercises.length} ćwiczeń` : ""}
                   {w.stravaActivities && w.stravaActivities.length > 0

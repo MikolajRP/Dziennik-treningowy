@@ -165,12 +165,16 @@ function WorkoutCard({
               {w.subtitle}
             </div>
           )}
-          <div className="flex items-center gap-2 mt-1">
-            <span className="px-2 py-0.5 rounded-full text-[11px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
-              {w.category}
-            </span>
-            {isPR && <span className="pr-stamp px-1.5 py-0.5 rounded-full text-[10px] font-semibold">PR</span>}
-          </div>
+          {(w.category || isPR) && (
+            <div className="flex items-center gap-2 mt-1">
+              {w.category && (
+                <span className="px-2 py-0.5 rounded-full text-[11px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
+                  {w.category}
+                </span>
+              )}
+              {isPR && <span className="pr-stamp px-1.5 py-0.5 rounded-full text-[10px] font-semibold">PR</span>}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {hasStrava ? (

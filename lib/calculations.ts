@@ -1,5 +1,4 @@
 import type {
-  Category,
   Circuit,
   Cycle,
   LeafExercise,
@@ -92,10 +91,11 @@ export function fmtMinutesLong(totalMinutes: number): string {
   return `${m} min`;
 }
 
-export const emptyDraft = (categories: Category[]): Workout => ({
+// category is optional — an empty string means "not set".
+export const emptyDraft = (): Workout => ({
   id: "",
   date: todayISO(),
-  category: categories[0]?.name || "Nogi",
+  category: "",
   name: "",
   subtitle: "",
   notes: "",
@@ -329,7 +329,8 @@ export function groupByCategory(workouts: Workout[], valueFn: (w: Workout) => nu
   const map: Record<string, number> = {};
   workouts.forEach((w) => {
     const v = valueFn(w);
-    if (v > 0) map[w.category] = (map[w.category] || 0) + v;
+    const key = w.category || "Bez kategorii";
+    if (v > 0) map[key] = (map[key] || 0) + v;
   });
   return Object.entries(map)
     .map(([category, value]) => ({ category, value }))

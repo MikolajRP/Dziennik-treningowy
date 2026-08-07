@@ -135,7 +135,7 @@ export function Journal({
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraftState] = useState<Workout>(emptyDraft(initialCategories));
+  const [draft, setDraftState] = useState<Workout>(emptyDraft());
   const [newCategoryDrafts, setNewCategoryDrafts] = useState<Record<CategoryGroup, string>>({
     bieganie: "",
     inne: "",
@@ -212,7 +212,7 @@ export function Journal({
   }
 
   function startNew() {
-    setDraftState(emptyDraft(categories));
+    setDraftState(emptyDraft());
     setEditingId(null);
     setFormError(null);
     setSaveStatus(null);
@@ -241,7 +241,7 @@ export function Journal({
     setEditingId(null);
     setFormError(null);
     setSaveStatus(null);
-    setDraftState(emptyDraft(categories));
+    setDraftState(emptyDraft());
   }
 
   async function handleSaveWorkout() {

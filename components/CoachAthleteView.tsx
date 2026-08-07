@@ -409,7 +409,7 @@ export function CoachAthleteView({
             readOnly
             showForm={false}
             startNew={noop}
-            draft={emptyDraft(categories)}
+            draft={emptyDraft()}
             setDraft={noop}
             categories={categories}
             newCategoryDrafts={{ bieganie: "", inne: "", silownia: "" }}
