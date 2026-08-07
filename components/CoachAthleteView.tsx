@@ -445,6 +445,7 @@ export function CoachAthleteView({
             onMergeConfirm={noop}
             onReorderWorkouts={noop}
             onDetachActivity={noop}
+            onReorderActivities={noop}
           />
         )}
 

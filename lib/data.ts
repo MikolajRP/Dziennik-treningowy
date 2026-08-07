@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORIES } from "./design";
 import type { CoachAccess, CoachNote, Cycle, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
-  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
+  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline, sort_order)";
 
 interface StravaActivityRow {
   id: string;
@@ -21,6 +21,7 @@ interface StravaActivityRow {
   splits_metric: StravaActivity["splitsMetric"];
   hr_zones: StravaActivity["hrZones"];
   polyline: string | null;
+  sort_order: number;
 }
 interface WorkoutRow {
   id: string;
@@ -63,6 +64,7 @@ const stravaActivityFromRow = (r: StravaActivityRow): StravaActivity => ({
   splitsMetric: r.splits_metric,
   hrZones: r.hr_zones,
   polyline: r.polyline,
+  sortOrder: r.sort_order,
 });
 
 const workoutFromRow = (r: WorkoutRow): Workout => ({
@@ -98,7 +100,8 @@ export async function fetchWorkouts(supabase: SupabaseClient, forUserId?: string
     .from("workouts")
     .select(WORKOUT_SELECT)
     .order("date", { ascending: false })
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("sort_order", { foreignTable: "strava_activities", ascending: true });
   if (forUserId) query = query.eq("user_id", forUserId);
   const { data, error } = await query;
   if (error) throw error;
@@ -112,6 +115,16 @@ export async function fetchWorkouts(supabase: SupabaseClient, forUserId?: string
 export async function reorderWorkoutsInDay(supabase: SupabaseClient, orderedIds: string[]): Promise<void> {
   const results = await Promise.all(
     orderedIds.map((id, i) => supabase.from("workouts").update({ sort_order: i }).eq("id", id))
+  );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) throw firstError;
+}
+
+// Persists a new manual display order for the Strava activities attached to
+// one workout — same re-numbering approach as reorderWorkoutsInDay.
+export async function reorderStravaActivitiesInWorkout(supabase: SupabaseClient, orderedIds: string[]): Promise<void> {
+  const results = await Promise.all(
+    orderedIds.map((id, i) => supabase.from("strava_activities").update({ sort_order: i }).eq("id", id))
   );
   const firstError = results.find((r) => r.error)?.error;
   if (firstError) throw firstError;

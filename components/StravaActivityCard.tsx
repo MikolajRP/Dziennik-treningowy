@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import { ChevronDown, ChevronUp, Heart, Link2Off, Mountain, Route as RouteIcon } from "lucide-react";
+import { Fragment, useState, type HTMLAttributes } from "react";
+import { ChevronDown, ChevronUp, GripVertical, Heart, Link2Off, Mountain, Route as RouteIcon } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -238,16 +238,24 @@ export function StravaCollapsedSummary({
 export function StravaSingleActivity({
   activity,
   onDetach,
+  dragHandleProps,
 }: {
   activity: StravaActivity;
   onDetach: () => void;
+  dragHandleProps?: HTMLAttributes<HTMLDivElement>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isCycling = isCyclingActivityType(activity.type);
 
   return (
     <div className="rounded-md p-2.5 mb-2" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-      <button className="w-full flex items-center justify-between text-left" onClick={() => setExpanded((v) => !v)}>
+      <div className="flex items-center gap-1.5">
+        {dragHandleProps && (
+          <div {...dragHandleProps} className="shrink-0" style={{ cursor: "grab", touchAction: "none" }} title="Przytrzymaj, żeby zmienić kolejność">
+            <GripVertical size={14} color={INK_SOFT} />
+          </div>
+        )}
+        <button className="flex-1 flex items-center justify-between text-left" onClick={() => setExpanded((v) => !v)}>
         <div className="flex items-center gap-2">
           <RouteIcon size={14} color={STRAVA_ORANGE} />
           <div>
@@ -266,7 +274,8 @@ export function StravaSingleActivity({
           />
           {expanded ? <ChevronUp size={14} color={INK_SOFT} /> : <ChevronDown size={14} color={INK_SOFT} />}
         </div>
-      </button>
+        </button>
+      </div>
 
       {expanded && (
         <div className="mt-2 pt-2 border-t" style={{ borderColor: LINE }}>

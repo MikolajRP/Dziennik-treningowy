@@ -3,6 +3,7 @@ import type {
   Cycle,
   LeafExercise,
   Period,
+  StravaActivity,
   Workout,
   WorkoutExercise,
 } from "./types";
@@ -152,6 +153,11 @@ export const reorderExerciseInList = (list: WorkoutExercise[], activeId: string,
 // Reorders workouts within a single day's group (see reorderWorkoutsInDay
 // in lib/data.ts for the persisted side of this).
 export const reorderWorkoutInList = (list: Workout[], activeId: string, overId: string): Workout[] =>
+  reorderById(list, activeId, overId);
+
+// Reorders the Strava activities attached to a single workout (see
+// reorderStravaActivitiesInWorkout in lib/data.ts for the persisted side).
+export const reorderStravaActivityInList = (list: StravaActivity[], activeId: string, overId: string): StravaActivity[] =>
   reorderById(list, activeId, overId);
 
 export const blankSetFor = (kind: LeafExercise["kind"]) => {

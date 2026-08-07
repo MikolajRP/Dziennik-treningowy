@@ -128,6 +128,7 @@ export interface StravaActivity {
   splitsMetric: StravaSplit[] | null;
   hrZones: StravaHrZoneBucket[] | null;
   polyline: string | null;
+  sortOrder: number; // manual display order among a workout's own activities, drag-reorderable
 }
 
 export type CycleType = "mezocykl" | "makrocykl";

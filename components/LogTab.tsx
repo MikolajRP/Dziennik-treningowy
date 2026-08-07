@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type HTMLAttributes, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Copy, Link2, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
@@ -38,6 +38,30 @@ import { WorkoutExerciseSummary } from "./WorkoutExerciseSummary";
 import { StravaCollapsedSummary, StravaSingleActivity } from "./StravaActivityCard";
 import { MergeWorkoutPicker } from "./MergeWorkoutPicker";
 
+// Wraps one Strava activity so it can be dragged by its own handle
+// (rendered inside StravaSingleActivity) to reorder the activities attached
+// to a single workout — a separate, nested drag scope from the outer
+// workout-card dragging below.
+function SortableActivityItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandleProps: HTMLAttributes<HTMLDivElement>) => ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners } as HTMLAttributes<HTMLDivElement>)}
+    </div>
+  );
+}
+
 // Every card is draggable (press and hold) and droppable. Dropping onto
 // another workout on the SAME day reorders them; dropping onto a workout on
 // a DIFFERENT day merges them (only when the dragged card has a Strava
@@ -55,6 +79,7 @@ function WorkoutCard({
   startDuplicate,
   setMergeSourceId,
   onDetachActivity,
+  onReorderActivities,
   confirmDeleteId,
   setConfirmDeleteId,
   deleteWorkout,
@@ -69,10 +94,19 @@ function WorkoutCard({
   startDuplicate: (w: Workout) => void;
   setMergeSourceId: (id: string | null) => void;
   onDetachActivity: (activityRowId: string) => void;
+  onReorderActivities: (workoutId: string, activeId: string, overId: string) => void;
   confirmDeleteId: string | null;
   setConfirmDeleteId: (id: string | null) => void;
   deleteWorkout: (id: string) => void;
 }) {
+  const activitySensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  );
+  function handleActivityDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) onReorderActivities(w.id, String(active.id), String(over.id));
+  }
   const tonnage = computeWorkoutTonnage(w);
   const plyoReps = computeWorkoutPlyoReps(w);
   const isometricTUT = computeWorkoutIsometricTUT(w);
@@ -111,7 +145,7 @@ function WorkoutCard({
       <button
         className="w-full flex items-center justify-between p-3 text-left"
         onClick={() => setExpandedId(expanded ? null : w.id)}
-        style={dragEnabled ? { touchAction: "none", cursor: "grab" } : undefined}
+        style={dragEnabled ? { touchAction: "manipulation", cursor: "grab" } : undefined}
         {...(dragEnabled ? attributes : {})}
         {...(dragEnabled ? listeners : {})}
       >
@@ -171,9 +205,21 @@ function WorkoutCard({
 
           {hasStrava && (
             <div className="mt-2">
-              {w.stravaActivities!.map((a) => (
-                <StravaSingleActivity key={a.id} activity={a} onDetach={() => onDetachActivity(a.id)} />
-              ))}
+              <DndContext sensors={activitySensors} collisionDetection={closestCenter} onDragEnd={handleActivityDragEnd}>
+                <SortableContext items={w.stravaActivities!.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                  {w.stravaActivities!.map((a) => (
+                    <SortableActivityItem key={a.id} id={a.id}>
+                      {(dragHandleProps) => (
+                        <StravaSingleActivity
+                          activity={a}
+                          onDetach={() => onDetachActivity(a.id)}
+                          dragHandleProps={readOnly || w.stravaActivities!.length < 2 ? undefined : dragHandleProps}
+                        />
+                      )}
+                    </SortableActivityItem>
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
           )}
 
@@ -252,6 +298,7 @@ export function LogTab({
   onMergeConfirm,
   onReorderWorkouts,
   onDetachActivity,
+  onReorderActivities,
   readOnly = false,
 }: {
   showForm: boolean;
@@ -292,6 +339,7 @@ export function LogTab({
   onMergeConfirm: (sourceId: string, targetId: string) => void;
   onReorderWorkouts: (activeId: string, overId: string) => void;
   onDetachActivity: (activityRowId: string) => void;
+  onReorderActivities: (workoutId: string, activeId: string, overId: string) => void;
   readOnly?: boolean;
 }) {
   const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
@@ -416,6 +464,7 @@ export function LogTab({
                       startDuplicate={startDuplicate}
                       setMergeSourceId={setMergeSourceId}
                       onDetachActivity={onDetachActivity}
+                      onReorderActivities={onReorderActivities}
                       confirmDeleteId={confirmDeleteId}
                       setConfirmDeleteId={setConfirmDeleteId}
                       deleteWorkout={deleteWorkout}
