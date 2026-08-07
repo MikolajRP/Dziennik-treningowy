@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { CoachAccess, CoachNote, Cycle, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { Category, CategoryGroup, CoachAccess, CoachNote, Cycle, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline, sort_order)";
@@ -179,31 +179,37 @@ export async function deleteWorkoutRow(supabase: SupabaseClient, id: string): Pr
   if (error) throw error;
 }
 
+const categoryFromRow = (r: { name: string; group_name: CategoryGroup }): Category => ({
+  name: r.name,
+  group: r.group_name,
+});
+
 export async function fetchCategories(
   supabase: SupabaseClient,
   userId: string
-): Promise<string[]> {
+): Promise<Category[]> {
   const { data, error } = await supabase
     .from("categories")
-    .select("name")
+    .select("name, group_name")
     .order("created_at", { ascending: true });
   if (error) throw error;
   if (data.length === 0) {
     const { error: seedError } = await supabase
       .from("categories")
-      .insert(DEFAULT_CATEGORIES.map((name) => ({ user_id: userId, name })));
+      .insert(DEFAULT_CATEGORIES.map((c) => ({ user_id: userId, name: c.name, group_name: c.group })));
     if (seedError) throw seedError;
     return DEFAULT_CATEGORIES;
   }
-  return data.map((r) => r.name as string);
+  return data.map(categoryFromRow);
 }
 
 export async function addCategoryRow(
   supabase: SupabaseClient,
   userId: string,
-  name: string
+  name: string,
+  group: CategoryGroup
 ): Promise<void> {
-  const { error } = await supabase.from("categories").insert({ user_id: userId, name });
+  const { error } = await supabase.from("categories").insert({ user_id: userId, name, group_name: group });
   if (error) throw error;
 }
 
@@ -217,14 +223,14 @@ export async function fetchCycles(supabase: SupabaseClient, forUserId?: string):
 
 // Read-only variant for a coach viewing an athlete — no seeding (a coach's
 // session can never insert rows owned by the athlete, RLS would reject it).
-export async function fetchCategoriesReadOnly(supabase: SupabaseClient, forUserId: string): Promise<string[]> {
+export async function fetchCategoriesReadOnly(supabase: SupabaseClient, forUserId: string): Promise<Category[]> {
   const { data, error } = await supabase
     .from("categories")
-    .select("name")
+    .select("name, group_name")
     .eq("user_id", forUserId)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return data.map((r) => r.name as string);
+  return data.map(categoryFromRow);
 }
 
 export async function saveCycleRow(

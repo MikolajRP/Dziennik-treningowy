@@ -44,7 +44,7 @@ import {
 } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
 import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
-import type { Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
+import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
@@ -67,7 +67,7 @@ export function Journal({
   userId: string;
   userEmail: string;
   initialWorkouts: Workout[];
-  initialCategories: string[];
+  initialCategories: Category[];
   initialCycles: Cycle[];
   initialStravaConnected: boolean;
   initialCoachGrants: CoachAccess[];
@@ -82,7 +82,7 @@ export function Journal({
   const [tab, setTab] = useState<"log" | "reports" | "plan" | "coach">("log");
   const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
-  const [categories, setCategories] = useSyncedState<string[]>(initialCategories);
+  const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
   const [planEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
   const [races] = useSyncedState<Race[]>(initialRaces);
   // Reflects the server's fresh read on this page load — the Strava OAuth
@@ -136,7 +136,11 @@ export function Journal({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraftState] = useState<Workout>(emptyDraft(initialCategories));
-  const [newCategory, setNewCategory] = useState("");
+  const [newCategoryDrafts, setNewCategoryDrafts] = useState<Record<CategoryGroup, string>>({
+    bieganie: "",
+    inne: "",
+    silownia: "",
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -338,13 +342,16 @@ export function Journal({
     });
   }
 
-  async function addCategory() {
-    const v = newCategory.trim();
-    if (!v || categories.includes(v)) return;
-    await addCategoryRow(supabase, userId, v);
-    setCategories((prev) => [...prev, v]);
+  function setNewCategoryDraft(group: CategoryGroup, v: string) {
+    setNewCategoryDrafts((prev) => ({ ...prev, [group]: v }));
+  }
+  async function addCategory(group: CategoryGroup) {
+    const v = newCategoryDrafts[group].trim();
+    if (!v || categories.some((c) => c.name.toLowerCase() === v.toLowerCase())) return;
+    await addCategoryRow(supabase, userId, v, group);
+    setCategories((prev) => [...prev, { name: v, group }]);
     setDraft((d) => ({ ...d, category: v }));
-    setNewCategory("");
+    setNewCategoryDraft(group, "");
   }
 
   // ---------- coach access ----------
@@ -504,8 +511,8 @@ export function Journal({
             draft={draft}
             setDraft={setDraft}
             categories={categories}
-            newCategory={newCategory}
-            setNewCategory={setNewCategory}
+            newCategoryDrafts={newCategoryDrafts}
+            setNewCategoryDraft={setNewCategoryDraft}
             addCategory={addCategory}
             addExercise={addExercise}
             updateExercise={updateExercise}

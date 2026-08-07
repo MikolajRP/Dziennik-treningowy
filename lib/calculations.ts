@@ -1,4 +1,5 @@
 import type {
+  Category,
   Circuit,
   Cycle,
   LeafExercise,
@@ -91,10 +92,10 @@ export function fmtMinutesLong(totalMinutes: number): string {
   return `${m} min`;
 }
 
-export const emptyDraft = (categories: string[]): Workout => ({
+export const emptyDraft = (categories: Category[]): Workout => ({
   id: "",
   date: todayISO(),
-  category: categories[0] || "Nogi",
+  category: categories[0]?.name || "Nogi",
   name: "",
   subtitle: "",
   notes: "",

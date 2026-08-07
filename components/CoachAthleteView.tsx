@@ -22,7 +22,7 @@ import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
 import { coachTutorialSeenKey } from "@/lib/onboarding";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, RACE, gridBg, inputStyle } from "@/lib/design";
-import type { CoachNote, Cycle, PlanEntry, Period, Race, Workout } from "@/lib/types";
+import type { Category, CoachNote, Cycle, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
@@ -56,7 +56,7 @@ export function CoachAthleteView({
   athleteEmail: string;
   athleteName: string | null;
   workouts: Workout[];
-  categories: string[];
+  categories: Category[];
   initialCycles: Cycle[];
   initialPlanEntries: PlanEntry[];
   initialCoachNotes: CoachNote[];
@@ -412,8 +412,8 @@ export function CoachAthleteView({
             draft={emptyDraft(categories)}
             setDraft={noop}
             categories={categories}
-            newCategory=""
-            setNewCategory={noop}
+            newCategoryDrafts={{ bieganie: "", inne: "", silownia: "" }}
+            setNewCategoryDraft={noop}
             addCategory={noop}
             addExercise={noop}
             updateExercise={noop}

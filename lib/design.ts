@@ -1,3 +1,5 @@
+import type { Category, CategoryGroup } from "./types";
+
 // ---------- design tokens (ported 1:1 from the prototype) ----------
 export const INK = "#1B2A3A";
 export const INK_SOFT = "#5A6B7A";
@@ -23,15 +25,32 @@ export const RACE = "#D7263D";
 export const FONT_DISPLAY = "var(--font-oswald), sans-serif";
 export const FONT_MONO = "var(--font-ibm-plex-mono), monospace";
 
-export const DEFAULT_CATEGORIES = [
-  "Nogi",
-  "Plecy",
-  "Klatka piersiowa",
-  "Barki",
-  "Ręce",
-  "Full Body",
-  "Funkcjonalny",
-  "Cardio",
+export const CATEGORY_GROUPS: CategoryGroup[] = ["bieganie", "inne", "silownia"];
+
+export const CATEGORY_GROUP_LABEL: Record<CategoryGroup, string> = {
+  bieganie: "Bieganie",
+  inne: "Inne aktywności",
+  silownia: "Siłownia",
+};
+
+export const DEFAULT_CATEGORIES: Category[] = [
+  { name: "Wybieganie", group: "bieganie" },
+  { name: "Wybieganie + rytmy", group: "bieganie" },
+  { name: "2 zakres", group: "bieganie" },
+  { name: "BNP", group: "bieganie" },
+  { name: "Próg", group: "bieganie" },
+  { name: "Tempo", group: "bieganie" },
+  { name: "Kolarstwo", group: "inne" },
+  { name: "Orbitrek", group: "inne" },
+  { name: "Pływanie", group: "inne" },
+  { name: "Trekking", group: "inne" },
+  { name: "Nogi", group: "silownia" },
+  { name: "Plecy", group: "silownia" },
+  { name: "Klatka piersiowa", group: "silownia" },
+  { name: "Barki", group: "silownia" },
+  { name: "Ręce", group: "silownia" },
+  { name: "Full Body", group: "silownia" },
+  { name: "Funkcjonalny", group: "silownia" },
 ];
 
 export const KIND_LABEL: Record<string, string> = {

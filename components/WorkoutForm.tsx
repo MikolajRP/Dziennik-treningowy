@@ -13,8 +13,8 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, LINE, RUST, inputStyle } from "@/lib/design";
-import type { LeafExercise, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
+import { CARD, CATEGORY_GROUPS, CATEGORY_GROUP_LABEL, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, LINE, RUST, inputStyle } from "@/lib/design";
+import type { Category, CategoryGroup, LeafExercise, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { Chip, Field, IconBtn } from "./atoms";
 import { AddLeafButtons, ExerciseEditor } from "./ExerciseEditor";
 import { CircuitEditor, type CircuitElementHandlers } from "./CircuitEditor";
@@ -45,8 +45,8 @@ export function WorkoutForm({
   draft,
   setDraft,
   categories,
-  newCategory,
-  setNewCategory,
+  newCategoryDrafts,
+  setNewCategoryDraft,
   addCategory,
   addExercise,
   updateExercise,
@@ -66,10 +66,10 @@ export function WorkoutForm({
 }: {
   draft: Workout;
   setDraft: (updater: (d: Workout) => Workout) => void;
-  categories: string[];
-  newCategory: string;
-  setNewCategory: (v: string) => void;
-  addCategory: () => void;
+  categories: Category[];
+  newCategoryDrafts: Record<CategoryGroup, string>;
+  setNewCategoryDraft: (group: CategoryGroup, v: string) => void;
+  addCategory: (group: CategoryGroup) => void;
   addExercise: (kind: LeafKind | "circuit") => void;
   updateExercise: (id: string, patch: Partial<WorkoutExercise>) => void;
   removeExercise: (id: string) => void;
@@ -136,25 +136,41 @@ export function WorkoutForm({
       </Field>
 
       <Field label="Kategoria">
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {categories.map((c) => (
-            <Chip key={c} active={draft.category === c} onClick={() => setDraft((d) => ({ ...d, category: c }))}>
-              {c}
-            </Chip>
-          ))}
-        </div>
-        <div className="flex gap-1.5">
-          <input
-            placeholder="Nowa kategoria…"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            className="flex-1 px-2 py-1 rounded text-xs"
-            style={inputStyle}
-          />
-          <button onClick={addCategory} className="px-2 py-1 rounded text-xs" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
-            Dodaj
-          </button>
-        </div>
+        {CATEGORY_GROUPS.map((group) => {
+          const groupCategories = categories.filter((c) => c.group === group);
+          return (
+            <div key={group} className="mb-3 last:mb-0">
+              <div className="text-[11px] uppercase tracking-wide mb-1" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
+                {CATEGORY_GROUP_LABEL[group]}
+              </div>
+              {groupCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {groupCategories.map((c) => (
+                    <Chip key={c.name} active={draft.category === c.name} onClick={() => setDraft((d) => ({ ...d, category: c.name }))}>
+                      {c.name}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-1.5">
+                <input
+                  placeholder={`Nowy rodzaj — ${CATEGORY_GROUP_LABEL[group]}…`}
+                  value={newCategoryDrafts[group]}
+                  onChange={(e) => setNewCategoryDraft(group, e.target.value)}
+                  className="flex-1 px-2 py-1 rounded text-xs"
+                  style={inputStyle}
+                />
+                <button
+                  onClick={() => addCategory(group)}
+                  className="px-2 py-1 rounded text-xs"
+                  style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
+                >
+                  Dodaj
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </Field>
 
       <Field label="Przebieg treningu (w kolejności) — przytrzymaj uchwyt, żeby przesunąć">

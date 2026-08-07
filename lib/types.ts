@@ -1,5 +1,14 @@
 export type Side = "L" | "P";
 
+// Workout categories are grouped by kind of activity so the picker doesn't
+// turn into one long, unsorted list as a user adds more of their own.
+export type CategoryGroup = "bieganie" | "inne" | "silownia";
+
+export interface Category {
+  name: string;
+  group: CategoryGroup;
+}
+
 export type LeafKind = "strength" | "plyo" | "isometric" | "functional" | "aerobic";
 
 export interface StrengthSet {

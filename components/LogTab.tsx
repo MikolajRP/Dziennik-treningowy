@@ -30,7 +30,7 @@ import {
   isCyclingActivityType,
 } from "@/lib/stravaCalculations";
 import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL } from "@/lib/design";
-import type { LeafKind, Workout, WorkoutExercise } from "@/lib/types";
+import type { Category, CategoryGroup, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { IconBtn } from "./atoms";
 import { WorkoutForm } from "./WorkoutForm";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -265,8 +265,8 @@ export function LogTab({
   draft,
   setDraft,
   categories,
-  newCategory,
-  setNewCategory,
+  newCategoryDrafts,
+  setNewCategoryDraft,
   addCategory,
   addExercise,
   updateExercise,
@@ -305,10 +305,10 @@ export function LogTab({
   startNew: () => void;
   draft: Workout;
   setDraft: (updater: (d: Workout) => Workout) => void;
-  categories: string[];
-  newCategory: string;
-  setNewCategory: (v: string) => void;
-  addCategory: () => void;
+  categories: Category[];
+  newCategoryDrafts: Record<CategoryGroup, string>;
+  setNewCategoryDraft: (group: CategoryGroup, v: string) => void;
+  addCategory: (group: CategoryGroup) => void;
   addExercise: (kind: LeafKind | "circuit") => void;
   updateExercise: (id: string, patch: Partial<WorkoutExercise>) => void;
   removeExercise: (id: string) => void;
@@ -403,8 +403,8 @@ export function LogTab({
           draft={draft}
           setDraft={setDraft}
           categories={categories}
-          newCategory={newCategory}
-          setNewCategory={setNewCategory}
+          newCategoryDrafts={newCategoryDrafts}
+          setNewCategoryDraft={setNewCategoryDraft}
           addCategory={addCategory}
           addExercise={addExercise}
           updateExercise={updateExercise}
