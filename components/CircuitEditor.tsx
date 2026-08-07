@@ -1,6 +1,7 @@
 "use client";
 
-import { Repeat2, Trash2 } from "lucide-react";
+import type { HTMLAttributes } from "react";
+import { GripVertical, Repeat2, Trash2 } from "lucide-react";
 import {
   circuitAerobicMinutes,
   circuitFunctionalMinutes,
@@ -31,16 +32,23 @@ export function CircuitEditor({
   onRemoveCircuit,
   elementHandlers,
   knownExerciseNames = [],
+  dragHandleProps,
 }: {
   circuit: Circuit;
   onUpdateCircuit: (patch: Partial<Circuit>) => void;
   onRemoveCircuit: () => void;
   elementHandlers: CircuitElementHandlers;
   knownExerciseNames?: string[];
+  dragHandleProps?: HTMLAttributes<HTMLDivElement>;
 }) {
   return (
     <div className="rounded-md p-2.5 mb-2" style={{ background: "#FBF6EC", border: `2px dashed ${RUST}` }}>
       <div className="flex items-center gap-2 mb-2">
+        {dragHandleProps && (
+          <div {...dragHandleProps} className="shrink-0" style={{ cursor: "grab", touchAction: "none" }} title="Przytrzymaj, żeby zmienić kolejność">
+            <GripVertical size={15} color={RUST} />
+          </div>
+        )}
         <Repeat2 size={16} color={RUST} />
         <input
           placeholder="Nazwa obwodu (opcjonalnie)"

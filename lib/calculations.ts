@@ -132,6 +132,23 @@ export const updateExerciseInList = (
 export const removeExerciseFromList = (list: WorkoutExercise[], id: string): WorkoutExercise[] =>
   list.filter((ex) => ex.id !== id);
 
+// Moves the exercise/circuit with id `activeId` to sit where `overId`
+// currently is — top-level order only (drag-reordering elements nested
+// inside a circuit isn't supported).
+export function reorderExerciseInList(
+  list: WorkoutExercise[],
+  activeId: string,
+  overId: string
+): WorkoutExercise[] {
+  const oldIndex = list.findIndex((ex) => ex.id === activeId);
+  const newIndex = list.findIndex((ex) => ex.id === overId);
+  if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return list;
+  const next = [...list];
+  const [moved] = next.splice(oldIndex, 1);
+  next.splice(newIndex, 0, moved);
+  return next;
+}
+
 export const blankSetFor = (kind: LeafExercise["kind"]) => {
   if (kind === "plyo") return { reps: "", side: "L" as const };
   if (kind === "isometric") return { seconds: "", weight: "", side: "L" as const };

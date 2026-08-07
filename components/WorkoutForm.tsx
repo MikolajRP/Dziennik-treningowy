@@ -1,11 +1,45 @@
 "use client";
 
+import type { HTMLAttributes, ReactNode } from "react";
 import { Check, Repeat2, X } from "lucide-react";
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, LINE, RUST, inputStyle } from "@/lib/design";
 import type { LeafExercise, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { Chip, Field, IconBtn } from "./atoms";
 import { AddLeafButtons, ExerciseEditor } from "./ExerciseEditor";
 import { CircuitEditor, type CircuitElementHandlers } from "./CircuitEditor";
+
+// Wraps one top-level exercise/circuit card so it can be dragged by its own
+// handle (rendered inside ExerciseEditor/CircuitEditor) to reorder the list.
+function SortableExerciseItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandleProps: HTMLAttributes<HTMLDivElement>) => ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners } as HTMLAttributes<HTMLDivElement>)}
+    </div>
+  );
+}
 
 export function WorkoutForm({
   draft,
@@ -17,6 +51,7 @@ export function WorkoutForm({
   addExercise,
   updateExercise,
   removeExercise,
+  reorderExercise,
   addSet,
   updateSet,
   removeSet,
@@ -38,6 +73,7 @@ export function WorkoutForm({
   addExercise: (kind: LeafKind | "circuit") => void;
   updateExercise: (id: string, patch: Partial<WorkoutExercise>) => void;
   removeExercise: (id: string) => void;
+  reorderExercise: (activeId: string, overId: string) => void;
   addSet: (id: string) => void;
   updateSet: (id: string, idx: number, field: string, value: string) => void;
   removeSet: (id: string, idx: number) => void;
@@ -50,6 +86,14 @@ export function WorkoutForm({
   saveStatus: "saving" | null;
   knownExerciseNames: string[];
 }) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  );
+  function handleExerciseDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) reorderExercise(String(active.id), String(over.id));
+  }
   return (
     <div className="rounded-md p-3 mb-4" style={{ background: CARD, border: `1px solid ${INK}` }}>
       <div className="flex items-center justify-between mb-3">
@@ -113,31 +157,39 @@ export function WorkoutForm({
         </div>
       </Field>
 
-      <Field label="Przebieg treningu (w kolejności)">
-        {draft.exercises.map((ex) =>
-          ex.kind === "circuit" ? (
-            <CircuitEditor
-              key={ex.id}
-              circuit={ex}
-              onUpdateCircuit={(patch) => updateExercise(ex.id, patch)}
-              onRemoveCircuit={() => removeExercise(ex.id)}
-              elementHandlers={circuitElementHandlers(ex.id)}
-              knownExerciseNames={knownExerciseNames}
-            />
-          ) : (
-            <ExerciseEditor
-              key={ex.id}
-              ex={ex as LeafExercise}
-              onUpdate={(patch) => updateExercise(ex.id, patch)}
-              onRemove={() => removeExercise(ex.id)}
-              onToggleUnilateral={() => toggleUnilateral(ex.id)}
-              onAddSet={() => addSet(ex.id)}
-              onUpdateSet={(idx, field, value) => updateSet(ex.id, idx, field, value)}
-              onRemoveSet={(idx) => removeSet(ex.id, idx)}
-              knownExerciseNames={knownExerciseNames}
-            />
-          )
-        )}
+      <Field label="Przebieg treningu (w kolejności) — przytrzymaj uchwyt, żeby przesunąć">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleExerciseDragEnd}>
+          <SortableContext items={draft.exercises.map((ex) => ex.id)} strategy={verticalListSortingStrategy}>
+            {draft.exercises.map((ex) => (
+              <SortableExerciseItem key={ex.id} id={ex.id}>
+                {(dragHandleProps) =>
+                  ex.kind === "circuit" ? (
+                    <CircuitEditor
+                      circuit={ex}
+                      onUpdateCircuit={(patch) => updateExercise(ex.id, patch)}
+                      onRemoveCircuit={() => removeExercise(ex.id)}
+                      elementHandlers={circuitElementHandlers(ex.id)}
+                      knownExerciseNames={knownExerciseNames}
+                      dragHandleProps={dragHandleProps}
+                    />
+                  ) : (
+                    <ExerciseEditor
+                      ex={ex as LeafExercise}
+                      onUpdate={(patch) => updateExercise(ex.id, patch)}
+                      onRemove={() => removeExercise(ex.id)}
+                      onToggleUnilateral={() => toggleUnilateral(ex.id)}
+                      onAddSet={() => addSet(ex.id)}
+                      onUpdateSet={(idx, field, value) => updateSet(ex.id, idx, field, value)}
+                      onRemoveSet={(idx) => removeSet(ex.id, idx)}
+                      knownExerciseNames={knownExerciseNames}
+                      dragHandleProps={dragHandleProps}
+                    />
+                  )
+                }
+              </SortableExerciseItem>
+            ))}
+          </SortableContext>
+        </DndContext>
 
         <div className="text-[11px] uppercase tracking-wide mb-1 mt-3" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
           Dodaj pojedyncze ćwiczenie

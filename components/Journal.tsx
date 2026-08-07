@@ -31,6 +31,7 @@ import {
   isLeafExerciseValid,
   cleanLeafExercise,
   removeExerciseFromList,
+  reorderExerciseInList,
   removeSetInList,
   todayISO,
   toggleUnilateralInList,
@@ -166,6 +167,9 @@ export function Journal({
   }
   function removeExercise(id: string) {
     setDraft((d) => ({ ...d, exercises: removeExerciseFromList(d.exercises, id) }));
+  }
+  function reorderExercise(activeId: string, overId: string) {
+    setDraft((d) => ({ ...d, exercises: reorderExerciseInList(d.exercises, activeId, overId) }));
   }
   function toggleUnilateral(id: string) {
     setDraft((d) => ({ ...d, exercises: toggleUnilateralInList(d.exercises as LeafExercise[], id) }));
@@ -475,6 +479,7 @@ export function Journal({
             addExercise={addExercise}
             updateExercise={updateExercise}
             removeExercise={removeExercise}
+            reorderExercise={reorderExercise}
             addSet={addSet}
             updateSet={updateSet}
             removeSet={removeSet}

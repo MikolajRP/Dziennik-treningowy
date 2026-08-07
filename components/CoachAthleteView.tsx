@@ -418,6 +418,7 @@ export function CoachAthleteView({
             addExercise={noop}
             updateExercise={noop}
             removeExercise={noop}
+            reorderExercise={noop}
             addSet={noop}
             updateSet={noop}
             removeSet={noop}

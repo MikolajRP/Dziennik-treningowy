@@ -2,6 +2,18 @@
 
 import { ChevronDown, ChevronUp, Copy, Link2, Pencil, Plus, Trash2 } from "lucide-react";
 import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import {
   computeWorkoutAerobicMinutes,
   computeWorkoutFunctionalMinutes,
   computeWorkoutIsometricTUT,
@@ -16,7 +28,7 @@ import {
   computeWorkoutStravaMovingTimeS,
   isCyclingActivityType,
 } from "@/lib/stravaCalculations";
-import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, PLYO, RUST, TEAL } from "@/lib/design";
+import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL } from "@/lib/design";
 import type { LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { IconBtn } from "./atoms";
 import { WorkoutForm } from "./WorkoutForm";
@@ -24,6 +36,179 @@ import type { CircuitElementHandlers } from "./CircuitEditor";
 import { WorkoutExerciseSummary } from "./WorkoutExerciseSummary";
 import { StravaCollapsedSummary, StravaSingleActivity } from "./StravaActivityCard";
 import { MergeWorkoutPicker } from "./MergeWorkoutPicker";
+
+// A workout can be dragged onto another one to merge (only when it has a
+// Strava activity to move — same restriction as the "Połącz" icon button
+// below, since merging deletes the source workout row entirely and a
+// manual-exercise-only source would lose its data). Every card is a drop
+// target regardless, so a Strava run can always be attached to a strength
+// day. Disabled outright in read-only mode.
+function WorkoutCard({
+  w,
+  expanded,
+  isPR,
+  readOnly,
+  setExpandedId,
+  startEdit,
+  startDuplicate,
+  setMergeSourceId,
+  onDetachActivity,
+  confirmDeleteId,
+  setConfirmDeleteId,
+  deleteWorkout,
+}: {
+  w: Workout;
+  expanded: boolean;
+  isPR: boolean;
+  readOnly: boolean;
+  setExpandedId: (id: string | null) => void;
+  startEdit: (w: Workout) => void;
+  startDuplicate: (w: Workout) => void;
+  setMergeSourceId: (id: string | null) => void;
+  onDetachActivity: (activityRowId: string) => void;
+  confirmDeleteId: string | null;
+  setConfirmDeleteId: (id: string | null) => void;
+  deleteWorkout: (id: string) => void;
+}) {
+  const tonnage = computeWorkoutTonnage(w);
+  const plyoReps = computeWorkoutPlyoReps(w);
+  const isometricTUT = computeWorkoutIsometricTUT(w);
+  const functionalMin = computeWorkoutFunctionalMinutes(w);
+  const aerobicMin = computeWorkoutAerobicMinutes(w);
+  const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
+  const stravaDistanceM = hasStrava ? computeWorkoutStravaDistanceM(w) : 0;
+  const allCycling = hasStrava && w.stravaActivities!.every((a) => isCyclingActivityType(a.type));
+  const dragEnabled = hasStrava && !readOnly;
+
+  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+    id: w.id,
+    disabled: !dragEnabled,
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: w.id, disabled: readOnly });
+  const setRefs = (node: HTMLElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+
+  return (
+    <div
+      ref={setRefs}
+      id={`workout-${w.id}`}
+      className="rounded-md"
+      style={{
+        background: CARD,
+        border: isOver ? `2px solid ${MUSTARD}` : `1px solid ${LINE}`,
+        opacity: isDragging ? 0.6 : 1,
+        boxShadow: isDragging ? "0 6px 16px rgba(27,42,58,0.25)" : "none",
+        transform: CSS.Translate.toString(transform),
+        position: transform ? "relative" : undefined,
+        zIndex: transform ? 20 : undefined,
+      }}
+    >
+      <button
+        className="w-full flex items-center justify-between p-3 text-left"
+        onClick={() => setExpandedId(expanded ? null : w.id)}
+        style={dragEnabled ? { touchAction: "none", cursor: "grab" } : undefined}
+        {...(dragEnabled ? attributes : {})}
+        {...(dragEnabled ? listeners : {})}
+      >
+        <div>
+          {w.timeOfDay && (
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, textTransform: "uppercase" }}>
+              {w.timeOfDay}
+            </div>
+          )}
+          {w.name && (
+            <div style={{ fontFamily: FONT_MONO, fontSize: 14, color: INK, fontWeight: 700 }} className="mt-0.5">
+              {w.name}
+            </div>
+          )}
+          {w.subtitle && (
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, fontWeight: 400 }}>
+              {w.subtitle}
+            </div>
+          )}
+          <div className="flex items-center gap-2 mt-1">
+            <span className="px-2 py-0.5 rounded-full text-[11px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
+              {w.category}
+            </span>
+            {isPR && <span className="pr-stamp px-1.5 py-0.5 rounded-full text-[10px] font-semibold">PR</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {hasStrava ? (
+            <StravaCollapsedSummary
+              distanceM={stravaDistanceM}
+              movingTimeS={computeWorkoutStravaMovingTimeS(w)}
+              avgSpeedMps={computeWorkoutStravaAvgSpeedMps(w)}
+              mode={allCycling ? "speed" : "pace"}
+            />
+          ) : (
+            <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
+              {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
+              {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
+              {isometricTUT > 0 && <div style={{ color: ISO }}>TUT {fmtDurationShort(isometricTUT)} izo</div>}
+              {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
+              {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
+            </div>
+          )}
+          {expanded ? <ChevronUp size={16} color={INK_SOFT} /> : <ChevronDown size={16} color={INK_SOFT} />}
+        </div>
+      </button>
+
+      {isOver && (
+        <div className="px-3 pb-2 -mt-1 text-center text-xs" style={{ fontFamily: FONT_MONO, color: MUSTARD, fontWeight: 600 }}>
+          Upuść, aby połączyć
+        </div>
+      )}
+
+      {expanded && (
+        <div className="px-3 pb-3 border-t" style={{ borderColor: LINE }}>
+          {w.notes && <div className="text-xs mt-2 italic" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>{w.notes}</div>}
+
+          {hasStrava && (
+            <div className="mt-2">
+              {w.stravaActivities!.map((a) => (
+                <StravaSingleActivity key={a.id} activity={a} onDetach={() => onDetachActivity(a.id)} />
+              ))}
+            </div>
+          )}
+
+          {w.exercises.length > 0 && (
+            <div className="mt-2">
+              <WorkoutExerciseSummary exercises={w.exercises} />
+            </div>
+          )}
+
+          {!readOnly && (
+            <div className="flex items-center gap-2 mt-3">
+              <IconBtn onClick={() => startEdit(w)} title="Edytuj">
+                <Pencil size={15} />
+              </IconBtn>
+              <IconBtn onClick={() => startDuplicate(w)} title="Duplikuj jako nowy trening">
+                <Copy size={15} />
+              </IconBtn>
+              {hasStrava && (
+                <IconBtn onClick={() => setMergeSourceId(w.id)} title="Połącz z innym treningiem">
+                  <Link2 size={15} />
+                </IconBtn>
+              )}
+              {confirmDeleteId === w.id ? (
+                <button onClick={() => deleteWorkout(w.id)} className="text-xs px-2 py-1 rounded" style={{ fontFamily: FONT_MONO, background: RUST, color: "#fff" }}>
+                  Na pewno usunąć?
+                </button>
+              ) : (
+                <IconBtn onClick={() => setConfirmDeleteId(w.id)} title="Usuń" color={RUST}>
+                  <Trash2 size={15} />
+                </IconBtn>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function LogTab({
   showForm,
@@ -37,6 +222,7 @@ export function LogTab({
   addExercise,
   updateExercise,
   removeExercise,
+  reorderExercise,
   addSet,
   updateSet,
   removeSet,
@@ -75,6 +261,7 @@ export function LogTab({
   addExercise: (kind: LeafKind | "circuit") => void;
   updateExercise: (id: string, patch: Partial<WorkoutExercise>) => void;
   removeExercise: (id: string) => void;
+  reorderExercise: (activeId: string, overId: string) => void;
   addSet: (id: string) => void;
   updateSet: (id: string, idx: number, field: string, value: string) => void;
   removeSet: (id: string, idx: number) => void;
@@ -103,6 +290,15 @@ export function LogTab({
   readOnly?: boolean;
 }) {
   const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  );
+  function handleWorkoutDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) onMergeConfirm(String(active.id), String(over.id));
+  }
 
   // sortedWorkouts is sorted by date, so equal dates are always contiguous —
   // safe to group sequentially without re-sorting.
@@ -142,6 +338,7 @@ export function LogTab({
           addExercise={addExercise}
           updateExercise={updateExercise}
           removeExercise={removeExercise}
+          reorderExercise={reorderExercise}
           addSet={addSet}
           updateSet={updateSet}
           removeSet={removeSet}
@@ -164,126 +361,40 @@ export function LogTab({
         </div>
       )}
 
-      <div className="mt-2">
-        {dayGroups.map((group) => (
-          <div key={group.date} className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600, whiteSpace: "nowrap" }}>
-                {fmtDate(group.date)}
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleWorkoutDragEnd}>
+        <div className="mt-2">
+          {dayGroups.map((group) => (
+            <div key={group.date} className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {fmtDate(group.date)}
+                </div>
+                <div className="flex-1" style={{ height: 1, background: LINE }} />
               </div>
-              <div className="flex-1" style={{ height: 1, background: LINE }} />
+
+              <div className="space-y-2">
+                {group.items.map((w) => (
+                  <WorkoutCard
+                    key={w.id}
+                    w={w}
+                    expanded={expandedId === w.id}
+                    isPR={prIds.has(w.id)}
+                    readOnly={readOnly}
+                    setExpandedId={setExpandedId}
+                    startEdit={startEdit}
+                    startDuplicate={startDuplicate}
+                    setMergeSourceId={setMergeSourceId}
+                    onDetachActivity={onDetachActivity}
+                    confirmDeleteId={confirmDeleteId}
+                    setConfirmDeleteId={setConfirmDeleteId}
+                    deleteWorkout={deleteWorkout}
+                  />
+                ))}
+              </div>
             </div>
-
-            <div className="space-y-2">
-              {group.items.map((w) => {
-                const tonnage = computeWorkoutTonnage(w);
-                const plyoReps = computeWorkoutPlyoReps(w);
-                const isometricTUT = computeWorkoutIsometricTUT(w);
-                const functionalMin = computeWorkoutFunctionalMinutes(w);
-                const aerobicMin = computeWorkoutAerobicMinutes(w);
-                const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
-                const stravaDistanceM = hasStrava ? computeWorkoutStravaDistanceM(w) : 0;
-                const allCycling = hasStrava && w.stravaActivities!.every((a) => isCyclingActivityType(a.type));
-                const expanded = expandedId === w.id;
-                const isPR = prIds.has(w.id);
-                return (
-                  <div key={w.id} id={`workout-${w.id}`} className="rounded-md" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-                    <button className="w-full flex items-center justify-between p-3 text-left" onClick={() => setExpandedId(expanded ? null : w.id)}>
-                      <div>
-                        {w.timeOfDay && (
-                          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, textTransform: "uppercase" }}>
-                            {w.timeOfDay}
-                          </div>
-                        )}
-                        {w.name && (
-                          <div style={{ fontFamily: FONT_MONO, fontSize: 14, color: INK, fontWeight: 700 }} className="mt-0.5">
-                            {w.name}
-                          </div>
-                        )}
-                        {w.subtitle && (
-                          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, fontWeight: 400 }}>
-                            {w.subtitle}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="px-2 py-0.5 rounded-full text-[11px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}>
-                            {w.category}
-                          </span>
-                          {isPR && <span className="pr-stamp px-1.5 py-0.5 rounded-full text-[10px] font-semibold">PR</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {hasStrava ? (
-                          <StravaCollapsedSummary
-                            distanceM={stravaDistanceM}
-                            movingTimeS={computeWorkoutStravaMovingTimeS(w)}
-                            avgSpeedMps={computeWorkoutStravaAvgSpeedMps(w)}
-                            mode={allCycling ? "speed" : "pace"}
-                          />
-                        ) : (
-                          <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
-                            {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
-                            {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
-                            {isometricTUT > 0 && <div style={{ color: ISO }}>TUT {fmtDurationShort(isometricTUT)} izo</div>}
-                            {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
-                            {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
-                          </div>
-                        )}
-                        {expanded ? <ChevronUp size={16} color={INK_SOFT} /> : <ChevronDown size={16} color={INK_SOFT} />}
-                      </div>
-                    </button>
-
-                    {expanded && (
-                      <div className="px-3 pb-3 border-t" style={{ borderColor: LINE }}>
-                        {w.notes && <div className="text-xs mt-2 italic" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>{w.notes}</div>}
-
-                        {hasStrava && (
-                          <div className="mt-2">
-                            {w.stravaActivities!.map((a) => (
-                              <StravaSingleActivity key={a.id} activity={a} onDetach={() => onDetachActivity(a.id)} />
-                            ))}
-                          </div>
-                        )}
-
-                        {w.exercises.length > 0 && (
-                          <div className="mt-2">
-                            <WorkoutExerciseSummary exercises={w.exercises} />
-                          </div>
-                        )}
-
-                        {!readOnly && (
-                          <div className="flex items-center gap-2 mt-3">
-                            <IconBtn onClick={() => startEdit(w)} title="Edytuj">
-                              <Pencil size={15} />
-                            </IconBtn>
-                            <IconBtn onClick={() => startDuplicate(w)} title="Duplikuj jako nowy trening">
-                              <Copy size={15} />
-                            </IconBtn>
-                            {hasStrava && (
-                              <IconBtn onClick={() => setMergeSourceId(w.id)} title="Połącz z innym treningiem">
-                                <Link2 size={15} />
-                              </IconBtn>
-                            )}
-                            {confirmDeleteId === w.id ? (
-                              <button onClick={() => deleteWorkout(w.id)} className="text-xs px-2 py-1 rounded" style={{ fontFamily: FONT_MONO, background: RUST, color: "#fff" }}>
-                                Na pewno usunąć?
-                              </button>
-                            ) : (
-                              <IconBtn onClick={() => setConfirmDeleteId(w.id)} title="Usuń" color={RUST}>
-                                <Trash2 size={15} />
-                              </IconBtn>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </DndContext>
 
       {mergeSource && (
         <MergeWorkoutPicker

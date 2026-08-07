@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Dumbbell, Timer, Zap, Activity, Hourglass, Trash2, X } from "lucide-react";
+import { useMemo, useState, type HTMLAttributes } from "react";
+import { Dumbbell, GripVertical, Timer, Zap, Activity, Hourglass, Trash2, X } from "lucide-react";
 import {
   computeExerciseTonnage,
   computeIsometricTUT,
@@ -95,6 +95,7 @@ export function ExerciseEditor({
   onUpdateSet,
   onRemoveSet,
   knownExerciseNames = [],
+  dragHandleProps,
 }: {
   ex: LeafExercise;
   onUpdate: (patch: Partial<LeafExercise>) => void;
@@ -104,10 +105,16 @@ export function ExerciseEditor({
   onUpdateSet: (idx: number, field: string, value: string) => void;
   onRemoveSet: (idx: number) => void;
   knownExerciseNames?: string[];
+  dragHandleProps?: HTMLAttributes<HTMLDivElement>;
 }) {
   return (
     <div className="rounded-md p-2.5 mb-2" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
       <div className="flex items-center gap-2 mb-2">
+        {dragHandleProps && (
+          <div {...dragHandleProps} className="shrink-0" style={{ cursor: "grab", touchAction: "none" }} title="Przytrzymaj, żeby zmienić kolejność">
+            <GripVertical size={15} color={INK_SOFT} />
+          </div>
+        )}
         <span
           className="px-1.5 py-0.5 rounded text-[10px] uppercase"
           style={{ fontFamily: "var(--font-ibm-plex-mono), monospace", background: KIND_COLOR[ex.kind], color: "#fff" }}
