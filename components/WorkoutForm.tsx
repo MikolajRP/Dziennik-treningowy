@@ -1,7 +1,7 @@
 "use client";
 
-import type { HTMLAttributes, ReactNode } from "react";
-import { Check, Repeat2, X } from "lucide-react";
+import { useState, type HTMLAttributes, type ReactNode } from "react";
+import { Check, ChevronDown, ChevronUp, Repeat2, X } from "lucide-react";
 import {
   DndContext,
   MouseSensor,
@@ -86,6 +86,9 @@ export function WorkoutForm({
   saveStatus: "saving" | null;
   knownExerciseNames: string[];
 }) {
+  const [openGroup, setOpenGroup] = useState<CategoryGroup | null>(
+    categories.find((c) => c.name === draft.category)?.group ?? null
+  );
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
@@ -138,36 +141,51 @@ export function WorkoutForm({
       <Field label="Kategoria">
         {CATEGORY_GROUPS.map((group) => {
           const groupCategories = categories.filter((c) => c.group === group);
+          const isOpen = openGroup === group;
+          const selected = groupCategories.find((c) => c.name === draft.category);
           return (
-            <div key={group} className="mb-3 last:mb-0">
-              <div className="text-[11px] uppercase tracking-wide mb-1" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
-                {CATEGORY_GROUP_LABEL[group]}
-              </div>
-              {groupCategories.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {groupCategories.map((c) => (
-                    <Chip key={c.name} active={draft.category === c.name} onClick={() => setDraft((d) => ({ ...d, category: c.name }))}>
-                      {c.name}
-                    </Chip>
-                  ))}
+            <div key={group} className="mb-1.5 last:mb-0 rounded-md overflow-hidden" style={{ border: `1px solid ${LINE}` }}>
+              <button
+                onClick={() => setOpenGroup(isOpen ? null : group)}
+                className="w-full flex items-center justify-between px-2.5 py-2"
+              >
+                <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600 }}>
+                  {CATEGORY_GROUP_LABEL[group]}
+                  {selected && (
+                    <span style={{ color: INK_SOFT, fontWeight: 400 }}> · {selected.name}</span>
+                  )}
+                </span>
+                {isOpen ? <ChevronUp size={14} color={INK_SOFT} /> : <ChevronDown size={14} color={INK_SOFT} />}
+              </button>
+              {isOpen && (
+                <div className="px-2.5 pb-2.5">
+                  {groupCategories.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                      {groupCategories.map((c) => (
+                        <Chip key={c.name} active={draft.category === c.name} onClick={() => setDraft((d) => ({ ...d, category: c.name }))}>
+                          {c.name}
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-1.5">
+                    <input
+                      placeholder={`Nowy rodzaj — ${CATEGORY_GROUP_LABEL[group]}…`}
+                      value={newCategoryDrafts[group]}
+                      onChange={(e) => setNewCategoryDraft(group, e.target.value)}
+                      className="flex-1 px-2 py-1 rounded text-xs"
+                      style={inputStyle}
+                    />
+                    <button
+                      onClick={() => addCategory(group)}
+                      className="px-2 py-1 rounded text-xs"
+                      style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
+                    >
+                      Dodaj
+                    </button>
+                  </div>
                 </div>
               )}
-              <div className="flex gap-1.5">
-                <input
-                  placeholder={`Nowy rodzaj — ${CATEGORY_GROUP_LABEL[group]}…`}
-                  value={newCategoryDrafts[group]}
-                  onChange={(e) => setNewCategoryDraft(group, e.target.value)}
-                  className="flex-1 px-2 py-1 rounded text-xs"
-                  style={inputStyle}
-                />
-                <button
-                  onClick={() => addCategory(group)}
-                  className="px-2 py-1 rounded text-xs"
-                  style={{ fontFamily: FONT_MONO, border: `1px solid ${INK}`, color: INK }}
-                >
-                  Dodaj
-                </button>
-              </div>
             </div>
           );
         })}
