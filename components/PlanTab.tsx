@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Flag, Pencil, Plus, Trash2, X } from "lucide-react";
 import { addDays, fmtShort, startOfWeek, todayISO } from "@/lib/calculations";
-import { cycleForDate, entriesForDate, raceForDate, type PlanEntryStatus } from "@/lib/planCalculations";
+import { cycleForDate, entriesForDate, raceForDate, unplannedWorkoutsForDate, type PlanEntryStatus } from "@/lib/planCalculations";
 import {
   AERO,
   CARD,
@@ -16,6 +16,7 @@ import {
   MUSTARD,
   PLAN_DONE,
   PLAN_FUTURE,
+  PLAN_LOGGED,
   PLAN_MISSED,
   PLYO,
   RACE,
@@ -188,6 +189,34 @@ function PlanEntryCard({
           Zobacz w dzienniku →
         </button>
       )}
+    </div>
+  );
+}
+
+// A workout logged in the journal with nothing planned for it — read-only,
+// just a pointer back into the dziennik, same visual language as a matched
+// plan entry but in the lighter "unplanned" green.
+function UnplannedWorkoutCard({ workout, onJumpToWorkout }: { workout: Workout; onJumpToWorkout: (workoutId: string) => void }) {
+  return (
+    <div className="p-2.5 rounded-md mb-1.5" style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${PLAN_LOGGED}` }}>
+      <span
+        className="px-1.5 py-0.5 rounded-full text-[10px]"
+        style={{ fontFamily: FONT_MONO, border: `1px solid ${PLAN_LOGGED}`, color: PLAN_LOGGED }}
+      >
+        Zarejestrowany (niezaplanowany)
+      </span>
+      {(workout.name || workout.category) && (
+        <div className="mt-1" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
+          {workout.name || workout.category}
+        </div>
+      )}
+      <button
+        onClick={() => onJumpToWorkout(workout.id)}
+        className="text-xs mt-1.5"
+        style={{ fontFamily: FONT_MONO, color: PLAN_LOGGED, textDecoration: "underline" }}
+      >
+        Zobacz w dzienniku →
+      </button>
     </div>
   );
 }
@@ -429,6 +458,7 @@ export function PlanTab({
                 {weekDates.map((date) => {
                   const inMonth = date.slice(0, 7) === monthStart.slice(0, 7);
                   const dayEntries = entriesForDate(planEntries, workouts, date);
+                  const unplannedWorkouts = unplannedWorkoutsForDate(planEntries, workouts, date);
                   const isToday = date === today;
                   const cycle = cycleForDate(cycles, date);
                   const race = raceForDate(races, date);
@@ -445,10 +475,10 @@ export function PlanTab({
                       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: race ? "#fff" : INK, fontWeight: 600 }}>
                         {date.slice(8, 10)}
                       </div>
-                      <div className="flex gap-0.5 mt-0.5" style={{ minHeight: 4 }}>
+                      <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" style={{ minHeight: 4 }}>
                         {dayEntries.map(({ entry, status }, si) => (
                           <div
-                            key={si}
+                            key={`e${si}`}
                             style={{
                               width: 8,
                               height: 3,
@@ -457,6 +487,9 @@ export function PlanTab({
                               border: entry.isDraft ? `1px dashed ${INK_SOFT}` : "none",
                             }}
                           />
+                        ))}
+                        {unplannedWorkouts.map((w, wi) => (
+                          <div key={`w${wi}`} style={{ width: 8, height: 3, borderRadius: 2, background: PLAN_LOGGED }} />
                         ))}
                       </div>
                     </div>
@@ -468,6 +501,7 @@ export function PlanTab({
                 <div className="space-y-2 mt-1.5 mb-2">
                   {weekDates.map((date, i) => {
                     const dayEntries = entriesForDate(planEntries, workouts, date);
+                    const unplannedWorkouts = unplannedWorkoutsForDate(planEntries, workouts, date);
                     const canAdd = editable && date >= today;
                     const cycle = cycleForDate(cycles, date);
                     const race = raceForDate(races, date);
@@ -501,7 +535,11 @@ export function PlanTab({
                           />
                         ))}
 
-                        {dayEntries.length === 0 && (
+                        {unplannedWorkouts.map((w) => (
+                          <UnplannedWorkoutCard key={w.id} workout={w} onJumpToWorkout={onJumpToWorkout} />
+                        ))}
+
+                        {dayEntries.length === 0 && unplannedWorkouts.length === 0 && (
                           <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: canAdd ? 6 : 0 }}>
                             Brak planu
                           </div>

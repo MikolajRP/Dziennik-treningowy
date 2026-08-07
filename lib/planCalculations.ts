@@ -33,6 +33,16 @@ export function entriesForDate(planEntries: PlanEntry[], workouts: Workout[], da
   });
 }
 
+// Workouts logged on this date that entriesForDate's zip didn't claim for
+// any plan entry — i.e. logged with nothing written down for that day at
+// all, or more workouts than planned entries. Shown as their own markers in
+// the calendar (a lighter green) even when the coach never planned them.
+export function unplannedWorkoutsForDate(planEntries: PlanEntry[], workouts: Workout[], date: string): Workout[] {
+  const dayEntryCount = planEntries.filter((e) => e.date === date).length;
+  const dayWorkouts = workouts.filter((w) => w.date === date);
+  return dayWorkouts.slice(dayEntryCount);
+}
+
 // Distinct, previously-written plan descriptions — feeds the same kind of
 // autocomplete suggestion dropdown exercise names already get.
 export function collectKnownPlanNotes(planEntries: PlanEntry[]): string[] {

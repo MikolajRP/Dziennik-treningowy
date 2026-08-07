@@ -18,6 +18,11 @@ export const PLAN_FUTURE = "#9AA5AE"; // planned, date not yet due
 export const PLAN_DONE = "#2F7D52"; // matched to a real completed workout
 export const PLAN_MISSED = "#C97A2E"; // date passed, no matching workout
 
+// a workout logged in the journal with no matching plan entry at all — a
+// lighter tint of PLAN_DONE so it still reads as "green = happened" but is
+// visually distinct from a workout the coach actually planned
+export const PLAN_LOGGED = "#8FCBA6";
+
 // a race day — deliberately a much stronger, more saturated red than RUST
 // (which means "danger/delete" elsewhere) so it reads as its own thing
 export const RACE = "#D7263D";
