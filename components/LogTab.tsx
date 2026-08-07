@@ -1,17 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronDown, ChevronUp, Copy, Link2, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
   MouseSensor,
   TouchSensor,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
+  closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   computeWorkoutAerobicMinutes,
@@ -37,17 +38,18 @@ import { WorkoutExerciseSummary } from "./WorkoutExerciseSummary";
 import { StravaCollapsedSummary, StravaSingleActivity } from "./StravaActivityCard";
 import { MergeWorkoutPicker } from "./MergeWorkoutPicker";
 
-// A workout can be dragged onto another one to merge (only when it has a
-// Strava activity to move — same restriction as the "Połącz" icon button
-// below, since merging deletes the source workout row entirely and a
-// manual-exercise-only source would lose its data). Every card is a drop
-// target regardless, so a Strava run can always be attached to a strength
-// day. Disabled outright in read-only mode.
+// Every card is draggable (press and hold) and droppable. Dropping onto
+// another workout on the SAME day reorders them; dropping onto a workout on
+// a DIFFERENT day merges them (only when the dragged card has a Strava
+// activity to move — same restriction as the "Połącz" icon button below,
+// since merging deletes the source workout row entirely and a
+// manual-exercise-only source would lose its data). Disabled in read-only.
 function WorkoutCard({
   w,
   expanded,
   isPR,
   readOnly,
+  activeDrag,
   setExpandedId,
   startEdit,
   startDuplicate,
@@ -61,6 +63,7 @@ function WorkoutCard({
   expanded: boolean;
   isPR: boolean;
   readOnly: boolean;
+  activeDrag: { id: string; date: string; hasStrava: boolean } | null;
   setExpandedId: (id: string | null) => void;
   startEdit: (w: Workout) => void;
   startDuplicate: (w: Workout) => void;
@@ -78,31 +81,31 @@ function WorkoutCard({
   const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
   const stravaDistanceM = hasStrava ? computeWorkoutStravaDistanceM(w) : 0;
   const allCycling = hasStrava && w.stravaActivities!.every((a) => isCyclingActivityType(a.type));
-  const dragEnabled = hasStrava && !readOnly;
+  const dragEnabled = !readOnly;
 
-  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: w.id,
     disabled: !dragEnabled,
   });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: w.id, disabled: readOnly });
-  const setRefs = (node: HTMLElement | null) => {
-    setDragRef(node);
-    setDropRef(node);
-  };
+
+  const isMergeTarget =
+    !!activeDrag && activeDrag.id !== w.id && activeDrag.date !== w.date && activeDrag.hasStrava;
+  const showMergeHint = isOver && isMergeTarget;
 
   return (
     <div
-      ref={setRefs}
+      ref={setNodeRef}
       id={`workout-${w.id}`}
       className="rounded-md"
       style={{
         background: CARD,
-        border: isOver ? `2px solid ${MUSTARD}` : `1px solid ${LINE}`,
+        border: showMergeHint ? `2px solid ${MUSTARD}` : `1px solid ${LINE}`,
         opacity: isDragging ? 0.6 : 1,
         boxShadow: isDragging ? "0 6px 16px rgba(27,42,58,0.25)" : "none",
-        transform: CSS.Translate.toString(transform),
-        position: transform ? "relative" : undefined,
-        zIndex: transform ? 20 : undefined,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        position: isDragging ? "relative" : undefined,
+        zIndex: isDragging ? 20 : undefined,
       }}
     >
       <button
@@ -156,7 +159,7 @@ function WorkoutCard({
         </div>
       </button>
 
-      {isOver && (
+      {showMergeHint && (
         <div className="px-3 pb-2 -mt-1 text-center text-xs" style={{ fontFamily: FONT_MONO, color: MUSTARD, fontWeight: 600 }}>
           Upuść, aby połączyć
         </div>
@@ -247,6 +250,7 @@ export function LogTab({
   mergeSourceId,
   setMergeSourceId,
   onMergeConfirm,
+  onReorderWorkouts,
   onDetachActivity,
   readOnly = false,
 }: {
@@ -286,18 +290,37 @@ export function LogTab({
   mergeSourceId: string | null;
   setMergeSourceId: (id: string | null) => void;
   onMergeConfirm: (sourceId: string, targetId: string) => void;
+  onReorderWorkouts: (activeId: string, overId: string) => void;
   onDetachActivity: (activityRowId: string) => void;
   readOnly?: boolean;
 }) {
   const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
 
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const activeDragWorkout = sortedWorkouts.find((w) => w.id === activeDragId) ?? null;
+  const activeDrag = activeDragWorkout
+    ? { id: activeDragWorkout.id, date: activeDragWorkout.date, hasStrava: (activeDragWorkout.stravaActivities?.length ?? 0) > 0 }
+    : null;
+
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
+  function handleWorkoutDragStart(event: DragStartEvent) {
+    setActiveDragId(String(event.active.id));
+  }
   function handleWorkoutDragEnd(event: DragEndEvent) {
+    setActiveDragId(null);
     const { active, over } = event;
-    if (over && active.id !== over.id) onMergeConfirm(String(active.id), String(over.id));
+    if (!over || active.id === over.id) return;
+    const activeW = sortedWorkouts.find((w) => w.id === active.id);
+    const overW = sortedWorkouts.find((w) => w.id === over.id);
+    if (!activeW || !overW) return;
+    if (activeW.date === overW.date) {
+      onReorderWorkouts(activeW.id, overW.id);
+    } else if ((activeW.stravaActivities?.length ?? 0) > 0) {
+      onMergeConfirm(activeW.id, overW.id);
+    }
   }
 
   // sortedWorkouts is sorted by date, so equal dates are always contiguous —
@@ -361,7 +384,13 @@ export function LogTab({
         </div>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleWorkoutDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleWorkoutDragStart}
+        onDragEnd={handleWorkoutDragEnd}
+        onDragCancel={() => setActiveDragId(null)}
+      >
         <div className="mt-2">
           {dayGroups.map((group) => (
             <div key={group.date} className="mb-4">
@@ -372,25 +401,28 @@ export function LogTab({
                 <div className="flex-1" style={{ height: 1, background: LINE }} />
               </div>
 
-              <div className="space-y-2">
-                {group.items.map((w) => (
-                  <WorkoutCard
-                    key={w.id}
-                    w={w}
-                    expanded={expandedId === w.id}
-                    isPR={prIds.has(w.id)}
-                    readOnly={readOnly}
-                    setExpandedId={setExpandedId}
-                    startEdit={startEdit}
-                    startDuplicate={startDuplicate}
-                    setMergeSourceId={setMergeSourceId}
-                    onDetachActivity={onDetachActivity}
-                    confirmDeleteId={confirmDeleteId}
-                    setConfirmDeleteId={setConfirmDeleteId}
-                    deleteWorkout={deleteWorkout}
-                  />
-                ))}
-              </div>
+              <SortableContext items={group.items.map((w) => w.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {group.items.map((w) => (
+                    <WorkoutCard
+                      key={w.id}
+                      w={w}
+                      expanded={expandedId === w.id}
+                      isPR={prIds.has(w.id)}
+                      readOnly={readOnly}
+                      activeDrag={activeDrag}
+                      setExpandedId={setExpandedId}
+                      startEdit={startEdit}
+                      startDuplicate={startDuplicate}
+                      setMergeSourceId={setMergeSourceId}
+                      onDetachActivity={onDetachActivity}
+                      confirmDeleteId={confirmDeleteId}
+                      setConfirmDeleteId={setConfirmDeleteId}
+                      deleteWorkout={deleteWorkout}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
             </div>
           ))}
         </div>

@@ -89,6 +89,7 @@ export interface Workout {
   durationMinutes?: number;
   timeOfDay?: TimeOfDay; // lets two same-day workouts be told apart
   stravaActivities?: StravaActivity[];
+  sortOrder: number; // manual display order among same-date workouts, drag-reorderable
 }
 
 // A single per-km (or per-mile, but we always request metric) split, as

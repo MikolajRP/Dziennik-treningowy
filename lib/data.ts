@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORIES } from "./design";
 import type { CoachAccess, CoachNote, Cycle, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
-  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
+  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline)";
 
 interface StravaActivityRow {
   id: string;
@@ -32,6 +32,7 @@ interface WorkoutRow {
   exercises: WorkoutExercise[];
   duration_minutes: number | null;
   time_of_day: Workout["timeOfDay"] | null;
+  sort_order: number;
   strava_activities: StravaActivityRow[] | null;
 }
 interface CycleRow {
@@ -75,6 +76,7 @@ const workoutFromRow = (r: WorkoutRow): Workout => ({
   durationMinutes: r.duration_minutes ?? undefined,
   timeOfDay: r.time_of_day ?? undefined,
   stravaActivities: (r.strava_activities ?? []).map(stravaActivityFromRow),
+  sortOrder: r.sort_order,
 });
 
 const CYCLE_SELECT = "id, name, type, start_date, end_date, color, notes, visible_to_athlete, created_by";
@@ -92,11 +94,27 @@ const cycleFromRow = (r: CycleRow): Cycle => ({
 });
 
 export async function fetchWorkouts(supabase: SupabaseClient, forUserId?: string): Promise<Workout[]> {
-  let query = supabase.from("workouts").select(WORKOUT_SELECT).order("date", { ascending: false });
+  let query = supabase
+    .from("workouts")
+    .select(WORKOUT_SELECT)
+    .order("date", { ascending: false })
+    .order("sort_order", { ascending: true });
   if (forUserId) query = query.eq("user_id", forUserId);
   const { data, error } = await query;
   if (error) throw error;
   return (data as unknown as WorkoutRow[]).map(workoutFromRow);
+}
+
+// Persists a new manual display order for one day's worth of workouts —
+// called after a drag-reorder. Re-numbers the whole day sequentially rather
+// than trying to slot a single row between fractional gaps, since a day
+// group is always small.
+export async function reorderWorkoutsInDay(supabase: SupabaseClient, orderedIds: string[]): Promise<void> {
+  const results = await Promise.all(
+    orderedIds.map((id, i) => supabase.from("workouts").update({ sort_order: i }).eq("id", id))
+  );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) throw firstError;
 }
 
 export async function saveWorkout(

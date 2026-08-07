@@ -13,6 +13,7 @@ import {
   deleteWorkoutRow,
   detachStravaActivity,
   inviteCoach,
+  reorderWorkoutsInDay,
   revokeCoachAccess,
   saveCycleRow,
   saveWorkout as saveWorkoutRow,
@@ -31,8 +32,9 @@ import {
   isLeafExerciseValid,
   cleanLeafExercise,
   removeExerciseFromList,
-  reorderExerciseInList,
   removeSetInList,
+  reorderExerciseInList,
+  reorderWorkoutInList,
   todayISO,
   toggleUnilateralInList,
   updateExerciseInList,
@@ -289,6 +291,21 @@ export function Journal({
     }
   }
 
+  async function handleReorderWorkouts(activeId: string, overId: string) {
+    const active = workouts.find((w) => w.id === activeId);
+    const over = workouts.find((w) => w.id === overId);
+    if (!active || !over || active.date !== over.date) return;
+    const dayItems = workouts.filter((w) => w.date === active.date).sort((a, b) => a.sortOrder - b.sortOrder);
+    const reordered = reorderWorkoutInList(dayItems, activeId, overId);
+    const newOrderById = new Map(reordered.map((w, i) => [w.id, i]));
+    setWorkouts((prev) => prev.map((w) => (newOrderById.has(w.id) ? { ...w, sortOrder: newOrderById.get(w.id)! } : w)));
+    try {
+      await reorderWorkoutsInDay(supabase, reordered.map((w) => w.id));
+    } catch {
+      // best-effort — local order is already applied; worst case it resyncs on next refresh
+    }
+  }
+
   async function handleDetachActivity(activityRowId: string) {
     const { newWorkout, sourceWorkoutId, sourceDeleted } = await detachStravaActivity(
       supabase,
@@ -504,6 +521,7 @@ export function Journal({
             mergeSourceId={mergeSourceId}
             setMergeSourceId={setMergeSourceId}
             onMergeConfirm={handleMergeConfirm}
+            onReorderWorkouts={handleReorderWorkouts}
             onDetachActivity={handleDetachActivity}
           />
         )}

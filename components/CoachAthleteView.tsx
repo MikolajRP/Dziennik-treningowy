@@ -443,6 +443,7 @@ export function CoachAthleteView({
             mergeSourceId={null}
             setMergeSourceId={noop}
             onMergeConfirm={noop}
+            onReorderWorkouts={noop}
             onDetachActivity={noop}
           />
         )}

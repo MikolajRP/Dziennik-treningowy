@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ChevronDown, ChevronUp, Heart, Mountain, Route as RouteIcon, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Heart, Link2Off, Mountain, Route as RouteIcon } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -291,7 +291,7 @@ export function StravaSingleActivity({
 
           <div className="flex justify-end mt-2">
             <IconBtn onClick={onDetach} title="Odłącz jako osobny trening" color="#A6402F">
-              <Trash2 size={13} />
+              <Link2Off size={13} />
             </IconBtn>
           </div>
         </div>

@@ -98,6 +98,7 @@ export const emptyDraft = (categories: string[]): Workout => ({
   subtitle: "",
   notes: "",
   exercises: [],
+  sortOrder: 0,
 });
 
 // ---------- pure "leaf" exercise factory + list helpers ----------
@@ -132,22 +133,26 @@ export const updateExerciseInList = (
 export const removeExerciseFromList = (list: WorkoutExercise[], id: string): WorkoutExercise[] =>
   list.filter((ex) => ex.id !== id);
 
-// Moves the exercise/circuit with id `activeId` to sit where `overId`
-// currently is — top-level order only (drag-reordering elements nested
-// inside a circuit isn't supported).
-export function reorderExerciseInList(
-  list: WorkoutExercise[],
-  activeId: string,
-  overId: string
-): WorkoutExercise[] {
-  const oldIndex = list.findIndex((ex) => ex.id === activeId);
-  const newIndex = list.findIndex((ex) => ex.id === overId);
+// Moves the item with id `activeId` to sit where `overId` currently is.
+function reorderById<T extends { id: string }>(list: T[], activeId: string, overId: string): T[] {
+  const oldIndex = list.findIndex((item) => item.id === activeId);
+  const newIndex = list.findIndex((item) => item.id === overId);
   if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return list;
   const next = [...list];
   const [moved] = next.splice(oldIndex, 1);
   next.splice(newIndex, 0, moved);
   return next;
 }
+
+// Top-level order only — drag-reordering elements nested inside a circuit
+// isn't supported.
+export const reorderExerciseInList = (list: WorkoutExercise[], activeId: string, overId: string): WorkoutExercise[] =>
+  reorderById(list, activeId, overId);
+
+// Reorders workouts within a single day's group (see reorderWorkoutsInDay
+// in lib/data.ts for the persisted side of this).
+export const reorderWorkoutInList = (list: Workout[], activeId: string, overId: string): Workout[] =>
+  reorderById(list, activeId, overId);
 
 export const blankSetFor = (kind: LeafExercise["kind"]) => {
   if (kind === "plyo") return { reps: "", side: "L" as const };
