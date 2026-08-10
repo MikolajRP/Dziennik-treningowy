@@ -47,7 +47,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Supabase's SDK falls back to JSON.stringify(rawResponse) for opaque
+    // 500-level failures, which for a Response object serializes to the
+    // useless literal string "{}" — swap in something a person can act on.
+    // The most common real cause: the SMTP sender address isn't allowed to
+    // deliver to this recipient (e.g. Resend's onboarding@resend.dev test
+    // domain only delivers to the Resend account's own email).
+    const message =
+      !error.message || error.message === "{}"
+        ? "Supabase zwrócił błąd serwera przy wysyłce maila (bez szczegółów) — najczęstsza przyczyna: adres nadawcy w SMTP nie może wysyłać do tego odbiorcy (np. testowa domena Resend onboarding@resend.dev wysyła tylko na adres właściciela konta Resend)."
+        : error.message;
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({ sent: true });
