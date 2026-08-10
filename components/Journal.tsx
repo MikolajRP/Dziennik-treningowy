@@ -95,6 +95,7 @@ export function Journal({
   const [pendingInvites, setPendingInvites] = useSyncedState<CoachAccess[]>(initialPendingInvites);
   const [athletesForCoach] = useSyncedState<CoachAccess[]>(initialAthletesForCoach);
   const [newCoachEmail, setNewCoachEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (window.location.search.includes("strava=")) {
@@ -358,11 +359,15 @@ export function Journal({
   async function handleInviteCoach() {
     const email = newCoachEmail.trim().toLowerCase();
     if (!email) return;
+    setInviteError(null);
     try {
       const grant = await inviteCoach(supabase, userId, userEmail, email);
       setCoachGrants((prev) => [...prev, grant]);
       setNewCoachEmail("");
-      sendCoachInviteEmail(email);
+      const result = await sendCoachInviteEmail(email);
+      if (!result.sent && !result.reason) {
+        setInviteError(result.error ?? "Nie udało się wysłać maila z zaproszeniem.");
+      }
     } catch {
       // most likely: already invited this email (unique constraint) — ignore
     }
@@ -625,6 +630,7 @@ export function Journal({
             athletesForCoach={athletesForCoach}
             newCoachEmail={newCoachEmail}
             setNewCoachEmail={setNewCoachEmail}
+            inviteError={inviteError}
             onInvite={handleInviteCoach}
             onAccept={handleAcceptInvite}
             onTogglePermission={handleTogglePermission}

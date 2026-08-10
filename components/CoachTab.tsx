@@ -18,6 +18,7 @@ export function CoachTab({
   athletesForCoach,
   newCoachEmail,
   setNewCoachEmail,
+  inviteError,
   onInvite,
   onAccept,
   onTogglePermission,
@@ -28,6 +29,7 @@ export function CoachTab({
   athletesForCoach: CoachAccess[];
   newCoachEmail: string;
   setNewCoachEmail: (v: string) => void;
+  inviteError: string | null;
   onInvite: () => void;
   onAccept: (id: string) => void;
   onTogglePermission: (id: string, field: "canViewWorkouts" | "canViewReports" | "canEditPlan", value: boolean) => void;
@@ -107,6 +109,15 @@ export function CoachTab({
             <UserPlus size={14} /> Zaproś
           </button>
         </div>
+
+        {inviteError && (
+          <div
+            className="text-xs mb-4 px-2.5 py-2 rounded-md"
+            style={{ fontFamily: FONT_MONO, background: "#FBEAE7", color: RUST, border: `1px solid ${RUST}` }}
+          >
+            Nie udało się wysłać maila z zaproszeniem: {inviteError}
+          </div>
+        )}
 
         {coachGrants.length === 0 && (
           <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>

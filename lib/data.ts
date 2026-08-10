@@ -496,18 +496,25 @@ export async function inviteCoach(
   return coachAccessFromRow(data as CoachAccessRow);
 }
 
-// Best-effort — the coach_access grant row above is the source of truth;
-// this just triggers Supabase's invite email so a brand-new coach gets a
-// link straight into the app instead of having to know to sign up first.
-export async function sendCoachInviteEmail(coachEmail: string): Promise<void> {
+// The coach_access grant row is the source of truth and already exists by
+// the time this runs; this just triggers Supabase's invite email so a
+// brand-new coach gets a link straight into the app instead of having to
+// know to sign up first. Errors are surfaced (not swallowed) so a broken
+// mail config shows up in the UI instead of looking like a silent success.
+export async function sendCoachInviteEmail(
+  coachEmail: string
+): Promise<{ sent: boolean; reason?: string; error?: string }> {
   try {
-    await fetch("/api/coach-invite", {
+    const res = await fetch("/api/coach-invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: coachEmail }),
     });
-  } catch {
-    // network hiccup — the pending grant still exists, ignore
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { sent: false, error: body?.error ?? `HTTP ${res.status}` };
+    return { sent: body?.sent ?? true, reason: body?.reason };
+  } catch (err) {
+    return { sent: false, error: err instanceof Error ? err.message : "network error" };
   }
 }
 
