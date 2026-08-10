@@ -6,9 +6,20 @@
 
   Copy matches the existing "Siemano trenerze!" wording, repackaged into a
   card with a background pattern and a real button instead of a bare link.
-  {{ .ConfirmationURL }} is Supabase's built-in template variable — leave it
-  exactly as-is. Emoji are HTML entities so they survive whatever encoding
-  Supabase's editor applies on save.
+  Emoji are HTML entities so they survive whatever encoding Supabase's
+  editor applies on save.
+
+  Deliberately NOT using {{ .ConfirmationURL }} — that link points at
+  Supabase's own /auth/v1/verify endpoint, which verifies (and burns) the
+  one-time token on a bare GET request, no JS or real click required. Email
+  clients' safe-link scanners (Gmail, Outlook, corporate gateways) prefetch
+  every link in a message to check it's not malicious, which silently
+  consumes it before the person ever opens the email — they then see "link
+  expired / already used" on a link they never clicked. Linking straight to
+  our own /auth/confirm page with the raw token_hash instead means
+  verification only happens client-side (supabase.auth.verifyOtp), which a
+  prefetch bot's plain HTTP GET never triggers since it doesn't execute JS —
+  only a real browser opening the page does.
 
   Gmail's mobile apps auto-invert email colors for a phone in dark mode and
   largely ignore the color-scheme/supported-color-schemes meta tags that
@@ -52,7 +63,7 @@
           Kliknij w link żeby założyć konto w dzienniku treningowym i wznieść kontrolę treningu na wyższy poziom&#128170;
         </p>
         <a
-          href="{{ .ConfirmationURL }}"
+          href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
           class="eb-button"
           style="display:inline-block;background-color:#1B2A3A;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:14px;text-decoration:none;padding:14px 32px;border-radius:6px;"
         >
