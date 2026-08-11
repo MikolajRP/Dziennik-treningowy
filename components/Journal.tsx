@@ -554,38 +554,38 @@ export function Journal({
             </button>
           </div>
         </div>
-        <div className="flex gap-4 mt-3">
+        <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setTab("log")}
-            className="flex items-center gap-1.5 pb-2 text-sm"
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
             style={{ fontFamily: FONT_MONO, color: tab === "log" ? INK : INK_SOFT, borderBottom: tab === "log" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <BookOpen size={14} /> DZIENNIK
           </button>
           <button
-            onClick={() => setTab("health")}
-            className="flex items-center gap-1.5 pb-2 text-sm"
-            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <HeartPulse size={14} /> ZDROWIE
-          </button>
-          <button
             onClick={() => setTab("reports")}
-            className="flex items-center gap-1.5 pb-2 text-sm"
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
             style={{ fontFamily: FONT_MONO, color: tab === "reports" ? INK : INK_SOFT, borderBottom: tab === "reports" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <BarChart3 size={14} /> RAPORTY
           </button>
           <button
             onClick={() => setTab("plan")}
-            className="flex items-center gap-1.5 pb-2 text-sm"
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
             style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <CalendarDays size={14} /> PLAN
           </button>
           <button
+            onClick={() => setTab("health")}
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <HeartPulse size={14} /> ZDROWIE
+          </button>
+          <button
             onClick={() => setTab("coach")}
-            className="flex items-center gap-1.5 pb-2 text-sm"
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
             style={{ fontFamily: FONT_MONO, color: tab === "coach" ? INK : INK_SOFT, borderBottom: tab === "coach" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
             <Users size={14} /> TRENER
