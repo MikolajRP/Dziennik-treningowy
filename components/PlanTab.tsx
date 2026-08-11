@@ -9,6 +9,7 @@ import {
   CARD,
   FONT_DISPLAY,
   FONT_MONO,
+  HEALTH,
   INK,
   INK_SOFT,
   ISO,
@@ -24,7 +25,7 @@ import {
   TEAL,
   inputStyle,
 } from "@/lib/design";
-import type { CoachNote, Cycle, CycleType, PlanEntry, Race, Workout } from "@/lib/types";
+import type { CoachNote, Cycle, CycleType, HealthEntry, PlanEntry, Race, Workout } from "@/lib/types";
 import { Chip, Field, IconBtn } from "./atoms";
 
 const WEEKDAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
@@ -221,6 +222,24 @@ function UnplannedWorkoutCard({ workout, onJumpToWorkout }: { workout: Workout; 
   );
 }
 
+// Compact, single-line summary of the athlete's self-reported wellness for
+// one day — only wired in for the coach's calendar (see CoachAthleteView),
+// deliberately terse so it doesn't compete for space with the plan/race
+// cards it sits above.
+function HealthDayStrip({ entry }: { entry: HealthEntry }) {
+  return (
+    <div
+      className="mb-2 flex flex-wrap gap-x-3 gap-y-0.5 px-2 py-1 rounded"
+      style={{ background: `${HEALTH}14`, fontFamily: FONT_MONO, fontSize: 10, color: HEALTH }}
+    >
+      <span>😴 {entry.sleepHours}h</span>
+      <span>❤️ {entry.restingHr} bpm</span>
+      <span>HRV {entry.hrv}ms</span>
+      <span>🙂 {entry.wellbeing}/10</span>
+    </div>
+  );
+}
+
 function DayNoteField({
   date,
   existingNote,
@@ -374,6 +393,7 @@ export function PlanTab({
   deleteCycle,
   error,
   coachUserId,
+  healthByDate,
 }: {
   planEntries: PlanEntry[];
   workouts: Workout[];
@@ -398,6 +418,7 @@ export function PlanTab({
   deleteCycle: (id: string) => void;
   error?: string | null;
   coachUserId?: string;
+  healthByDate?: Record<string, HealthEntry>;
 }) {
   const today = todayISO();
   const [monthStart, setMonthStart] = useState(startOfMonth(today));
@@ -518,6 +539,8 @@ export function PlanTab({
                             </span>
                           )}
                         </div>
+
+                        {healthByDate?.[date] && <HealthDayStrip entry={healthByDate[date]} />}
 
                         <DayRaceField date={date} race={race} editable={editable} onSaveRace={onSaveRace} onDeleteRace={onDeleteRace} />
 

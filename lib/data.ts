@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { Category, CategoryGroup, CoachAccess, CoachNote, Cycle, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { Category, CategoryGroup, CoachAccess, CoachNote, Cycle, HealthEntry, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline, sort_order)";
@@ -766,5 +766,81 @@ export async function saveRace(
 
 export async function deleteRace(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("races").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------- health entries (daily wellness check-in) ----------
+
+interface HealthEntryRow {
+  id: string;
+  date: string;
+  sleep_hours: number;
+  sleep_quality: number;
+  hrv: number;
+  resting_hr: number;
+  weight_kg: number;
+  wellbeing: number;
+  notes: string;
+}
+
+const HEALTH_ENTRY_SELECT = "id, date, sleep_hours, sleep_quality, hrv, resting_hr, weight_kg, wellbeing, notes";
+
+const healthEntryFromRow = (r: HealthEntryRow): HealthEntry => ({
+  id: r.id,
+  date: r.date,
+  sleepHours: r.sleep_hours,
+  sleepQuality: r.sleep_quality,
+  hrv: r.hrv,
+  restingHr: r.resting_hr,
+  weightKg: r.weight_kg,
+  wellbeing: r.wellbeing,
+  notes: r.notes,
+});
+
+export async function fetchHealthEntries(supabase: SupabaseClient, forUserId?: string): Promise<HealthEntry[]> {
+  let query = supabase.from("health_entries").select(HEALTH_ENTRY_SELECT).order("date", { ascending: false });
+  if (forUserId) query = query.eq("user_id", forUserId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as HealthEntryRow[]).map(healthEntryFromRow);
+}
+
+export async function saveHealthEntry(
+  supabase: SupabaseClient,
+  userId: string,
+  entry: Omit<HealthEntry, "id">,
+  editingId: string | null
+): Promise<HealthEntry> {
+  const payload = {
+    date: entry.date,
+    sleep_hours: entry.sleepHours,
+    sleep_quality: entry.sleepQuality,
+    hrv: entry.hrv,
+    resting_hr: entry.restingHr,
+    weight_kg: entry.weightKg,
+    wellbeing: entry.wellbeing,
+    notes: entry.notes,
+  };
+  if (editingId) {
+    const { data, error } = await supabase
+      .from("health_entries")
+      .update(payload)
+      .eq("id", editingId)
+      .select(HEALTH_ENTRY_SELECT)
+      .single();
+    if (error) throw error;
+    return healthEntryFromRow(data as HealthEntryRow);
+  }
+  const { data, error } = await supabase
+    .from("health_entries")
+    .insert({ user_id: userId, ...payload })
+    .select(HEALTH_ENTRY_SELECT)
+    .single();
+  if (error) throw error;
+  return healthEntryFromRow(data as HealthEntryRow);
+}
+
+export async function deleteHealthEntryRow(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("health_entries").delete().eq("id", id);
   if (error) throw error;
 }

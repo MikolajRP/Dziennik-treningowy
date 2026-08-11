@@ -206,3 +206,17 @@ export interface Race {
   date: string; // ISO yyyy-mm-dd
   name: string;
 }
+
+// A daily wellness check-in, filled once per day (see the mandatory gate in
+// Journal.tsx). Every field is required except notes.
+export interface HealthEntry {
+  id: string;
+  date: string; // ISO yyyy-mm-dd
+  sleepHours: number;
+  sleepQuality: number; // 1-10
+  hrv: number;
+  restingHr: number;
+  weightKg: number;
+  wellbeing: number; // 1-10
+  notes: string;
+}

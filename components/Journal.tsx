@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Dumbbell, LogOut, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -10,6 +10,7 @@ import {
   addCategoryRow,
   attachStravaActivities,
   deleteCycleRow,
+  deleteHealthEntryRow,
   deleteWorkoutRow,
   detachStravaActivity,
   inviteCoach,
@@ -17,6 +18,7 @@ import {
   reorderWorkoutsInDay,
   revokeCoachAccess,
   saveCycleRow,
+  saveHealthEntry as saveHealthEntryRow,
   saveWorkout as saveWorkoutRow,
   sendCoachInviteEmail,
   updateCoachPermissions,
@@ -24,6 +26,9 @@ import {
 import { StravaConnect } from "./StravaConnect";
 import { CoachTab } from "./CoachTab";
 import { CoachHelpModal } from "./CoachHelpModal";
+import { HealthGate } from "./HealthGate";
+import { isHealthDraftComplete, type HealthDraft } from "./HealthEntryForm";
+import { HealthTab } from "./HealthTab";
 import { PlanTab } from "./PlanTab";
 import {
   addDays,
@@ -42,14 +47,29 @@ import {
   updateExerciseInList,
   updateSetInList,
 } from "@/lib/calculations";
+import { latestHealthEntry } from "@/lib/healthCalculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
 import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
-import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
+import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
+
+function emptyHealthDraft(entries: HealthEntry[]): HealthDraft {
+  const latest = latestHealthEntry(entries);
+  return {
+    date: todayISO(),
+    sleepHours: latest?.sleepHours,
+    sleepQuality: latest?.sleepQuality ?? 5,
+    hrv: latest?.hrv,
+    restingHr: latest?.restingHr,
+    weightKg: latest?.weightKg,
+    wellbeing: latest?.wellbeing ?? 5,
+    notes: "",
+  };
+}
 
 export function Journal({
   userId,
@@ -63,6 +83,7 @@ export function Journal({
   initialAthletesForCoach,
   initialPlanEntries,
   initialRaces,
+  initialHealthEntries,
 }: {
   userId: string;
   userEmail: string;
@@ -75,16 +96,81 @@ export function Journal({
   initialAthletesForCoach: CoachAccess[];
   initialPlanEntries: PlanEntry[];
   initialRaces: Race[];
+  initialHealthEntries: HealthEntry[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "reports" | "plan" | "coach">("log");
+  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "coach">("log");
   const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
   const [planEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
   const [races] = useSyncedState<Race[]>(initialRaces);
+
+  // ---------- health (daily wellness check-in) ----------
+  const [healthEntries, setHealthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
+  const hasTodayHealthEntry = healthEntries.some((h) => h.date === todayISO());
+  const [editingHealthId, setEditingHealthId] = useState<string | null>(null);
+  const [healthDraft, setHealthDraft] = useState<HealthDraft>(() => emptyHealthDraft(initialHealthEntries));
+  const [healthSaving, setHealthSaving] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [confirmDeleteHealthId, setConfirmDeleteHealthId] = useState<string | null>(null);
+
+  function startHealthEdit(entry: HealthEntry) {
+    setHealthDraft({
+      date: entry.date,
+      sleepHours: entry.sleepHours,
+      sleepQuality: entry.sleepQuality,
+      hrv: entry.hrv,
+      restingHr: entry.restingHr,
+      weightKg: entry.weightKg,
+      wellbeing: entry.wellbeing,
+      notes: entry.notes,
+    });
+    setEditingHealthId(entry.id);
+    setHealthError(null);
+  }
+  function cancelHealthEdit() {
+    setEditingHealthId(null);
+    setHealthError(null);
+  }
+  async function handleSaveHealthEntry() {
+    if (!isHealthDraftComplete(healthDraft)) return;
+    setHealthSaving(true);
+    setHealthError(null);
+    try {
+      const saved = await saveHealthEntryRow(
+        supabase,
+        userId,
+        {
+          date: healthDraft.date,
+          sleepHours: healthDraft.sleepHours!,
+          sleepQuality: healthDraft.sleepQuality,
+          hrv: healthDraft.hrv!,
+          restingHr: healthDraft.restingHr!,
+          weightKg: healthDraft.weightKg!,
+          wellbeing: healthDraft.wellbeing,
+          notes: healthDraft.notes,
+        },
+        editingHealthId
+      );
+      setHealthEntries((prev) => (editingHealthId ? prev.map((h) => (h.id === saved.id ? saved : h)) : [saved, ...prev]));
+      setEditingHealthId(null);
+    } catch {
+      setHealthError("Nie udało się zapisać karty zdrowia — spróbuj ponownie.");
+    } finally {
+      setHealthSaving(false);
+    }
+  }
+  async function handleDeleteHealthEntry(id: string) {
+    try {
+      await deleteHealthEntryRow(supabase, id);
+      setHealthEntries((prev) => prev.filter((h) => h.id !== id));
+    } finally {
+      setConfirmDeleteHealthId(null);
+    }
+  }
   // Reflects the server's fresh read on this page load — the Strava OAuth
   // callback does a full server-driven redirect back to "/", so this is
   // already up to date without needing client-side state.
@@ -477,6 +563,13 @@ export function Journal({
             <BookOpen size={14} /> DZIENNIK
           </button>
           <button
+            onClick={() => setTab("health")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <HeartPulse size={14} /> ZDROWIE
+          </button>
+          <button
             onClick={() => setTab("reports")}
             className="flex items-center gap-1.5 pb-2 text-sm"
             style={{ fontFamily: FONT_MONO, color: tab === "reports" ? INK : INK_SOFT, borderBottom: tab === "reports" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
@@ -550,6 +643,23 @@ export function Journal({
             onReorderWorkouts={handleReorderWorkouts}
             onDetachActivity={handleDetachActivity}
             onReorderActivities={handleReorderActivities}
+          />
+        )}
+
+        {tab === "health" && (
+          <HealthTab
+            healthEntries={healthEntries}
+            editingId={editingHealthId}
+            draft={healthDraft}
+            setDraft={setHealthDraft}
+            startEdit={startHealthEdit}
+            cancelEdit={cancelHealthEdit}
+            saveEntry={handleSaveHealthEntry}
+            deleteEntry={handleDeleteHealthEntry}
+            saving={healthSaving}
+            formError={healthError}
+            confirmDeleteId={confirmDeleteHealthId}
+            setConfirmDeleteId={setConfirmDeleteHealthId}
           />
         )}
 
@@ -644,6 +754,15 @@ export function Journal({
         onClose={closeWelcome}
         pendingInvites={pendingInvites}
         onAcceptInvite={handleAcceptInvite}
+      />
+
+      <HealthGate
+        open={!hasTodayHealthEntry}
+        draft={healthDraft}
+        setDraft={setHealthDraft}
+        onSave={handleSaveHealthEntry}
+        saving={healthSaving}
+        error={healthError}
       />
     </div>
   );

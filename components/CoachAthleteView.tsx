@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Check, HelpCircle, LogOut, Pencil, StickyNote } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -22,13 +22,15 @@ import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
 import { coachTutorialSeenKey } from "@/lib/onboarding";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, RACE, gridBg, inputStyle } from "@/lib/design";
-import type { Category, CoachNote, Cycle, PlanEntry, Period, Race, Workout } from "@/lib/types";
+import type { Category, CoachNote, Cycle, HealthEntry, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import { PlanTab } from "./PlanTab";
 import { NotesTab } from "./NotesTab";
+import { HealthTab } from "./HealthTab";
+import { EMPTY_HEALTH_DRAFT } from "./HealthEntryForm";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -47,6 +49,7 @@ export function CoachAthleteView({
   initialPlanEntries,
   initialCoachNotes,
   initialRaces,
+  initialHealthEntries,
   canViewReports,
   canEditPlan,
 }: {
@@ -61,13 +64,20 @@ export function CoachAthleteView({
   initialPlanEntries: PlanEntry[];
   initialCoachNotes: CoachNote[];
   initialRaces: Race[];
+  initialHealthEntries: HealthEntry[];
   canViewReports: boolean;
   canEditPlan: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "reports" | "plan" | "notes">("plan");
+  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "notes">("plan");
+  const [healthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
+  const healthByDate = useMemo(() => {
+    const map: Record<string, HealthEntry> = {};
+    healthEntries.forEach((h) => (map[h.date] = h));
+    return map;
+  }, [healthEntries]);
 
   // The app never syncs live — re-pull everything (via the server component
   // above us) whenever the tab/installed app comes back to the foreground.
@@ -391,6 +401,13 @@ export function CoachAthleteView({
           >
             <BookOpen size={14} /> DZIENNIK
           </button>
+          <button
+            onClick={() => setTab("health")}
+            className="flex items-center gap-1.5 pb-2 text-sm"
+            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <HeartPulse size={14} /> ZDROWIE
+          </button>
           {canViewReports && (
             <button
               onClick={() => setTab("reports")}
@@ -446,6 +463,24 @@ export function CoachAthleteView({
             onReorderWorkouts={noop}
             onDetachActivity={noop}
             onReorderActivities={noop}
+          />
+        )}
+
+        {tab === "health" && (
+          <HealthTab
+            readOnly
+            healthEntries={healthEntries}
+            editingId={null}
+            draft={EMPTY_HEALTH_DRAFT}
+            setDraft={noop}
+            startEdit={noop}
+            cancelEdit={noop}
+            saveEntry={noop}
+            deleteEntry={noop}
+            saving={false}
+            formError={null}
+            confirmDeleteId={null}
+            setConfirmDeleteId={noop}
           />
         )}
 
@@ -519,6 +554,7 @@ export function CoachAthleteView({
             deleteCycle={deleteCycle}
             error={planError}
             coachUserId={coachUserId}
+            healthByDate={healthByDate}
           />
         )}
 

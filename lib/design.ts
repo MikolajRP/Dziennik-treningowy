@@ -27,6 +27,10 @@ export const PLAN_LOGGED = "#8FCBA6";
 // (which means "danger/delete" elsewhere) so it reads as its own thing
 export const RACE = "#D7263D";
 
+// Zdrowie tab accent (sleep chart, tab icon) — everything else in that tab
+// reuses existing category colors (MUSTARD/TEAL/ISO/RUST/INK) per metric.
+export const HEALTH = "#3B6E8F";
+
 export const FONT_DISPLAY = "var(--font-oswald), sans-serif";
 export const FONT_MONO = "var(--font-ibm-plex-mono), monospace";
 
