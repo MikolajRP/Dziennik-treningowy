@@ -28,6 +28,7 @@ import {
   computeWorkoutStravaDistanceM,
   computeWorkoutStravaMovingTimeS,
   isCyclingActivityType,
+  isSwimmingActivityType,
 } from "@/lib/stravaCalculations";
 import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL } from "@/lib/design";
 import type { Category, CategoryGroup, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
@@ -115,6 +116,7 @@ function WorkoutCard({
   const hasStrava = (w.stravaActivities?.length ?? 0) > 0;
   const stravaDistanceM = hasStrava ? computeWorkoutStravaDistanceM(w) : 0;
   const allCycling = hasStrava && w.stravaActivities!.every((a) => isCyclingActivityType(a.type));
+  const allSwimming = hasStrava && w.stravaActivities!.every((a) => isSwimmingActivityType(a.type));
   const dragEnabled = !readOnly;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
@@ -182,7 +184,7 @@ function WorkoutCard({
               distanceM={stravaDistanceM}
               movingTimeS={computeWorkoutStravaMovingTimeS(w)}
               avgSpeedMps={computeWorkoutStravaAvgSpeedMps(w)}
-              mode={allCycling ? "speed" : "pace"}
+              mode={allCycling ? "speed" : allSwimming ? "pace100m" : "pace"}
             />
           ) : (
             <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
