@@ -111,7 +111,7 @@ function HealthHistoryCard({
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         <StatMini label="Sen" value={`${entry.sleepHours} h`} />
-        <StatMini label="Ocena snu" value={`${entry.sleepQuality}/10`} />
+        <StatMini label="Ocena snu" value={`${entry.sleepQuality}/100`} />
         <StatMini label="HRV" value={`${entry.hrv} ms`} />
         <StatMini label="Tętno spocz." value={`${entry.restingHr} bpm`} />
         <StatMini label="Masa" value={`${entry.weightKg} kg`} />
@@ -193,7 +193,7 @@ export function HealthTab({
           ) : (
             <div>
               <TrendChart data={series} dataKey="sleepHours" label="Długość snu" color={HEALTH} unit=" h" digits={1} />
-              <TrendChart data={series} dataKey="sleepQuality" label="Ocena snu" color={TEAL} unit="/10" />
+              <TrendChart data={series} dataKey="sleepQuality" label="Ocena snu" color={TEAL} unit="/100" />
               <TrendChart data={series} dataKey="hrv" label="HRV" color={ISO} unit=" ms" />
               <TrendChart data={series} dataKey="restingHr" label="Tętno spoczynkowe" color={RUST} unit=" bpm" />
               <TrendChart data={series} dataKey="weightKg" label="Masa ciała" color={INK} unit=" kg" digits={1} />

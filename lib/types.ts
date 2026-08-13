@@ -213,7 +213,7 @@ export interface HealthEntry {
   id: string;
   date: string; // ISO yyyy-mm-dd
   sleepHours: number;
-  sleepQuality: number; // 1-10
+  sleepQuality: number; // Garmin-style sleep score, 1-100
   hrv: number;
   restingHr: number;
   weightKg: number;

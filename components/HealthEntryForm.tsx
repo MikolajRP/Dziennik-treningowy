@@ -7,7 +7,7 @@ import { Field } from "./atoms";
 export interface HealthDraft {
   date: string;
   sleepHours: number | undefined;
-  sleepQuality: number; // 1-10, slider always carries a value
+  sleepQuality: number; // Garmin-style sleep score, 1-100; slider always carries a value
   hrv: number | undefined;
   restingHr: number | undefined;
   weightKg: number | undefined;
@@ -25,7 +25,7 @@ export function isHealthDraftComplete(d: HealthDraft): boolean {
 export const EMPTY_HEALTH_DRAFT: HealthDraft = {
   date: "",
   sleepHours: undefined,
-  sleepQuality: 5,
+  sleepQuality: 50,
   hrv: undefined,
   restingHr: undefined,
   weightKg: undefined,
@@ -37,10 +37,12 @@ function SliderField({
   label,
   value,
   onChange,
+  max = 10,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  max?: number;
 }) {
   return (
     <Field label={label}>
@@ -48,7 +50,7 @@ function SliderField({
         <input
           type="range"
           min={1}
-          max={10}
+          max={max}
           step={1}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
@@ -56,7 +58,7 @@ function SliderField({
           style={{ accentColor: HEALTH }}
         />
         <div
-          className="w-8 text-center rounded text-sm"
+          className="w-10 text-center rounded text-sm"
           style={{ fontFamily: FONT_MONO, color: INK, fontWeight: 600 }}
         >
           {value}
@@ -135,9 +137,10 @@ export function HealthEntryForm({
         onChange={(v) => setDraft((d) => ({ ...d, sleepHours: v }))}
       />
       <SliderField
-        label="Ocena snu (1-10)"
+        label="Ocena snu (Garmin, 1-100)"
         value={draft.sleepQuality}
         onChange={(v) => setDraft((d) => ({ ...d, sleepQuality: v }))}
+        max={100}
       />
       <NumberField
         label="HRV (ms)"

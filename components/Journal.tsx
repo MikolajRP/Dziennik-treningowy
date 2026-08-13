@@ -62,7 +62,7 @@ function emptyHealthDraft(entries: HealthEntry[]): HealthDraft {
   return {
     date: todayISO(),
     sleepHours: latest?.sleepHours,
-    sleepQuality: latest?.sleepQuality ?? 5,
+    sleepQuality: latest?.sleepQuality ?? 50,
     hrv: latest?.hrv,
     restingHr: latest?.restingHr,
     weightKg: latest?.weightKg,
