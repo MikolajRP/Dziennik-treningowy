@@ -210,7 +210,7 @@ function StravaSideBySide({ entries }: { entries: ComparisonEntry<StravaSummary>
   return (
     <div className="mb-5">
       <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>AKTYWNOŚCI STRAVA</div>
-      <ZoomableArea>
+      <ZoomableArea fullBleed>
         <div className="flex gap-3 p-1">
           {entries.map((e) => (
             <div key={e.index} className="shrink-0" style={{ width: 260 }}>
