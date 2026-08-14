@@ -24,6 +24,7 @@ import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD,
 import type { Cycle, HealthEntry, Workout } from "@/lib/types";
 import { Chip } from "./atoms";
 import { StravaSingleActivity } from "./StravaActivityCard";
+import { ZoomableArea } from "./ZoomableArea";
 import { STRAVA_ORANGE } from "./StravaConnect";
 
 const SLOT_COLORS = [MUSTARD, TEAL, AERO, ISO, PLYO, RUST];
@@ -209,18 +210,20 @@ function StravaSideBySide({ entries }: { entries: ComparisonEntry<StravaSummary>
   return (
     <div className="mb-5">
       <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>AKTYWNOŚCI STRAVA</div>
-      <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
-        {entries.map((e) => (
-          <div key={e.index} className="shrink-0" style={{ width: 260 }}>
-            <div className="mb-2" style={{ fontFamily: FONT_DISPLAY, fontSize: 12, color: e.color, fontWeight: 600 }}>
-              {e.label}
+      <ZoomableArea>
+        <div className="flex gap-3 p-1">
+          {entries.map((e) => (
+            <div key={e.index} className="shrink-0" style={{ width: 260 }}>
+              <div className="mb-2" style={{ fontFamily: FONT_DISPLAY, fontSize: 12, color: e.color, fontWeight: 600 }}>
+                {e.label}
+              </div>
+              {e.summary.activities.map((a) => (
+                <StravaSingleActivity key={a.id} activity={a} onDetach={() => {}} readOnly />
+              ))}
             </div>
-            {e.summary.activities.map((a) => (
-              <StravaSingleActivity key={a.id} activity={a} onDetach={() => {}} readOnly />
-            ))}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </ZoomableArea>
     </div>
   );
 }
