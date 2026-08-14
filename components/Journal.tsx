@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, ListTodo, LogOut, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarClock, CalendarDays, Dumbbell, HeartPulse, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -179,9 +179,8 @@ export function Journal({
     }
   }
 
-  // ---------- planner (day feed) ----------
+  // ---------- planner (month/week calendar) ----------
   const [personalEvents, setPersonalEvents] = useSyncedState<PersonalEvent[]>(initialPersonalEvents);
-  const [selectedPlannerDate, setSelectedPlannerDate] = useState(todayISO());
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [showAddEventForm, setShowAddEventFormState] = useState(false);
   const [eventDraft, setEventDraft] = useState<EventDraft>(emptyEventDraft());
@@ -196,7 +195,7 @@ export function Journal({
     setShowAddEventFormState(open);
   }
   function startEventEdit(event: PersonalEvent) {
-    setEventDraft({ time: event.time ?? "", title: event.title, color: event.color, notes: event.notes });
+    setEventDraft({ time: event.time ?? "", endTime: event.endTime ?? "", title: event.title, color: event.color, notes: event.notes });
     setEditingEventId(event.id);
     setShowAddEventFormState(false);
     setEventError(null);
@@ -206,18 +205,19 @@ export function Journal({
     setShowAddEventFormState(false);
     setEventError(null);
   }
-  async function handleSaveEvent() {
+  async function handleSaveEvent(date: string) {
     const title = eventDraft.title.trim();
     if (!title) return;
     const existing = editingEventId ? personalEvents.find((e) => e.id === editingEventId) : undefined;
-    const untimedCount = personalEvents.filter((e) => e.date === selectedPlannerDate && !e.time).length;
+    const untimedCount = personalEvents.filter((e) => e.date === date && !e.time).length;
     try {
       const saved = await savePersonalEvent(
         supabase,
         userId,
         {
-          date: selectedPlannerDate,
+          date,
           time: eventDraft.time || null,
+          endTime: eventDraft.time ? eventDraft.endTime || null : null,
           title,
           color: eventDraft.color,
           notes: eventDraft.notes,
@@ -244,7 +244,16 @@ export function Journal({
       await savePersonalEvent(
         supabase,
         userId,
-        { date: event.date, time: event.time, title: event.title, color: event.color, notes: event.notes, done: nextDone, sortOrder: event.sortOrder },
+        {
+          date: event.date,
+          time: event.time,
+          endTime: event.endTime,
+          title: event.title,
+          color: event.color,
+          notes: event.notes,
+          done: nextDone,
+          sortOrder: event.sortOrder,
+        },
         event.id
       );
     } catch {
@@ -264,10 +273,6 @@ export function Journal({
     } catch {
       // best-effort — local order is already applied; worst case it resyncs on next refresh
     }
-  }
-  function selectPlannerDate(date: string) {
-    cancelEventForm();
-    setSelectedPlannerDate(date);
   }
 
   // Reflects the server's fresh read on this page load — the Strava OAuth
@@ -680,7 +685,7 @@ export function Journal({
             className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
             style={{ fontFamily: FONT_MONO, color: tab === "planner" ? INK : INK_SOFT, borderBottom: tab === "planner" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
-            <ListTodo size={14} /> TERMINARZ
+            <CalendarClock size={14} /> PLANNER
           </button>
           <button
             onClick={() => setTab("health")}
@@ -845,8 +850,6 @@ export function Journal({
             planEntries={planEntries}
             workouts={workouts}
             races={races}
-            selectedDate={selectedPlannerDate}
-            setSelectedDate={selectPlannerDate}
             editingId={editingEventId}
             draft={eventDraft}
             setDraft={setEventDraft}

@@ -45,6 +45,35 @@ export const startOfWeek = (iso: string) => {
   return toISODate(d);
 };
 
+// ---------- month-grid helpers (shared by PlanTab and PlannerTab) ----------
+export const startOfMonth = (iso: string) => iso.slice(0, 8) + "01";
+export const addMonths = (iso: string, n: number) => {
+  const [y, m] = iso.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+export const daysInMonth = (monthStart: string) => {
+  const [y, m] = monthStart.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+};
+export const monthLabel = (monthStart: string) => {
+  const [y, m] = monthStart.split("-").map(Number);
+  const label = new Date(y, m - 1, 1).toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+// Every week's Monday that touches this month, from the week containing the
+// 1st through the week containing the last day.
+export const getMonthWeeks = (monthStart: string) => {
+  const lastOfMonth = monthStart.slice(0, 8) + String(daysInMonth(monthStart)).padStart(2, "0");
+  const weeks: string[] = [];
+  let cur = startOfWeek(monthStart);
+  while (cur <= lastOfMonth) {
+    weeks.push(cur);
+    cur = addDays(cur, 7);
+  }
+  return weeks;
+};
+
 export const num = (v: unknown) =>
   v === "" || v === null || v === undefined || isNaN(Number(v)) ? 0 : Number(v);
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Flag, Pencil, Plus, Trash2, X } from "lucide-react";
-import { addDays, fmtShort, startOfWeek, todayISO } from "@/lib/calculations";
+import { addDays, addMonths, fmtShort, getMonthWeeks, monthLabel, startOfMonth, todayISO } from "@/lib/calculations";
 import { cycleForDate, entriesForDate, raceForDate, unplannedWorkoutsForDate, type PlanEntryStatus } from "@/lib/planCalculations";
 import {
   AERO,
@@ -33,32 +33,6 @@ const SLOT_LABEL: Record<PlanEntry["slot"], string> = { am: "RANO", pm: "PO POŁ
 export const STATUS_COLOR: Record<PlanEntryStatus, string> = { planned: PLAN_FUTURE, done: PLAN_DONE, missed: PLAN_MISSED };
 export const STATUS_LABEL: Record<PlanEntryStatus, string> = { planned: "zaplanowany", done: "wykonany", missed: "niewykonany" };
 const CYCLE_COLORS = [MUSTARD, PLYO, TEAL, AERO, ISO, RUST];
-
-const startOfMonth = (iso: string) => iso.slice(0, 8) + "01";
-const addMonths = (iso: string, n: number) => {
-  const [y, m] = iso.split("-").map(Number);
-  const d = new Date(y, m - 1 + n, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-};
-const daysInMonth = (monthStart: string) => {
-  const [y, m] = monthStart.split("-").map(Number);
-  return new Date(y, m, 0).getDate();
-};
-const monthLabel = (monthStart: string) => {
-  const [y, m] = monthStart.split("-").map(Number);
-  const label = new Date(y, m - 1, 1).toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
-const getMonthWeeks = (monthStart: string) => {
-  const lastOfMonth = monthStart.slice(0, 8) + String(daysInMonth(monthStart)).padStart(2, "0");
-  const weeks: string[] = [];
-  let cur = startOfWeek(monthStart);
-  while (cur <= lastOfMonth) {
-    weeks.push(cur);
-    cur = addDays(cur, 7);
-  }
-  return weeks;
-};
 
 function PlanEntryCard({
   entry,

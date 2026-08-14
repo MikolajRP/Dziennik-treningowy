@@ -851,6 +851,7 @@ interface PersonalEventRow {
   id: string;
   date: string;
   time: string | null;
+  end_time: string | null;
   title: string;
   color: string;
   notes: string;
@@ -858,12 +859,16 @@ interface PersonalEventRow {
   sort_order: number;
 }
 
-const PERSONAL_EVENT_SELECT = "id, date, time, title, color, notes, done, sort_order";
+const PERSONAL_EVENT_SELECT = "id, date, time, end_time, title, color, notes, done, sort_order";
+
+// postgres "time" comes back as "HH:MM:SS"
+const trimTime = (t: string | null) => (t ? t.slice(0, 5) : null);
 
 const personalEventFromRow = (r: PersonalEventRow): PersonalEvent => ({
   id: r.id,
   date: r.date,
-  time: r.time ? r.time.slice(0, 5) : null, // postgres "time" comes back as "HH:MM:SS"
+  time: trimTime(r.time),
+  endTime: trimTime(r.end_time),
   title: r.title,
   color: r.color,
   notes: r.notes,
@@ -891,6 +896,7 @@ export async function savePersonalEvent(
   const payload = {
     date: event.date,
     time: event.time,
+    end_time: event.endTime,
     title: event.title,
     color: event.color,
     notes: event.notes,

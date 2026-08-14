@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type HTMLAttributes, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { Check, ChevronLeft, ChevronRight, Flag, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
@@ -13,28 +13,36 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { addDays, todayISO } from "@/lib/calculations";
+import { addDays, addMonths, getMonthWeeks, monthLabel, startOfMonth, todayISO } from "@/lib/calculations";
 import { entriesForDate, raceForDate } from "@/lib/planCalculations";
-import { datesWithActivity, eventsForDate, plannerWeekStrip } from "@/lib/plannerCalculations";
+import {
+  datesWithActivity,
+  layoutTimedEvents,
+  timeToMinutes,
+  timedEventsForDate,
+  untimedEventsForDate,
+  weekDatesFor,
+} from "@/lib/plannerCalculations";
 import { CARD, EVENT_COLORS, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, LINE, MUSTARD, PLANNER, RACE, RUST, inputStyle } from "@/lib/design";
 import type { PersonalEvent, PlanEntry, Race, Workout } from "@/lib/types";
 import { STATUS_COLOR, STATUS_LABEL } from "./PlanTab";
 import { IconBtn } from "./atoms";
 
-const WEEKDAY_LABELS_SHORT = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
+const WEEKDAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
+const ROW_HEIGHT = 52; // px per hour on the ruled-paper day grid
+const GRID_HOURS = 24;
 
 export interface EventDraft {
-  time: string; // "" = untimed
+  time: string; // "" = untimed task
+  endTime: string;
   title: string;
   color: string;
   notes: string;
 }
 
-// `date` and `done` aren't part of the draft: date is always the currently
-// selected Planner day (an edit only ever targets that day's own events),
-// and done only ever changes via the row's own checkbox, never the form.
 export const emptyEventDraft = (): EventDraft => ({
   time: "",
+  endTime: "",
   title: "",
   color: EVENT_COLORS[0].value,
   notes: "",
@@ -44,60 +52,9 @@ function weekdayIndex(date: string): number {
   const d = new Date(date + "T00:00:00");
   return (d.getDay() + 6) % 7;
 }
-
-function WeekStrip({
-  selectedDate,
-  setSelectedDate,
-  activeDates,
-}: {
-  selectedDate: string;
-  setSelectedDate: (date: string) => void;
-  activeDates: Set<string>;
-}) {
-  const strip = plannerWeekStrip(selectedDate);
-  const today = todayISO();
-  return (
-    <div className="flex items-center gap-1.5 mb-3">
-      <IconBtn onClick={() => setSelectedDate(addDays(selectedDate, -7))} title="Poprzedni tydzień">
-        <ChevronLeft size={16} />
-      </IconBtn>
-      <div className="flex-1 grid grid-cols-7 gap-1">
-        {strip.map((date) => {
-          const isSelected = date === selectedDate;
-          const isToday = date === today;
-          return (
-            <button
-              key={date}
-              onClick={() => setSelectedDate(date)}
-              className="flex flex-col items-center py-1.5 rounded-md"
-              style={{
-                background: isSelected ? PLANNER : "transparent",
-                border: `1px solid ${isSelected ? PLANNER : isToday ? MUSTARD : "transparent"}`,
-              }}
-            >
-              <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: isSelected ? "#fff" : INK_SOFT }}>
-                {WEEKDAY_LABELS_SHORT[weekdayIndex(date)]}
-              </div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: isSelected ? "#fff" : INK }}>
-                {date.slice(8, 10)}
-              </div>
-              <div
-                className="rounded-full mt-0.5"
-                style={{
-                  width: 4,
-                  height: 4,
-                  background: activeDates.has(date) ? (isSelected ? "#fff" : PLANNER) : "transparent",
-                }}
-              />
-            </button>
-          );
-        })}
-      </div>
-      <IconBtn onClick={() => setSelectedDate(addDays(selectedDate, 7))} title="Następny tydzień">
-        <ChevronRight size={16} />
-      </IconBtn>
-    </div>
-  );
+function clampMinutesToTime(mins: number): string {
+  const clamped = Math.max(0, Math.min(mins, 23 * 60 + 59));
+  return `${String(Math.floor(clamped / 60)).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`;
 }
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -123,9 +80,10 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-// Shared fields for both quick-add (mode="new") and editing an existing
-// event in place (mode="edit") — notes are tucked behind a toggle so the
-// common case (just a title, maybe a time) stays a single compact row.
+// Shared form for both adding and editing an event. Leaving the start time
+// blank keeps it an untimed task (checklist); setting one turns it into a
+// time-blocked calendar event — the end time auto-fills to +1h so the
+// common case is a single tap, but stays editable.
 function EventForm({
   draft,
   setDraft,
@@ -140,6 +98,15 @@ function EventForm({
   saveLabel: string;
 }) {
   const [notesOpen, setNotesOpen] = useState(!!draft.notes);
+
+  function onStartTimeChange(v: string) {
+    setDraft((d) => {
+      if (!v) return { ...d, time: "", endTime: "" };
+      if (!d.endTime) return { ...d, time: v, endTime: clampMinutesToTime(timeToMinutes(v) + 60) };
+      return { ...d, time: v };
+    });
+  }
+
   return (
     <div className="p-2.5 rounded-md mb-2" style={{ background: CARD, border: `1px solid ${PLANNER}` }}>
       <input
@@ -151,14 +118,26 @@ function EventForm({
         className="w-full px-2 py-1.5 rounded text-sm mb-2"
         style={inputStyle}
       />
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center flex-wrap gap-2 mb-2">
         <input
           type="time"
           value={draft.time}
-          onChange={(e) => setDraft((d) => ({ ...d, time: e.target.value }))}
+          onChange={(e) => onStartTimeChange(e.target.value)}
           className="px-2 py-1 rounded text-xs"
           style={inputStyle}
         />
+        {draft.time && (
+          <>
+            <span style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 12 }}>–</span>
+            <input
+              type="time"
+              value={draft.endTime}
+              onChange={(e) => setDraft((d) => ({ ...d, endTime: e.target.value }))}
+              className="px-2 py-1 rounded text-xs"
+              style={inputStyle}
+            />
+          </>
+        )}
         <ColorPicker value={draft.color} onChange={(v) => setDraft((d) => ({ ...d, color: v }))} />
         {!notesOpen && (
           <button
@@ -199,7 +178,7 @@ function EventForm({
   );
 }
 
-function EventRow({
+function TaskRow({
   event,
   dragHandleProps,
   onToggleDone,
@@ -222,22 +201,16 @@ function EventRow({
           <GripVertical size={14} color={INK_SOFT} />
         </div>
       )}
-      <button onClick={onToggleDone} className="shrink-0 rounded flex items-center justify-center" style={{ width: 18, height: 18, border: `1.5px solid ${event.done ? event.color : INK_SOFT}`, background: event.done ? event.color : "transparent" }}>
+      <button
+        onClick={onToggleDone}
+        className="shrink-0 rounded flex items-center justify-center"
+        style={{ width: 18, height: 18, border: `1.5px solid ${event.done ? event.color : INK_SOFT}`, background: event.done ? event.color : "transparent" }}
+      >
         {event.done && <Check size={12} color="#fff" />}
       </button>
-      {event.time && (
-        <div className="shrink-0" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, width: 36 }}>
-          {event.time}
-        </div>
-      )}
       <div className="flex-1 min-w-0">
         <div
-          style={{
-            fontFamily: FONT_MONO,
-            fontSize: 13,
-            color: event.done ? INK_SOFT : INK,
-            textDecoration: event.done ? "line-through" : "none",
-          }}
+          style={{ fontFamily: FONT_MONO, fontSize: 13, color: event.done ? INK_SOFT : INK, textDecoration: event.done ? "line-through" : "none" }}
           className="truncate"
         >
           {event.title}
@@ -258,7 +231,7 @@ function EventRow({
   );
 }
 
-function SortableEventRow({ id, children }: { id: string; children: (dragHandleProps: HTMLAttributes<HTMLDivElement>) => ReactNode }) {
+function SortableTaskRow({ id, children }: { id: string; children: (dragHandleProps: HTMLAttributes<HTMLDivElement>) => ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
@@ -268,13 +241,113 @@ function SortableEventRow({ id, children }: { id: string; children: (dragHandleP
   );
 }
 
+// The "kartka w linie" — a single day's hours, ruled like notebook paper,
+// with timed events positioned as blocks (side-by-side when they overlap)
+// and a live red line marking the current time when this is today.
+function DayHourGrid({
+  date,
+  events,
+  onEditEvent,
+}: {
+  date: string;
+  events: PersonalEvent[];
+  onEditEvent: (event: PersonalEvent) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const isToday = date === todayISO();
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const nowMinutes = useMemo(() => {
+    const d = new Date(nowTick);
+    return d.getHours() * 60 + d.getMinutes();
+  }, [nowTick]);
+
+  useEffect(() => {
+    const target = isToday ? Math.max(0, nowMinutes - 60) : 7 * 60;
+    scrollRef.current?.scrollTo({ top: (target / 60) * ROW_HEIGHT });
+    // Re-run when the viewed day changes (isToday/nowMinutes intentionally
+    // excluded — this should only jump on navigation, not every tick).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
+
+  const layout = useMemo(() => layoutTimedEvents(events), [events]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="rounded-md overflow-y-auto"
+      style={{ height: 420, background: "#fff", border: `1px solid ${LINE}` }}
+    >
+      <div className="flex" style={{ height: GRID_HOURS * ROW_HEIGHT }}>
+        <div className="relative shrink-0" style={{ width: 40 }}>
+          {Array.from({ length: GRID_HOURS }, (_, h) => (
+            <div
+              key={h}
+              className="absolute right-1 text-right"
+              style={{ top: h * ROW_HEIGHT - 6, fontFamily: FONT_MONO, fontSize: 9, color: INK_SOFT }}
+            >
+              {String(h).padStart(2, "0")}:00
+            </div>
+          ))}
+        </div>
+        <div
+          className="relative flex-1"
+          style={{
+            backgroundImage: `repeating-linear-gradient(to bottom, ${LINE} 0, ${LINE} 1px, transparent 1px, transparent ${ROW_HEIGHT}px)`,
+          }}
+        >
+          {layout.map(({ event, col, cols }) => {
+            const top = (timeToMinutes(event.time!) / 60) * ROW_HEIGHT;
+            const durationMin = event.endTime ? timeToMinutes(event.endTime) - timeToMinutes(event.time!) : 60;
+            const height = Math.max(22, (Math.max(durationMin, 15) / 60) * ROW_HEIGHT);
+            const widthPct = 100 / cols;
+            return (
+              <button
+                key={event.id}
+                onClick={() => onEditEvent(event)}
+                className="absolute rounded text-left px-1.5 py-0.5 overflow-hidden"
+                style={{
+                  top,
+                  height,
+                  left: `calc(${widthPct * col}% + 2px)`,
+                  width: `calc(${widthPct}% - 4px)`,
+                  background: `${event.color}26`,
+                  borderLeft: `3px solid ${event.color}`,
+                }}
+              >
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10.5, color: INK, fontWeight: 600, lineHeight: 1.15 }} className="truncate">
+                  {event.title}
+                </div>
+                {height >= 34 && (
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: INK_SOFT }}>
+                    {event.time}–{event.endTime ?? clampMinutesToTime(timeToMinutes(event.time!) + 60)}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+          {isToday && (
+            <div className="absolute left-0 right-0 flex items-center" style={{ top: (nowMinutes / 60) * ROW_HEIGHT }}>
+              <div className="rounded-full shrink-0" style={{ width: 7, height: 7, background: RACE, marginLeft: -3.5 }} />
+              <div className="flex-1" style={{ height: 1.5, background: RACE }} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PlannerTab({
   personalEvents,
   planEntries,
   workouts,
   races,
-  selectedDate,
-  setSelectedDate,
   editingId,
   draft,
   setDraft,
@@ -293,8 +366,6 @@ export function PlannerTab({
   planEntries: PlanEntry[];
   workouts: Workout[];
   races: Race[];
-  selectedDate: string;
-  setSelectedDate: (date: string) => void;
   editingId: string | null;
   draft: EventDraft;
   setDraft: (updater: (d: EventDraft) => EventDraft) => void;
@@ -302,13 +373,18 @@ export function PlannerTab({
   setShowAddForm: (v: boolean) => void;
   startEdit: (event: PersonalEvent) => void;
   cancelForm: () => void;
-  saveEvent: () => void;
+  saveEvent: (date: string) => void;
   deleteEvent: (id: string) => void;
   toggleDone: (event: PersonalEvent) => void;
   reorderEvents: (activeId: string, overId: string) => void;
   onJumpToWorkout: (workoutId: string) => void;
   error: string | null;
 }) {
+  const today = todayISO();
+  const [view, setView] = useState<"month" | "week">("month");
+  const [monthStart, setMonthStart] = useState(startOfMonth(today));
+  const [focusedDate, setFocusedDate] = useState(today);
+
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
@@ -318,39 +394,160 @@ export function PlannerTab({
     if (over && active.id !== over.id) reorderEvents(String(active.id), String(over.id));
   }
 
-  const activeDates = datesWithActivity(personalEvents, planEntries, races);
-  const dayPlanEntries = entriesForDate(planEntries, workouts, selectedDate);
-  const race = raceForDate(races, selectedDate);
-  const dayEvents = eventsForDate(personalEvents, selectedDate);
-  const timedEvents = dayEvents.filter((e) => e.time);
-  const untimedEvents = dayEvents.filter((e) => !e.time);
-  const today = todayISO();
+  const activeDates = useMemo(() => datesWithActivity(personalEvents, planEntries, races), [personalEvents, planEntries, races]);
+  const editingEvent = editingId ? personalEvents.find((e) => e.id === editingId) : undefined;
 
-  const dateLabel = new Date(selectedDate + "T00:00:00")
-    .toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+  function openDay(date: string) {
+    setFocusedDate(date);
+    setView("week");
+    cancelForm();
+  }
+  function backToMonth() {
+    setMonthStart(startOfMonth(focusedDate));
+    setView("month");
+    cancelForm();
+  }
+  function selectFocusedDate(date: string) {
+    setFocusedDate(date);
+    cancelForm();
+  }
+
+  if (view === "month") {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <IconBtn onClick={() => setMonthStart((m) => addMonths(m, -1))} title="Poprzedni miesiąc">
+            <ChevronLeft size={18} />
+          </IconBtn>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 600 }}>{monthLabel(monthStart)}</div>
+          <IconBtn onClick={() => setMonthStart((m) => addMonths(m, 1))} title="Następny miesiąc">
+            <ChevronRight size={18} />
+          </IconBtn>
+        </div>
+
+        {monthStart !== startOfMonth(today) && (
+          <div className="text-center mb-3">
+            <button
+              onClick={() => setMonthStart(startOfMonth(today))}
+              className="text-xs"
+              style={{ fontFamily: FONT_MONO, color: INK_SOFT, textDecoration: "underline" }}
+            >
+              Wróć do bieżącego miesiąca
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {WEEKDAY_LABELS.map((l) => (
+            <div key={l} className="text-center" style={{ fontFamily: FONT_MONO, fontSize: 9, color: INK_SOFT }}>
+              {l}
+            </div>
+          ))}
+        </div>
+
+        {getMonthWeeks(monthStart).map((weekStart) => (
+          <div key={weekStart} className="grid grid-cols-7 gap-1 mb-1">
+            {Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).map((date) => {
+              const inMonth = date.slice(0, 7) === monthStart.slice(0, 7);
+              const isToday = date === today;
+              const race = raceForDate(races, date);
+              const dayPlanEntries = entriesForDate(planEntries, workouts, date);
+              const dayPersonalEvents = personalEvents.filter((e) => e.date === date).slice(0, 4);
+              return (
+                <button
+                  key={date}
+                  onClick={() => openDay(date)}
+                  className="flex flex-col items-center py-1.5 rounded-md"
+                  style={{
+                    background: race ? RACE : isToday ? "#fff" : "transparent",
+                    border: `1px solid ${!race && isToday ? MUSTARD : "transparent"}`,
+                    opacity: inMonth ? 1 : 0.35,
+                  }}
+                >
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: race ? "#fff" : INK, fontWeight: 600 }}>
+                    {date.slice(8, 10)}
+                  </div>
+                  <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" style={{ minHeight: 5 }}>
+                    {dayPlanEntries.map(({ status }, i) => (
+                      <div key={`p${i}`} style={{ width: 7, height: 3, borderRadius: 2, background: STATUS_COLOR[status] }} />
+                    ))}
+                    {dayPersonalEvents.map((e) => (
+                      <div key={e.id} className="rounded-full" style={{ width: 4, height: 4, background: e.color }} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ---------- week/day detail view ----------
+  const weekDates = weekDatesFor(focusedDate);
+  const race = raceForDate(races, focusedDate);
+  const dayPlanEntries = entriesForDate(planEntries, workouts, focusedDate);
+  const timedEvents = timedEventsForDate(personalEvents, focusedDate);
+  const untimedEvents = untimedEventsForDate(personalEvents, focusedDate);
+  const dateLabel = new Date(focusedDate + "T00:00:00").toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div>
-      <WeekStrip selectedDate={selectedDate} setSelectedDate={setSelectedDate} activeDates={activeDates} />
+      <button
+        onClick={backToMonth}
+        className="flex items-center gap-1 text-xs mb-3"
+        style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+      >
+        <ChevronLeft size={14} /> Miesiąc
+      </button>
 
-      <div className="flex items-center justify-between mb-4">
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: INK, fontWeight: 600, textTransform: "capitalize" }}>
+      <div className="flex items-center gap-1.5 mb-3">
+        <IconBtn onClick={() => selectFocusedDate(addDays(focusedDate, -7))} title="Poprzedni tydzień">
+          <ChevronLeft size={16} />
+        </IconBtn>
+        <div className="flex-1 grid grid-cols-7 gap-1">
+          {weekDates.map((date) => {
+            const isSelected = date === focusedDate;
+            const isToday = date === today;
+            return (
+              <button
+                key={date}
+                onClick={() => selectFocusedDate(date)}
+                className="flex flex-col items-center py-1.5 rounded-md"
+                style={{
+                  background: isSelected ? PLANNER : "transparent",
+                  border: `1px solid ${isSelected ? PLANNER : isToday ? MUSTARD : "transparent"}`,
+                }}
+              >
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: isSelected ? "#fff" : INK_SOFT }}>
+                  {WEEKDAY_LABELS[weekdayIndex(date)]}
+                </div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: isSelected ? "#fff" : INK }}>
+                  {date.slice(8, 10)}
+                </div>
+                <div
+                  className="rounded-full mt-0.5"
+                  style={{ width: 4, height: 4, background: activeDates.has(date) ? (isSelected ? "#fff" : PLANNER) : "transparent" }}
+                />
+              </button>
+            );
+          })}
+        </div>
+        <IconBtn onClick={() => selectFocusedDate(addDays(focusedDate, 7))} title="Następny tydzień">
+          <ChevronRight size={16} />
+        </IconBtn>
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color: INK, fontWeight: 600, textTransform: "capitalize" }}>
           {dateLabel}
         </div>
-        <div className="flex items-center gap-2">
-          {selectedDate !== today && (
-            <button onClick={() => setSelectedDate(today)} className="text-xs" style={{ fontFamily: FONT_MONO, color: PLANNER, textDecoration: "underline" }}>
-              Dziś
-            </button>
-          )}
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-            className="px-1.5 py-1 rounded text-xs"
-            style={inputStyle}
-          />
-        </div>
+        {focusedDate !== today && (
+          <button onClick={() => selectFocusedDate(today)} className="text-xs" style={{ fontFamily: FONT_MONO, color: PLANNER, textDecoration: "underline" }}>
+            Dziś
+          </button>
+        )}
       </div>
 
       {error && (
@@ -367,7 +564,7 @@ export function PlannerTab({
       )}
 
       {dayPlanEntries.length > 0 && (
-        <div className="mb-4">
+        <div className="mb-3">
           <div className="text-[11px] uppercase tracking-wide mb-1.5" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
             Zaplanowane przez trenera
           </div>
@@ -378,10 +575,7 @@ export function PlannerTab({
               style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${STATUS_COLOR[status]}` }}
             >
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span
-                  className="px-1.5 py-0.5 rounded-full text-[10px]"
-                  style={{ fontFamily: FONT_MONO, border: `1px solid ${STATUS_COLOR[status]}`, color: STATUS_COLOR[status] }}
-                >
+                <span className="px-1.5 py-0.5 rounded-full text-[10px]" style={{ fontFamily: FONT_MONO, border: `1px solid ${STATUS_COLOR[status]}`, color: STATUS_COLOR[status] }}>
                   {STATUS_LABEL[status]}
                 </span>
               </div>
@@ -393,11 +587,7 @@ export function PlannerTab({
                 </div>
               )}
               {status === "done" && matchedWorkoutId && (
-                <button
-                  onClick={() => onJumpToWorkout(matchedWorkoutId)}
-                  className="text-xs mt-1"
-                  style={{ fontFamily: FONT_MONO, color: STATUS_COLOR[status], textDecoration: "underline" }}
-                >
+                <button onClick={() => onJumpToWorkout(matchedWorkoutId)} className="text-xs mt-1" style={{ fontFamily: FONT_MONO, color: STATUS_COLOR[status], textDecoration: "underline" }}>
                   Zobacz w dzienniku →
                 </button>
               )}
@@ -407,11 +597,11 @@ export function PlannerTab({
       )}
 
       <div className="text-[11px] uppercase tracking-wide mb-1.5" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
-        Twoje wydarzenia
+        Zadania (bez godziny)
       </div>
 
       {editingId === null && showAddForm && (
-        <EventForm draft={draft} setDraft={setDraft} onSave={saveEvent} onCancel={cancelForm} saveLabel="Dodaj" />
+        <EventForm draft={draft} setDraft={setDraft} onSave={() => saveEvent(focusedDate)} onCancel={cancelForm} saveLabel="Dodaj" />
       )}
       {editingId === null && !showAddForm && (
         <button
@@ -419,33 +609,20 @@ export function PlannerTab({
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md text-xs mb-2"
           style={{ fontFamily: FONT_MONO, border: `1px dashed ${PLANNER}`, color: PLANNER }}
         >
-          <Plus size={14} /> Dodaj wydarzenie
+          <Plus size={14} /> Dodaj wydarzenie lub zadanie
         </button>
       )}
-
-      {timedEvents.map((event) =>
-        editingId === event.id ? (
-          <EventForm key={event.id} draft={draft} setDraft={setDraft} onSave={saveEvent} onCancel={cancelForm} saveLabel="Zapisz" />
-        ) : (
-          <EventRow
-            key={event.id}
-            event={event}
-            onToggleDone={() => toggleDone(event)}
-            onEdit={() => startEdit(event)}
-            onDelete={() => deleteEvent(event.id)}
-          />
-        )
+      {editingEvent && !editingEvent.time && (
+        <EventForm draft={draft} setDraft={setDraft} onSave={() => saveEvent(focusedDate)} onCancel={cancelForm} saveLabel="Zapisz" />
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={untimedEvents.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           {untimedEvents.map((event) =>
-            editingId === event.id ? (
-              <EventForm key={event.id} draft={draft} setDraft={setDraft} onSave={saveEvent} onCancel={cancelForm} saveLabel="Zapisz" />
-            ) : (
-              <SortableEventRow key={event.id} id={event.id}>
+            editingId === event.id ? null : (
+              <SortableTaskRow key={event.id} id={event.id}>
                 {(dragHandleProps) => (
-                  <EventRow
+                  <TaskRow
                     event={event}
                     dragHandleProps={untimedEvents.length >= 2 ? dragHandleProps : undefined}
                     onToggleDone={() => toggleDone(event)}
@@ -453,17 +630,20 @@ export function PlannerTab({
                     onDelete={() => deleteEvent(event.id)}
                   />
                 )}
-              </SortableEventRow>
+              </SortableTaskRow>
             )
           )}
         </SortableContext>
       </DndContext>
 
-      {dayPlanEntries.length === 0 && !race && dayEvents.length === 0 && !showAddForm && (
-        <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>
-          Brak planów na ten dzień.
-        </div>
+      {editingEvent && editingEvent.time && (
+        <EventForm draft={draft} setDraft={setDraft} onSave={() => saveEvent(focusedDate)} onCancel={cancelForm} saveLabel="Zapisz" />
       )}
+
+      <div className="text-[11px] uppercase tracking-wide mb-1.5 mt-3" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
+        Plan godzinowy
+      </div>
+      <DayHourGrid date={focusedDate} events={timedEvents} onEditEvent={startEdit} />
     </div>
   );
 }

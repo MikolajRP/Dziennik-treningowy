@@ -229,7 +229,8 @@ export interface HealthEntry {
 export interface PersonalEvent {
   id: string;
   date: string; // ISO yyyy-mm-dd
-  time: string | null; // "HH:MM", null = untimed (manually ordered via sortOrder)
+  time: string | null; // start, "HH:MM"; null = untimed task (manually ordered via sortOrder)
+  endTime: string | null; // "HH:MM"; only meaningful when `time` is set
   title: string;
   color: string; // hex, one of EVENT_COLORS in lib/design.ts
   notes: string;
