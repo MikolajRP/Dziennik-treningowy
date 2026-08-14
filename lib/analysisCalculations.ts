@@ -1,4 +1,4 @@
-import type { Cycle, HealthEntry, Workout } from "./types";
+import type { Cycle, HealthEntry, StravaActivity, Workout } from "./types";
 import {
   addDays,
   computeWorkoutAerobicMinutes,
@@ -14,7 +14,16 @@ import {
   startOfWeek,
   todayISO,
 } from "./calculations";
-import { computeWorkoutRunningDistanceM, computeWorkoutRunningTimeS, computeWorkoutTotalMinutes } from "./stravaCalculations";
+import {
+  aggregateHrZones,
+  collectStravaActivities,
+  computeWorkoutRunningDistanceM,
+  computeWorkoutRunningTimeS,
+  computeWorkoutStravaElevationM,
+  computeWorkoutTotalMinutes,
+  groupDistanceByActivityType,
+  type HrZoneDatum,
+} from "./stravaCalculations";
 
 export type AnalysisDomain = "training" | "health";
 export type AnalysisMode = "single" | "cycle" | "range" | "week";
@@ -60,6 +69,21 @@ export function resolveSelectionRange(sel: AnalysisSelection, cycles: Cycle[]): 
     return sel.date ? [sel.date, sel.date] : null;
   }
   return null;
+}
+
+// The workouts a training selection resolves to — shared by
+// summarizeSelection (for the totals) and the UI (to drill into any linked
+// Strava activities). Returns null for a domain "health" selection or an
+// unset selection.
+export function resolveSelectionWorkouts(sel: AnalysisSelection, workouts: Workout[], cycles: Cycle[]): Workout[] | null {
+  if (sel.domain !== "training") return null;
+  if (sel.mode === "single") {
+    const w = workouts.find((w) => w.id === sel.workoutId);
+    return w ? [w] : null;
+  }
+  const range = resolveSelectionRange(sel, cycles);
+  if (!range) return null;
+  return workouts.filter((w) => w.date >= range[0] && w.date <= range[1]);
 }
 
 function selectionLabel(sel: AnalysisSelection, cycles: Cycle[], workouts: Workout[]): string {
@@ -115,16 +139,8 @@ export function summarizeSelection(
   const label = selectionLabel(sel, cycles, workouts);
 
   if (sel.domain === "training") {
-    let inRange: Workout[];
-    if (sel.mode === "single") {
-      const w = workouts.find((w) => w.id === sel.workoutId);
-      if (!w) return null;
-      inRange = [w];
-    } else {
-      const range = resolveSelectionRange(sel, cycles);
-      if (!range) return null;
-      inRange = workouts.filter((w) => w.date >= range[0] && w.date <= range[1]);
-    }
+    const inRange = resolveSelectionWorkouts(sel, workouts, cycles);
+    if (!inRange) return null;
     return {
       kind: "training",
       label,
@@ -187,4 +203,71 @@ export function healthMetrics(s: HealthSummary): MetricRow[] {
     { label: "Masa", value: s.avgWeightKg, format: (v) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} kg` },
     { label: "Samopoczucie", value: s.avgWellbeing, format: (v) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: 1 })}/10` },
   ];
+}
+
+export const TRAINING_METRIC_LABELS = trainingMetrics({
+  kind: "training",
+  label: "",
+  workoutCount: 0,
+  totalTonnage: 0,
+  totalPlyoReps: 0,
+  totalIsometricTUT: 0,
+  totalFunctionalMinutes: 0,
+  totalAerobicMinutes: 0,
+  totalRunningKm: 0,
+  totalRunningMinutes: 0,
+  totalMinutes: 0,
+}).map((r) => r.label);
+
+export const HEALTH_METRIC_LABELS = healthMetrics({
+  kind: "health",
+  label: "",
+  entryCount: 0,
+  avgSleepHours: 0,
+  avgSleepQuality: 0,
+  avgHrv: 0,
+  avgRestingHr: 0,
+  avgWeightKg: 0,
+  avgWellbeing: 0,
+}).map((r) => r.label);
+
+// ---------- Strava drill-down ----------
+// When a training selection contains any Strava-imported activities, the
+// Analiza tab expands full Strava-sourced stats for it (distance,
+// elevation, heart rate, per-activity splits/zones) rather than just the
+// generic training totals above.
+
+export interface StravaSummary {
+  distanceKm: number;
+  elevationM: number;
+  avgHeartrate: number | null;
+  maxHeartrate: number | null;
+  runningKm: number;
+  runningMinutes: number;
+  kmByType: { type: string; label: string; km: number }[];
+  hrZones: HrZoneDatum[];
+  activities: StravaActivity[];
+}
+
+export function computeStravaSummary(workouts: Workout[]): StravaSummary | null {
+  const activities = collectStravaActivities(workouts);
+  if (activities.length === 0) return null;
+
+  const distanceM = activities.reduce((s, a) => s + a.distanceM, 0);
+  const elevationM = workouts.reduce((s, w) => s + computeWorkoutStravaElevationM(w), 0);
+  const hrWeightedSum = activities.reduce((s, a) => s + (a.averageHeartrate ?? 0) * a.movingTimeS, 0);
+  const hrWeightBase = activities.reduce((s, a) => s + (a.averageHeartrate ? a.movingTimeS : 0), 0);
+  const maxHeartrate = activities.reduce((m, a) => (a.maxHeartrate && a.maxHeartrate > m ? a.maxHeartrate : m), 0);
+
+  return {
+    distanceKm: distanceM / 1000,
+    elevationM,
+    avgHeartrate: hrWeightBase > 0 ? hrWeightedSum / hrWeightBase : null,
+    maxHeartrate: maxHeartrate > 0 ? maxHeartrate : null,
+    runningKm: workouts.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000,
+    runningMinutes: workouts.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60,
+    kmByType: groupDistanceByActivityType(workouts),
+    hrZones: aggregateHrZones(workouts),
+    activities: [...activities].sort((a, b) => (a.startDate < b.startDate ? 1 : -1)),
+  };
 }

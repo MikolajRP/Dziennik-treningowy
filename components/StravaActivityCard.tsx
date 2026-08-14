@@ -253,10 +253,12 @@ export function StravaSingleActivity({
   activity,
   onDetach,
   dragHandleProps,
+  readOnly = false,
 }: {
   activity: StravaActivity;
   onDetach: () => void;
   dragHandleProps?: HTMLAttributes<HTMLDivElement>;
+  readOnly?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const mode = paceModeFor(activity.type);
@@ -312,11 +314,13 @@ export function StravaSingleActivity({
           {activity.hrZones && activity.hrZones.length > 0 && <ZoneBars zones={activity.hrZones} />}
           <ActivityCharts activityRowId={activity.id} mode={mode} />
 
-          <div className="flex justify-end mt-2">
-            <IconBtn onClick={onDetach} title="Odłącz jako osobny trening" color="#A6402F">
-              <Link2Off size={13} />
-            </IconBtn>
-          </div>
+          {!readOnly && (
+            <div className="flex justify-end mt-2">
+              <IconBtn onClick={onDetach} title="Odłącz jako osobny trening" color="#A6402F">
+                <Link2Off size={13} />
+              </IconBtn>
+            </div>
+          )}
         </div>
       )}
     </div>

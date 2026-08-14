@@ -103,14 +103,14 @@ export function StatsTab({
   deleteCycle: (id: string) => void;
   readOnly?: boolean;
 }) {
-  const [subTab, setSubTab] = useState<StatsSubTab>("analysis");
+  const [subTab, setSubTab] = useState<StatsSubTab>("reports");
 
   return (
     <div>
       <SubTabBar
         tabs={[
-          { id: "analysis" as const, label: "Analiza", icon: <GitCompare size={14} /> },
           { id: "reports" as const, label: "Raporty", icon: <BarChart3 size={14} /> },
+          { id: "analysis" as const, label: "Analiza", icon: <GitCompare size={14} /> },
         ]}
         active={subTab}
         onChange={setSubTab}
