@@ -11,16 +11,24 @@ const MAX_SCALE = 3.5;
 // browser's own pinch-zoom (disabled app-wide via the viewport meta tag in
 // app/layout.tsx). Panning replaces native scrolling inside this box at
 // every zoom level, so it behaves like a small map/photo viewer rather than
-// a scrollable list. `fullBleed` breaks the box out of the page's standard
-// px-4 side padding so it spans the full viewport width — only safe to set
-// when the caller is itself wrapped in that same px-4 container.
+// a scrollable list.
+//
+// The box itself is sized to the content's own natural footprint
+// (display: inline-block, no forced width/height) rather than an
+// arbitrary fixed box, so there's no empty space beyond where the
+// content actually is — it only grows up to `maxWidth`/`maxHeight` if
+// the content is bigger than that, at which point it clips and panning
+// takes over. `fullBleed` breaks the box out of the page's standard
+// px-4 side padding, letting it use the full viewport width if the
+// content needs it — only safe when the caller is itself wrapped in
+// that same px-4 container.
 export function ZoomableArea({
   children,
-  height = 440,
+  maxHeight = 440,
   fullBleed = false,
 }: {
   children: ReactNode;
-  height?: number;
+  maxHeight?: number;
   fullBleed?: boolean;
 }) {
   const [scale, setScale] = useState(1);
@@ -88,7 +96,9 @@ export function ZoomableArea({
         onWheel={onWheel}
         className={`relative overflow-hidden ${fullBleed ? "" : "rounded-md"}`}
         style={{
-          height,
+          display: "inline-block",
+          maxWidth: "100%",
+          maxHeight,
           touchAction: "none",
           background: CARD,
           borderTop: `1px solid ${LINE}`,

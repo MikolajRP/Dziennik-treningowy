@@ -45,7 +45,7 @@ export interface AnalysisSelection {
 export function defaultSelection(domain: AnalysisDomain = "training"): AnalysisSelection {
   return {
     domain,
-    mode: "range",
+    mode: "single",
     workoutId: null,
     date: todayISO(),
     cycleId: null,
