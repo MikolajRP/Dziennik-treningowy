@@ -31,6 +31,16 @@ import { IconBtn } from "./atoms";
 const WEEKDAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
 const ROW_HEIGHT = 52; // px per hour on the ruled-paper day grid
 const GRID_HOURS = 24;
+const SUNDAY_TEXT = "#C97A72"; // very subtle red, distinctly softer than RACE
+
+// Standard-calendar weekend tinting: Saturday gray, Sunday a soft red.
+// `fallback` is the color a weekday (or a race/selected override) gets.
+function weekdayTextColor(date: string, fallback: string): string {
+  const idx = weekdayIndex(date);
+  if (idx === 6) return SUNDAY_TEXT;
+  if (idx === 5) return INK_SOFT;
+  return fallback;
+}
 
 export interface EventDraft {
   time: string; // "" = untimed task
@@ -438,8 +448,12 @@ export function PlannerTab({
         )}
 
         <div className="grid grid-cols-7 gap-1 mb-1">
-          {WEEKDAY_LABELS.map((l) => (
-            <div key={l} className="text-center" style={{ fontFamily: FONT_MONO, fontSize: 9, color: INK_SOFT }}>
+          {WEEKDAY_LABELS.map((l, i) => (
+            <div
+              key={l}
+              className="text-center"
+              style={{ fontFamily: FONT_MONO, fontSize: 9, color: i === 6 ? SUNDAY_TEXT : INK_SOFT }}
+            >
               {l}
             </div>
           ))}
@@ -464,7 +478,7 @@ export function PlannerTab({
                     opacity: inMonth ? 1 : 0.35,
                   }}
                 >
-                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: race ? "#fff" : INK, fontWeight: 600 }}>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, color: race ? "#fff" : weekdayTextColor(date, INK), fontWeight: 600 }}>
                     {date.slice(8, 10)}
                   </div>
                   <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" style={{ minHeight: 5 }}>
@@ -520,10 +534,10 @@ export function PlannerTab({
                   border: `1px solid ${isSelected ? PLANNER : isToday ? MUSTARD : "transparent"}`,
                 }}
               >
-                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: isSelected ? "#fff" : INK_SOFT }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: isSelected ? "#fff" : weekdayTextColor(date, INK_SOFT) }}>
                   {WEEKDAY_LABELS[weekdayIndex(date)]}
                 </div>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: isSelected ? "#fff" : INK }}>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: isSelected ? "#fff" : weekdayTextColor(date, INK) }}>
                   {date.slice(8, 10)}
                 </div>
                 <div
@@ -597,7 +611,7 @@ export function PlannerTab({
       )}
 
       <div className="text-[11px] uppercase tracking-wide mb-1.5" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
-        Zadania (bez godziny)
+        Zadania
       </div>
 
       {editingId === null && showAddForm && (
