@@ -15,6 +15,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  addDays,
   computeWorkoutAerobicMinutes,
   computeWorkoutFunctionalMinutes,
   computeWorkoutIsometricTUT,
@@ -22,6 +23,8 @@ import {
   computeWorkoutTonnage,
   fmtDate,
   fmtDurationShort,
+  fmtWeekday,
+  startOfWeek,
 } from "@/lib/calculations";
 import {
   computeWorkoutStravaAvgSpeedMps,
@@ -378,12 +381,20 @@ export function LogTab({
   }
 
   // sortedWorkouts is sorted by date, so equal dates are always contiguous —
-  // safe to group sequentially without re-sorting.
-  const dayGroups: { date: string; items: Workout[] }[] = [];
+  // safe to group sequentially without re-sorting. Each group also records
+  // whether it's the first day-group of its (Monday-Sunday) week, so a week
+  // separator can be inserted above it.
+  const dayGroups: { date: string; items: Workout[]; isNewWeek: boolean }[] = [];
+  let lastWeekStart: string | null = null;
   sortedWorkouts.forEach((w) => {
     const last = dayGroups[dayGroups.length - 1];
-    if (last && last.date === w.date) last.items.push(w);
-    else dayGroups.push({ date: w.date, items: [w] });
+    if (last && last.date === w.date) {
+      last.items.push(w);
+      return;
+    }
+    const weekStart = startOfWeek(w.date);
+    dayGroups.push({ date: w.date, items: [w], isNewWeek: weekStart !== lastWeekStart });
+    lastWeekStart = weekStart;
   });
 
   return (
@@ -446,11 +457,21 @@ export function LogTab({
         onDragCancel={() => setActiveDragId(null)}
       >
         <div className="mt-2">
-          {dayGroups.map((group) => (
+          {dayGroups.map((group, i) => (
             <div key={group.date} className="mb-4">
+              {group.isNewWeek && (
+                <div className={`flex items-center gap-2 mb-3 ${i === 0 ? "" : "mt-2"}`}>
+                  <div className="flex-1" style={{ height: 1, background: MUSTARD }} />
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: MUSTARD, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {fmtDate(startOfWeek(group.date))} – {fmtDate(addDays(startOfWeek(group.date), 6))}
+                  </div>
+                  <div className="flex-1" style={{ height: 1, background: MUSTARD }} />
+                </div>
+              )}
+
               <div className="flex items-center gap-2 mb-2">
                 <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {fmtDate(group.date)}
+                  {fmtWeekday(group.date)}, {fmtDate(group.date)}
                 </div>
                 <div className="flex-1" style={{ height: 1, background: LINE }} />
               </div>

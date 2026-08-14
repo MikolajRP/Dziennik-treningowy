@@ -154,7 +154,7 @@ export interface Cycle {
   createdBy?: string;
 }
 
-export type Period = "week" | "month" | "all" | "cycle" | "custom";
+export type Period = "currentWeek" | "week" | "month" | "all" | "cycle" | "custom";
 
 export type CoachAccessStatus = "pending" | "active" | "revoked";
 

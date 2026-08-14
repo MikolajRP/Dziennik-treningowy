@@ -38,6 +38,12 @@ export const fmtShort = (iso: string) => {
   return d.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit" });
 };
 
+const WEEKDAY_SHORT_PL = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+export const fmtWeekday = (iso: string) => {
+  const d = new Date(iso + "T00:00:00");
+  return WEEKDAY_SHORT_PL[(d.getDay() + 6) % 7];
+};
+
 export const startOfWeek = (iso: string) => {
   const d = new Date(iso + "T00:00:00");
   const day = (d.getDay() + 6) % 7;
@@ -410,6 +416,7 @@ export function getRange(
   customEnd: string
 ): [string, string] {
   const today = todayISO();
+  if (period === "currentWeek") return [startOfWeek(today), today];
   if (period === "week") return [addDays(today, -6), today];
   if (period === "month") return [addDays(today, -29), today];
   if (period === "cycle") {

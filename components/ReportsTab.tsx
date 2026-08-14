@@ -195,6 +195,7 @@ export function ReportsTab({
   return (
     <div>
       <div className="flex flex-wrap gap-1.5 mb-3">
+        <Chip active={period === "currentWeek"} onClick={() => setPeriod("currentWeek")}>Ten tydzień</Chip>
         <Chip active={period === "week"} onClick={() => setPeriod("week")}>7 dni</Chip>
         <Chip active={period === "month"} onClick={() => setPeriod("month")}>30 dni</Chip>
         <Chip active={period === "all"} onClick={() => setPeriod("all")}>Wszystko</Chip>
