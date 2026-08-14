@@ -10,6 +10,7 @@ import {
   fmtDurationShort,
   fmtHoursMinutes,
   fmtMinutesLong,
+  fmtPaceMinPerKm,
   fmtShort,
   startOfWeek,
   todayISO,
@@ -244,6 +245,7 @@ export interface StravaSummary {
   maxHeartrate: number | null;
   runningKm: number;
   runningMinutes: number;
+  avgRunningPaceMps: number;
   kmByType: { type: string; label: string; km: number }[];
   hrZones: HrZoneDatum[];
   activities: StravaActivity[];
@@ -258,16 +260,45 @@ export function computeStravaSummary(workouts: Workout[]): StravaSummary | null 
   const hrWeightedSum = activities.reduce((s, a) => s + (a.averageHeartrate ?? 0) * a.movingTimeS, 0);
   const hrWeightBase = activities.reduce((s, a) => s + (a.averageHeartrate ? a.movingTimeS : 0), 0);
   const maxHeartrate = activities.reduce((m, a) => (a.maxHeartrate && a.maxHeartrate > m ? a.maxHeartrate : m), 0);
+  const runningKm = workouts.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000;
+  const runningMinutes = workouts.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60;
 
   return {
     distanceKm: distanceM / 1000,
     elevationM,
     avgHeartrate: hrWeightBase > 0 ? hrWeightedSum / hrWeightBase : null,
     maxHeartrate: maxHeartrate > 0 ? maxHeartrate : null,
-    runningKm: workouts.reduce((s, w) => s + computeWorkoutRunningDistanceM(w), 0) / 1000,
-    runningMinutes: workouts.reduce((s, w) => s + computeWorkoutRunningTimeS(w), 0) / 60,
+    runningKm,
+    runningMinutes,
+    avgRunningPaceMps: runningKm > 0 && runningMinutes > 0 ? (runningKm * 1000) / (runningMinutes * 60) : 0,
     kmByType: groupDistanceByActivityType(workouts),
     hrZones: aggregateHrZones(workouts),
     activities: [...activities].sort((a, b) => (a.startDate < b.startDate ? 1 : -1)),
   };
 }
+
+export function stravaMetrics(s: StravaSummary): MetricRow[] {
+  return [
+    { label: "Aktywności Strava", value: s.activities.length, format: (v) => `${v}` },
+    { label: "Dystans (Strava)", value: s.distanceKm, format: (v) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km` },
+    { label: "Przewyższenie", value: s.elevationM, format: (v) => `${Math.round(v)} m` },
+    { label: "Śr. tętno", value: s.avgHeartrate ?? 0, format: (v) => (v > 0 ? `${Math.round(v)} bpm` : "–") },
+    { label: "Maks. tętno", value: s.maxHeartrate ?? 0, format: (v) => (v > 0 ? `${Math.round(v)} bpm` : "–") },
+    { label: "Km biegowe (Strava)", value: s.runningKm, format: (v) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km` },
+    { label: "Czas biegowy (Strava)", value: s.runningMinutes, format: fmtMinutesLong },
+    { label: "Śr. tempo (bieg)", value: s.avgRunningPaceMps, format: (v) => (v > 0 ? fmtPaceMinPerKm(v) : "–") },
+  ];
+}
+
+export const STRAVA_METRIC_LABELS = stravaMetrics({
+  distanceKm: 0,
+  elevationM: 0,
+  avgHeartrate: null,
+  maxHeartrate: null,
+  runningKm: 0,
+  runningMinutes: 0,
+  avgRunningPaceMps: 0,
+  kmByType: [],
+  hrZones: [],
+  activities: [],
+}).map((r) => r.label);
