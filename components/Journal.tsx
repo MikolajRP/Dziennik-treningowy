@@ -27,6 +27,7 @@ import {
   updateCoachPermissions,
 } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
+import { ExportDataButton } from "./ExportDataButton";
 import { CoachTab } from "./CoachTab";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { HealthGate } from "./HealthGate";
@@ -648,6 +649,15 @@ export function Journal({
           <div className="flex items-center gap-3">
             <StravaConnect connected={stravaConnected} />
             <Dumbbell size={20} color={INK} />
+            <ExportDataButton
+              workouts={workouts}
+              healthEntries={healthEntries}
+              cycles={cycles}
+              planEntries={planEntries}
+              races={races}
+              personalEvents={personalEvents}
+              categories={categories}
+            />
             <button
               onClick={() => signOut()}
               title="Wyloguj"
