@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, LogOut, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, ListTodo, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -11,14 +11,17 @@ import {
   attachStravaActivities,
   deleteCycleRow,
   deleteHealthEntryRow,
+  deletePersonalEventRow,
   deleteWorkoutRow,
   detachStravaActivity,
   inviteCoach,
+  reorderPersonalEventsForDay,
   reorderStravaActivitiesInWorkout,
   reorderWorkoutsInDay,
   revokeCoachAccess,
   saveCycleRow,
   saveHealthEntry as saveHealthEntryRow,
+  savePersonalEvent,
   saveWorkout as saveWorkoutRow,
   sendCoachInviteEmail,
   updateCoachPermissions,
@@ -30,6 +33,7 @@ import { HealthGate } from "./HealthGate";
 import { isHealthDraftComplete, type HealthDraft } from "./HealthEntryForm";
 import { HealthTab } from "./HealthTab";
 import { PlanTab } from "./PlanTab";
+import { PlannerTab, emptyEventDraft, type EventDraft } from "./PlannerTab";
 import {
   addDays,
   addExerciseToList,
@@ -40,6 +44,7 @@ import {
   removeExerciseFromList,
   removeSetInList,
   reorderExerciseInList,
+  reorderPersonalEventInList,
   reorderStravaActivityInList,
   reorderWorkoutInList,
   todayISO,
@@ -50,7 +55,7 @@ import {
 import { latestHealthEntry } from "@/lib/healthCalculations";
 import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
 import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
-import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry, LeafExercise, LeafKind, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
+import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry, LeafExercise, LeafKind, PersonalEvent, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
@@ -84,6 +89,7 @@ export function Journal({
   initialPlanEntries,
   initialRaces,
   initialHealthEntries,
+  initialPersonalEvents,
 }: {
   userId: string;
   userEmail: string;
@@ -97,11 +103,12 @@ export function Journal({
   initialPlanEntries: PlanEntry[];
   initialRaces: Race[];
   initialHealthEntries: HealthEntry[];
+  initialPersonalEvents: PersonalEvent[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "coach">("log");
+  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "planner" | "coach">("log");
   const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
@@ -171,6 +178,98 @@ export function Journal({
       setConfirmDeleteHealthId(null);
     }
   }
+
+  // ---------- planner (day feed) ----------
+  const [personalEvents, setPersonalEvents] = useSyncedState<PersonalEvent[]>(initialPersonalEvents);
+  const [selectedPlannerDate, setSelectedPlannerDate] = useState(todayISO());
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [showAddEventForm, setShowAddEventFormState] = useState(false);
+  const [eventDraft, setEventDraft] = useState<EventDraft>(emptyEventDraft());
+  const [eventError, setEventError] = useState<string | null>(null);
+
+  function setShowAddEventForm(open: boolean) {
+    if (open) {
+      setEventDraft(emptyEventDraft());
+      setEditingEventId(null);
+      setEventError(null);
+    }
+    setShowAddEventFormState(open);
+  }
+  function startEventEdit(event: PersonalEvent) {
+    setEventDraft({ time: event.time ?? "", title: event.title, color: event.color, notes: event.notes });
+    setEditingEventId(event.id);
+    setShowAddEventFormState(false);
+    setEventError(null);
+  }
+  function cancelEventForm() {
+    setEditingEventId(null);
+    setShowAddEventFormState(false);
+    setEventError(null);
+  }
+  async function handleSaveEvent() {
+    const title = eventDraft.title.trim();
+    if (!title) return;
+    const existing = editingEventId ? personalEvents.find((e) => e.id === editingEventId) : undefined;
+    const untimedCount = personalEvents.filter((e) => e.date === selectedPlannerDate && !e.time).length;
+    try {
+      const saved = await savePersonalEvent(
+        supabase,
+        userId,
+        {
+          date: selectedPlannerDate,
+          time: eventDraft.time || null,
+          title,
+          color: eventDraft.color,
+          notes: eventDraft.notes,
+          done: existing?.done ?? false,
+          sortOrder: existing?.sortOrder ?? untimedCount,
+        },
+        editingEventId
+      );
+      setPersonalEvents((prev) => (editingEventId ? prev.map((e) => (e.id === saved.id ? saved : e)) : [...prev, saved]));
+      cancelEventForm();
+    } catch {
+      setEventError("Nie udało się zapisać wydarzenia — spróbuj ponownie.");
+    }
+  }
+  async function handleDeleteEvent(id: string) {
+    await deletePersonalEventRow(supabase, id);
+    setPersonalEvents((prev) => prev.filter((e) => e.id !== id));
+    if (editingEventId === id) cancelEventForm();
+  }
+  async function handleToggleEventDone(event: PersonalEvent) {
+    const nextDone = !event.done;
+    setPersonalEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done: nextDone } : e)));
+    try {
+      await savePersonalEvent(
+        supabase,
+        userId,
+        { date: event.date, time: event.time, title: event.title, color: event.color, notes: event.notes, done: nextDone, sortOrder: event.sortOrder },
+        event.id
+      );
+    } catch {
+      // best-effort — local toggle is already applied; worst case it resyncs on next refresh
+    }
+  }
+  async function handleReorderEvents(activeId: string, overId: string) {
+    const active = personalEvents.find((e) => e.id === activeId);
+    const over = personalEvents.find((e) => e.id === overId);
+    if (!active || !over || active.date !== over.date) return;
+    const dayUntimed = personalEvents.filter((e) => e.date === active.date && !e.time).sort((a, b) => a.sortOrder - b.sortOrder);
+    const reordered = reorderPersonalEventInList(dayUntimed, activeId, overId);
+    const newOrderById = new Map(reordered.map((e, i) => [e.id, i]));
+    setPersonalEvents((prev) => prev.map((e) => (newOrderById.has(e.id) ? { ...e, sortOrder: newOrderById.get(e.id)! } : e)));
+    try {
+      await reorderPersonalEventsForDay(supabase, reordered.map((e) => e.id));
+    } catch {
+      // best-effort — local order is already applied; worst case it resyncs on next refresh
+    }
+  }
+  function selectPlannerDate(date: string) {
+    cancelEventForm();
+    setSelectedPlannerDate(date);
+  }
+
   // Reflects the server's fresh read on this page load — the Strava OAuth
   // callback does a full server-driven redirect back to "/", so this is
   // already up to date without needing client-side state.
@@ -577,6 +676,13 @@ export function Journal({
             <CalendarDays size={14} /> PLAN
           </button>
           <button
+            onClick={() => setTab("planner")}
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+            style={{ fontFamily: FONT_MONO, color: tab === "planner" ? INK : INK_SOFT, borderBottom: tab === "planner" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <ListTodo size={14} /> TERMINARZ
+          </button>
+          <button
             onClick={() => setTab("health")}
             className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
             style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
@@ -730,6 +836,30 @@ export function Journal({
             setCycleDraft={setCycleDraft}
             saveCycle={saveCycle}
             deleteCycle={deleteCycle}
+          />
+        )}
+
+        {tab === "planner" && (
+          <PlannerTab
+            personalEvents={personalEvents}
+            planEntries={planEntries}
+            workouts={workouts}
+            races={races}
+            selectedDate={selectedPlannerDate}
+            setSelectedDate={selectPlannerDate}
+            editingId={editingEventId}
+            draft={eventDraft}
+            setDraft={setEventDraft}
+            showAddForm={showAddEventForm}
+            setShowAddForm={setShowAddEventForm}
+            startEdit={startEventEdit}
+            cancelForm={cancelEventForm}
+            saveEvent={handleSaveEvent}
+            deleteEvent={handleDeleteEvent}
+            toggleDone={handleToggleEventDone}
+            reorderEvents={handleReorderEvents}
+            onJumpToWorkout={jumpToWorkout}
+            error={eventError}
           />
         )}
 

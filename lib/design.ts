@@ -31,6 +31,28 @@ export const RACE = "#D7263D";
 // reuses existing category colors (MUSTARD/TEAL/ISO/RUST/INK) per metric.
 export const HEALTH = "#3B6E8F";
 
+// Planner tab accent (tab icon, "dziś" highlight).
+export const PLANNER = "#3E8EDE";
+
+// A slightly more saturated, modern palette just for personal planner
+// events — deliberately brighter than the muted training-metric colors
+// above (MUSTARD/PLYO/TEAL/...) so a day's feed reads as colorful/current
+// rather than blending into the training-log charts.
+export interface EventColor {
+  key: string;
+  label: string;
+  value: string;
+}
+export const EVENT_COLORS: EventColor[] = [
+  { key: "blue", label: "Niebieski", value: "#3E8EDE" },
+  { key: "green", label: "Zielony", value: "#4CAF7D" },
+  { key: "amber", label: "Bursztynowy", value: "#F2A541" },
+  { key: "coral", label: "Koralowy", value: "#E4572E" },
+  { key: "purple", label: "Fioletowy", value: "#8859C9" },
+  { key: "pink", label: "Różowy", value: "#D6558C" },
+];
+export const DEFAULT_EVENT_COLOR = EVENT_COLORS[0].value;
+
 export const FONT_DISPLAY = "var(--font-oswald), sans-serif";
 export const FONT_MONO = "var(--font-ibm-plex-mono), monospace";
 

@@ -220,3 +220,19 @@ export interface HealthEntry {
   wellbeing: number; // 1-10
   notes: string;
 }
+
+// A freeform personal item on the Planner tab's day feed — deliberately
+// minimal (no recurrence, no reminders): just a title, optional time, a
+// color tag, and a done checkbox. Coach-planned training and races are
+// pulled into the same feed read-only from their own tables (PlanEntry /
+// Race), not duplicated here.
+export interface PersonalEvent {
+  id: string;
+  date: string; // ISO yyyy-mm-dd
+  time: string | null; // "HH:MM", null = untimed (manually ordered via sortOrder)
+  title: string;
+  color: string; // hex, one of EVENT_COLORS in lib/design.ts
+  notes: string;
+  done: boolean;
+  sortOrder: number; // manual order among untimed events on the same day
+}

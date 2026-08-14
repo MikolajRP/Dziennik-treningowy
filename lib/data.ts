@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_CATEGORIES } from "./design";
-import type { Category, CategoryGroup, CoachAccess, CoachNote, Cycle, HealthEntry, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
+import type { Category, CategoryGroup, CoachAccess, CoachNote, Cycle, HealthEntry, PersonalEvent, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
   "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline, sort_order)";
@@ -843,4 +843,90 @@ export async function saveHealthEntry(
 export async function deleteHealthEntryRow(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("health_entries").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ---------- personal events (Planner tab) ----------
+
+interface PersonalEventRow {
+  id: string;
+  date: string;
+  time: string | null;
+  title: string;
+  color: string;
+  notes: string;
+  done: boolean;
+  sort_order: number;
+}
+
+const PERSONAL_EVENT_SELECT = "id, date, time, title, color, notes, done, sort_order";
+
+const personalEventFromRow = (r: PersonalEventRow): PersonalEvent => ({
+  id: r.id,
+  date: r.date,
+  time: r.time ? r.time.slice(0, 5) : null, // postgres "time" comes back as "HH:MM:SS"
+  title: r.title,
+  color: r.color,
+  notes: r.notes,
+  done: r.done,
+  sortOrder: r.sort_order,
+});
+
+export async function fetchPersonalEvents(supabase: SupabaseClient, userId: string): Promise<PersonalEvent[]> {
+  const { data, error } = await supabase
+    .from("personal_events")
+    .select(PERSONAL_EVENT_SELECT)
+    .eq("user_id", userId)
+    .order("date", { ascending: true })
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data as PersonalEventRow[]).map(personalEventFromRow);
+}
+
+export async function savePersonalEvent(
+  supabase: SupabaseClient,
+  userId: string,
+  event: Omit<PersonalEvent, "id">,
+  editingId: string | null
+): Promise<PersonalEvent> {
+  const payload = {
+    date: event.date,
+    time: event.time,
+    title: event.title,
+    color: event.color,
+    notes: event.notes,
+    done: event.done,
+    sort_order: event.sortOrder,
+  };
+  if (editingId) {
+    const { data, error } = await supabase
+      .from("personal_events")
+      .update(payload)
+      .eq("id", editingId)
+      .select(PERSONAL_EVENT_SELECT)
+      .single();
+    if (error) throw error;
+    return personalEventFromRow(data as PersonalEventRow);
+  }
+  const { data, error } = await supabase
+    .from("personal_events")
+    .insert({ user_id: userId, ...payload })
+    .select(PERSONAL_EVENT_SELECT)
+    .single();
+  if (error) throw error;
+  return personalEventFromRow(data as PersonalEventRow);
+}
+
+export async function deletePersonalEventRow(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("personal_events").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Persists a new manual display order for the untimed events on one
+// Planner day — same re-numbering approach as reorderWorkoutsInDay.
+export async function reorderPersonalEventsForDay(supabase: SupabaseClient, orderedIds: string[]): Promise<void> {
+  const results = await Promise.all(
+    orderedIds.map((id, i) => supabase.from("personal_events").update({ sort_order: i }).eq("id", id))
+  );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) throw firstError;
 }

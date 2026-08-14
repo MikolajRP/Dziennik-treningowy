@@ -2,6 +2,7 @@ import type {
   Circuit,
   Cycle,
   LeafExercise,
+  PersonalEvent,
   Period,
   StravaActivity,
   Workout,
@@ -166,6 +167,11 @@ export const reorderWorkoutInList = (list: Workout[], activeId: string, overId: 
 // Reorders the Strava activities attached to a single workout (see
 // reorderStravaActivitiesInWorkout in lib/data.ts for the persisted side).
 export const reorderStravaActivityInList = (list: StravaActivity[], activeId: string, overId: string): StravaActivity[] =>
+  reorderById(list, activeId, overId);
+
+// Reorders the untimed personal events within a single Planner day (see
+// reorderPersonalEventsForDay in lib/data.ts for the persisted side).
+export const reorderPersonalEventInList = (list: PersonalEvent[], activeId: string, overId: string): PersonalEvent[] =>
   reorderById(list, activeId, overId);
 
 export const blankSetFor = (kind: LeafExercise["kind"]) => {
