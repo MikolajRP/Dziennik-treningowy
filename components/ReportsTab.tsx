@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Activity, Dumbbell, Footprints, LayoutGrid, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -34,7 +34,7 @@ import {
   inputStyle,
 } from "@/lib/design";
 import type { Cycle, CycleType, Period } from "@/lib/types";
-import { Chip, Field, IconBtn } from "./atoms";
+import { Chip, Field, IconBtn, SubTabBar } from "./atoms";
 
 interface CategoryDatum {
   category: string;
@@ -185,11 +185,11 @@ export function ReportsTab({
   const muscleGroupChartData = tonnageByMuscleGroup.map((d) => ({ category: d.group, value: Math.round(d.kg) }));
   const hrZonesTotalSeconds = hrZones.reduce((s, z) => s + z.seconds, 0);
 
-  const subTabs: { id: ReportSubTab; label: string }[] = [
-    { id: "general", label: "Ogólne" },
-    { id: "running", label: "Bieganie" },
-    { id: "strength", label: "Trening siłowy" },
-    { id: "other", label: "Inne aktywności" },
+  const subTabs = [
+    { id: "general" as const, label: "Ogólne", icon: <LayoutGrid size={14} /> },
+    { id: "running" as const, label: "Bieganie", icon: <Footprints size={14} /> },
+    { id: "strength" as const, label: "Trening siłowy", icon: <Dumbbell size={14} /> },
+    { id: "other" as const, label: "Inne aktywności", icon: <Activity size={14} /> },
   ];
 
   return (
@@ -233,13 +233,7 @@ export function ReportsTab({
         {fmtDate(rangeStart)} – {fmtDate(rangeEnd)} · {filteredCount} treningów
       </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-4 pb-3 border-b" style={{ borderColor: LINE }}>
-        {subTabs.map((t) => (
-          <Chip key={t.id} active={subTab === t.id} onClick={() => setSubTab(t.id)}>
-            {t.label}
-          </Chip>
-        ))}
-      </div>
+      <SubTabBar tabs={subTabs} active={subTab} onChange={setSubTab} />
 
       {filteredCount === 0 && (
         <div className="text-center py-6" style={{ fontFamily: FONT_MONO, color: INK_SOFT, fontSize: 13 }}>

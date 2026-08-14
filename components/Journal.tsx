@@ -59,7 +59,7 @@ import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry,
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
-import { ReportsTab } from "./ReportsTab";
+import { StatsTab } from "./StatsTab";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
 function emptyHealthDraft(entries: HealthEntry[]): HealthDraft {
@@ -108,7 +108,7 @@ export function Journal({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "planner" | "coach">("log");
+  const [tab, setTab] = useState<"log" | "health" | "stats" | "plan" | "planner" | "coach">("log");
   const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
@@ -667,11 +667,11 @@ export function Journal({
             <BookOpen size={14} /> DZIENNIK
           </button>
           <button
-            onClick={() => setTab("reports")}
+            onClick={() => setTab("stats")}
             className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "reports" ? INK : INK_SOFT, borderBottom: tab === "reports" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+            style={{ fontFamily: FONT_MONO, color: tab === "stats" ? INK : INK_SOFT, borderBottom: tab === "stats" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
           >
-            <BarChart3 size={14} /> RAPORTY
+            <BarChart3 size={14} /> STATYSTYKI
           </button>
           <button
             onClick={() => setTab("plan")}
@@ -774,8 +774,10 @@ export function Journal({
           />
         )}
 
-        {tab === "reports" && (
-          <ReportsTab
+        {tab === "stats" && (
+          <StatsTab
+            workouts={workouts}
+            healthEntries={healthEntries}
             period={period}
             setPeriod={setPeriod}
             cycles={cycles}

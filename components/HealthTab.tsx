@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { History, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fmtDate, fmtHoursMinutes, todayISO } from "@/lib/calculations";
 import { healthSeriesForLastDays, type HealthSeriesPoint } from "@/lib/healthCalculations";
 import { CARD, FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE as LINE_COLOR, MUSTARD, RUST, TEAL } from "@/lib/design";
 import type { HealthEntry } from "@/lib/types";
-import { Chip, IconBtn } from "./atoms";
+import { Chip, IconBtn, SubTabBar } from "./atoms";
 import { HealthEntryForm, type HealthDraft } from "./HealthEntryForm";
 
 type HealthSubTab = "stats" | "history";
@@ -174,14 +174,14 @@ export function HealthTab({
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        <Chip active={subTab === "stats"} onClick={() => setSubTab("stats")} color={HEALTH}>
-          Statystyki
-        </Chip>
-        <Chip active={subTab === "history"} onClick={() => setSubTab("history")} color={HEALTH}>
-          Historia zdrowia
-        </Chip>
-      </div>
+      <SubTabBar
+        tabs={[
+          { id: "stats" as const, label: "Statystyki", icon: <TrendingUp size={14} /> },
+          { id: "history" as const, label: "Historia zdrowia", icon: <History size={14} /> },
+        ]}
+        active={subTab}
+        onChange={setSubTab}
+      />
 
       {subTab === "stats" && (
         <div>

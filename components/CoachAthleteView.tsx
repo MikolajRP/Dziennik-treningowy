@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, Pencil, StickyNote } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, NotebookPen, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -26,12 +26,13 @@ import type { Category, CoachNote, Cycle, HealthEntry, PlanEntry, Period, Race, 
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
 import { LogTab } from "./LogTab";
-import { ReportsTab } from "./ReportsTab";
+import { StatsTab } from "./StatsTab";
 import { PlanTab } from "./PlanTab";
 import { NotesTab } from "./NotesTab";
 import { HealthTab } from "./HealthTab";
 import { EMPTY_HEALTH_DRAFT } from "./HealthEntryForm";
 import { CoachHelpModal } from "./CoachHelpModal";
+import { FloatingNoteWidget } from "./FloatingNoteWidget";
 import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
@@ -71,7 +72,8 @@ export function CoachAthleteView({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "notes">("plan");
+  const [tab, setTab] = useState<"log" | "health" | "stats" | "plan" | "notes">("plan");
+  const [showNoteWidget, setShowNoteWidget] = useState(false);
   const [healthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
   const healthByDate = useMemo(() => {
     const map: Record<string, HealthEntry> = {};
@@ -348,6 +350,15 @@ export function CoachAthleteView({
             )}
           </button>
         </div>
+        <div className="flex items-center justify-end mt-1.5">
+          <button
+            onClick={() => setShowNoteWidget(true)}
+            className="flex items-center gap-1 text-xs"
+            style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+          >
+            <NotebookPen size={14} /> Dodaj notatkę
+          </button>
+        </div>
         <div className="mt-2">
           {editingName ? (
             <div className="flex items-center gap-1.5">
@@ -410,11 +421,11 @@ export function CoachAthleteView({
           </button>
           {canViewReports && (
             <button
-              onClick={() => setTab("reports")}
+              onClick={() => setTab("stats")}
               className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-              style={{ fontFamily: FONT_MONO, color: tab === "reports" ? INK : INK_SOFT, borderBottom: tab === "reports" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+              style={{ fontFamily: FONT_MONO, color: tab === "stats" ? INK : INK_SOFT, borderBottom: tab === "stats" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
             >
-              <BarChart3 size={14} /> RAPORTY
+              <BarChart3 size={14} /> STATYSTYKI
             </button>
           )}
         </div>
@@ -484,9 +495,11 @@ export function CoachAthleteView({
           />
         )}
 
-        {tab === "reports" && canViewReports && (
-          <ReportsTab
+        {tab === "stats" && canViewReports && (
+          <StatsTab
             readOnly
+            workouts={workouts}
+            healthEntries={healthEntries}
             period={period}
             setPeriod={setPeriod}
             cycles={cycles}
@@ -564,6 +577,7 @@ export function CoachAthleteView({
       </div>
 
       <CoachHelpModal open={showHelp} onClose={closeHelp} />
+      <FloatingNoteWidget open={showNoteWidget} onClose={() => setShowNoteWidget(false)} notes={coachNotes} onSaveNote={handleSaveNote} />
     </div>
   );
 }
