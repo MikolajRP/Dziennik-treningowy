@@ -28,6 +28,7 @@ import {
 } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
+import { ExportReminderBanner } from "./ExportReminderBanner";
 import { CoachTab } from "./CoachTab";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { HealthGate } from "./HealthGate";
@@ -650,6 +651,7 @@ export function Journal({
             <StravaConnect connected={stravaConnected} />
             <Dumbbell size={20} color={INK} />
             <ExportDataButton
+              userId={userId}
               workouts={workouts}
               healthEntries={healthEntries}
               cycles={cycles}
@@ -721,6 +723,17 @@ export function Journal({
           </button>
         </div>
       </div>
+
+      <ExportReminderBanner
+        userId={userId}
+        workouts={workouts}
+        healthEntries={healthEntries}
+        cycles={cycles}
+        planEntries={planEntries}
+        races={races}
+        personalEvents={personalEvents}
+        categories={categories}
+      />
 
       <div className="px-4 mt-4">
         {tab === "log" && (
