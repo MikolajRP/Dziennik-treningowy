@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { fmtDate, todayISO } from "@/lib/calculations";
+import { fmtDate, fmtHoursMinutes, todayISO } from "@/lib/calculations";
 import { healthSeriesForLastDays, type HealthSeriesPoint } from "@/lib/healthCalculations";
 import { CARD, FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE as LINE_COLOR, MUSTARD, RUST, TEAL } from "@/lib/design";
 import type { HealthEntry } from "@/lib/types";
@@ -30,6 +30,7 @@ function TrendChart({
   color,
   unit,
   digits = 0,
+  formatValue,
 }: {
   data: HealthSeriesPoint[];
   dataKey: keyof HealthSeriesPoint;
@@ -37,30 +38,34 @@ function TrendChart({
   color: string;
   unit: string;
   digits?: number;
+  formatValue?: (v: number) => string;
 }) {
   if (data.length === 0) return null;
   const last = data[data.length - 1][dataKey] as number;
+  const fmt = formatValue ?? ((v: number) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: digits })}${unit}`);
   return (
     <div className="mb-4 p-3 rounded-md" style={{ background: CARD, border: `1px solid ${LINE_COLOR}` }}>
       <div className="flex items-center justify-between mb-2">
         <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>{label}</div>
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color, fontWeight: 600 }}>
-          {last.toLocaleString("pl-PL", { maximumFractionDigits: digits })}
-          {unit}
-        </div>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color, fontWeight: 600 }}>{fmt(last)}</div>
       </div>
       <ResponsiveContainer width="100%" height={110}>
         <LineChart data={data} margin={{ left: -20, right: 8, top: 4 }}>
           <CartesianGrid stroke={LINE_COLOR} vertical={false} />
           <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} interval="preserveStartEnd" />
-          <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} width={34} domain={["auto", "auto"]} />
+          <YAxis
+            tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }}
+            width={34}
+            domain={["auto", "auto"]}
+            tickFormatter={(v) => fmt(Number(v))}
+          />
           <Tooltip
             contentStyle={{ fontFamily: FONT_MONO, fontSize: 12 }}
             labelFormatter={(_, payload) => {
               const d = payload?.[0]?.payload as HealthSeriesPoint | undefined;
               return d ? fmtDate(d.date) : "";
             }}
-            formatter={(v) => [`${v}${unit}`, label]}
+            formatter={(v) => [fmt(Number(v)), label]}
           />
           <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={{ fill: color, r: 2.5 }} />
         </LineChart>
@@ -110,7 +115,7 @@ function HealthHistoryCard({
         )}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        <StatMini label="Sen" value={`${entry.sleepHours} h`} />
+        <StatMini label="Sen" value={fmtHoursMinutes(entry.sleepHours)} />
         <StatMini label="Ocena snu" value={`${entry.sleepQuality}/100`} />
         <StatMini label="HRV" value={`${entry.hrv} ms`} />
         <StatMini label="Tętno spocz." value={`${entry.restingHr} bpm`} />
@@ -192,7 +197,7 @@ export function HealthTab({
             </div>
           ) : (
             <div>
-              <TrendChart data={series} dataKey="sleepHours" label="Długość snu" color={HEALTH} unit=" h" digits={1} />
+              <TrendChart data={series} dataKey="sleepHours" label="Długość snu" color={HEALTH} unit=" h" formatValue={fmtHoursMinutes} />
               <TrendChart data={series} dataKey="sleepQuality" label="Ocena snu" color={TEAL} unit="/100" />
               <TrendChart data={series} dataKey="hrv" label="HRV" color={ISO} unit=" ms" />
               <TrendChart data={series} dataKey="restingHr" label="Tętno spoczynkowe" color={RUST} unit=" bpm" />

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Flag, Pencil, Plus, Trash2, X } from "lucide-react";
-import { addDays, addMonths, fmtShort, getMonthWeeks, monthLabel, startOfMonth, todayISO } from "@/lib/calculations";
+import { addDays, addMonths, fmtHoursMinutes, fmtShort, getMonthWeeks, monthLabel, startOfMonth, todayISO } from "@/lib/calculations";
 import { cycleForDate, entriesForDate, raceForDate, unplannedWorkoutsForDate, type PlanEntryStatus } from "@/lib/planCalculations";
 import {
   AERO,
@@ -206,7 +206,7 @@ function HealthDayStrip({ entry }: { entry: HealthEntry }) {
       className="mb-2 flex flex-wrap gap-x-3 gap-y-0.5 px-2 py-1 rounded"
       style={{ background: `${HEALTH}14`, fontFamily: FONT_MONO, fontSize: 10, color: HEALTH }}
     >
-      <span>😴 {entry.sleepHours}h</span>
+      <span>😴 {fmtHoursMinutes(entry.sleepHours)}</span>
       <span>❤️ {entry.restingHr} bpm</span>
       <span>HRV {entry.hrv}ms</span>
       <span>🙂 {entry.wellbeing}/10</span>

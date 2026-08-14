@@ -68,6 +68,45 @@ function SliderField({
   );
 }
 
+// "HH:MM" for the native time picker's value binding — needs zero-padded
+// hours (fmtHoursMinutes in lib/calculations.ts is unpadded, for display).
+function timeInputValue(hours: number | undefined): string {
+  if (hours === undefined) return "";
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function DurationField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+}) {
+  return (
+    <Field label={label}>
+      <input
+        type="time"
+        value={timeInputValue(value)}
+        onChange={(e) => {
+          if (!e.target.value) {
+            onChange(undefined);
+            return;
+          }
+          const [h, m] = e.target.value.split(":").map(Number);
+          onChange(h + m / 60);
+        }}
+        className="px-2 py-1.5 rounded text-sm"
+        style={inputStyle}
+      />
+    </Field>
+  );
+}
+
 function NumberField({
   label,
   placeholder,
@@ -129,10 +168,8 @@ export function HealthEntryForm({
         )}
       </div>
 
-      <NumberField
-        label="Długość snu (godziny)"
-        placeholder="np. 7.5"
-        step={0.25}
+      <DurationField
+        label="Długość snu (h:min)"
         value={draft.sleepHours}
         onChange={(v) => setDraft((d) => ({ ...d, sleepHours: v }))}
       />

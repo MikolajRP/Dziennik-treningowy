@@ -44,6 +44,14 @@ export const fmtWeekday = (iso: string) => {
   return WEEKDAY_SHORT_PL[(d.getDay() + 6) % 7];
 };
 
+// Decimal hours (e.g. 7.5, as sleep duration is stored) rendered as "7:30".
+export const fmtHoursMinutes = (hours: number) => {
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}:${String(m).padStart(2, "0")}`;
+};
+
 export const startOfWeek = (iso: string) => {
   const d = new Date(iso + "T00:00:00");
   const day = (d.getDay() + 6) % 7;
