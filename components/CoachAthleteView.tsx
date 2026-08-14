@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Check, HelpCircle, LogOut, Pencil, StickyNote } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -29,6 +29,8 @@ import { LogTab } from "./LogTab";
 import { ReportsTab } from "./ReportsTab";
 import { PlanTab } from "./PlanTab";
 import { NotesTab } from "./NotesTab";
+import { HealthTab } from "./HealthTab";
+import { EMPTY_HEALTH_DRAFT } from "./HealthEntryForm";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -69,7 +71,7 @@ export function CoachAthleteView({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "reports" | "plan" | "notes">("plan");
+  const [tab, setTab] = useState<"log" | "health" | "reports" | "plan" | "notes">("plan");
   const [healthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
   const healthByDate = useMemo(() => {
     const map: Record<string, HealthEntry> = {};
@@ -399,6 +401,13 @@ export function CoachAthleteView({
           >
             <BookOpen size={14} /> DZIENNIK
           </button>
+          <button
+            onClick={() => setTab("health")}
+            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+          >
+            <HeartPulse size={14} /> ZDROWIE
+          </button>
           {canViewReports && (
             <button
               onClick={() => setTab("reports")}
@@ -454,6 +463,24 @@ export function CoachAthleteView({
             onReorderWorkouts={noop}
             onDetachActivity={noop}
             onReorderActivities={noop}
+          />
+        )}
+
+        {tab === "health" && (
+          <HealthTab
+            readOnly
+            healthEntries={healthEntries}
+            editingId={null}
+            draft={EMPTY_HEALTH_DRAFT}
+            setDraft={noop}
+            startEdit={noop}
+            cancelEdit={noop}
+            saveEntry={noop}
+            deleteEntry={noop}
+            saving={false}
+            formError={null}
+            confirmDeleteId={null}
+            setConfirmDeleteId={noop}
           />
         )}
 
