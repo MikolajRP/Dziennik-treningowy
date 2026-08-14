@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fmtDate, fmtPaceMinPerKm } from "@/lib/calculations";
 import {
   computeStravaSummary,
@@ -15,9 +16,10 @@ import {
   trainingMetrics,
   TRAINING_METRIC_LABELS,
   type AnalysisSelection,
-  type AnalysisSummary,
+  type HealthSummary,
   type MetricRow,
   type StravaSummary,
+  type TrainingSummary,
 } from "@/lib/analysisCalculations";
 import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL, inputStyle } from "@/lib/design";
 import type { Cycle, HealthEntry, Workout } from "@/lib/types";
@@ -43,15 +45,11 @@ function MetricPicker({
   toggleTraining,
   enabledHealth,
   toggleHealth,
-  enabledStrava,
-  toggleStrava,
 }: {
   enabledTraining: Set<string>;
   toggleTraining: (label: string) => void;
   enabledHealth: Set<string>;
   toggleHealth: (label: string) => void;
-  enabledStrava: Set<string>;
-  toggleStrava: (label: string) => void;
 }) {
   return (
     <div className="p-3 rounded-md mb-3" style={{ background: CARD, border: `1px solid ${LINE}` }}>
@@ -62,19 +60,16 @@ function MetricPicker({
             {label}
           </Chip>
         ))}
-      </div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>DANE ZDROWOTNE W ZESTAWIENIU</div>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {HEALTH_METRIC_LABELS.map((label) => (
-          <Chip key={label} active={enabledHealth.has(label)} onClick={() => toggleHealth(label)} color={TEAL}>
+        {STRAVA_METRIC_LABELS.map((label) => (
+          <Chip key={label} active={enabledTraining.has(label)} onClick={() => toggleTraining(label)} color={STRAVA_ORANGE}>
             {label}
           </Chip>
         ))}
       </div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>DANE STRAVA W ZESTAWIENIU</div>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>DANE ZDROWOTNE W ZESTAWIENIU</div>
       <div className="flex flex-wrap gap-1.5">
-        {STRAVA_METRIC_LABELS.map((label) => (
-          <Chip key={label} active={enabledStrava.has(label)} onClick={() => toggleStrava(label)} color={STRAVA_ORANGE}>
+        {HEALTH_METRIC_LABELS.map((label) => (
+          <Chip key={label} active={enabledHealth.has(label)} onClick={() => toggleHealth(label)} color={TEAL}>
             {label}
           </Chip>
         ))}
@@ -216,7 +211,7 @@ function StravaDetailBlock({ summary, color }: { summary: StravaSummary; color: 
     <div className="mb-3 rounded-md" style={{ background: "#FFF5EE", border: `1.5px solid ${STRAVA_ORANGE}` }}>
       <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between p-2.5">
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 12, color: STRAVA_ORANGE, fontWeight: 600 }}>
-          ZESTAW {"·"} STATYSTYKI STRAVA ({summary.activities.length})
+          AKTYWNOŚCI STRAVA ({summary.activities.length})
         </div>
         {open ? <ChevronUp size={15} color={STRAVA_ORANGE} /> : <ChevronDown size={15} color={STRAVA_ORANGE} />}
       </button>
@@ -279,6 +274,42 @@ interface ComparisonEntry<T> {
   summary: T;
 }
 
+// One horizontal bar chart per metric row — a bar per zestaw, colored to
+// match that zestaw's slot color — so the comparison isn't just a table of
+// numbers but a quick visual read too.
+function MetricChart({
+  label,
+  entries,
+  rows,
+}: {
+  label: string;
+  entries: { label: string; color: string }[];
+  rows: MetricRow[];
+}) {
+  const data = entries.map((e, i) => ({ name: e.label, value: rows[i].value, color: e.color }));
+  if (data.every((d) => d.value === 0)) return null;
+  const fmt = rows[0].format;
+
+  return (
+    <div className="mb-3">
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 2 }}>{label}</div>
+      <ResponsiveContainer width="100%" height={Math.max(46, entries.length * 26)}>
+        <BarChart data={data} layout="vertical" margin={{ left: 4, right: 20, top: 2, bottom: 2 }}>
+          <CartesianGrid stroke={LINE} horizontal={false} />
+          <XAxis type="number" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} />
+          <YAxis type="category" dataKey="name" width={88} tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK }} />
+          <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 11 }} formatter={(v) => [fmt(Number(v)), label]} />
+          <Bar dataKey="value" radius={[0, 3, 3, 0]}>
+            {data.map((d, i) => (
+              <Cell key={i} fill={d.color} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function ComparisonTable<T>({
   title,
   entries,
@@ -302,37 +333,51 @@ function ComparisonTable<T>({
           Brak zaznaczonych danych do pokazania — wybierz dane powyżej.
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ fontFamily: FONT_MONO, fontSize: 12, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${LINE}` }}>
-                <th className="text-left py-1.5" />
-                {entries.map((e) => (
-                  <th key={e.index} className="text-right py-1.5 px-2" style={{ color: e.color, fontWeight: 600 }}>
-                    {e.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {labels.map((label, li) => (
-                <tr key={label} style={{ borderBottom: `1px solid ${LINE}` }}>
-                  <td className="py-1.5" style={{ color: INK_SOFT }}>
-                    {label}
-                  </td>
-                  {rowsPerEntry.map((rows, ei) => (
-                    <td key={ei} className="text-right py-1.5 px-2" style={{ color: INK }}>
-                      {rows[li].format(rows[li].value)}
-                    </td>
+        <>
+          <div className="overflow-x-auto mb-3">
+            <table className="w-full" style={{ fontFamily: FONT_MONO, fontSize: 12, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+                  <th className="text-left py-1.5" />
+                  {entries.map((e) => (
+                    <th key={e.index} className="text-right py-1.5 px-2" style={{ color: e.color, fontWeight: 600 }}>
+                      {e.label}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {labels.map((label, li) => (
+                  <tr key={label} style={{ borderBottom: `1px solid ${LINE}` }}>
+                    <td className="py-1.5" style={{ color: INK_SOFT }}>
+                      {label}
+                    </td>
+                    {rowsPerEntry.map((rows, ei) => (
+                      <td key={ei} className="text-right py-1.5 px-2" style={{ color: INK }}>
+                        {rows[li].format(rows[li].value)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {labels.map((label, li) => (
+            <MetricChart key={label} label={label} entries={entries} rows={rowsPerEntry.map((rows) => rows[li])} />
+          ))}
+        </>
       )}
     </div>
   );
+}
+
+interface TrainingWithStrava {
+  training: TrainingSummary;
+  strava: StravaSummary | null;
+}
+function combinedTrainingMetrics(t: TrainingWithStrava): MetricRow[] {
+  return [...trainingMetrics(t.training), ...(t.strava ? stravaMetrics(t.strava) : [])];
 }
 
 export function AnalysisTab({
@@ -345,9 +390,8 @@ export function AnalysisTab({
   cycles: Cycle[];
 }) {
   const [selections, setSelections] = useState<AnalysisSelection[]>([defaultSelection("training"), defaultSelection("training")]);
-  const [enabledTraining, setEnabledTraining] = useState<Set<string>>(() => new Set(TRAINING_METRIC_LABELS));
+  const [enabledTraining, setEnabledTraining] = useState<Set<string>>(() => new Set([...TRAINING_METRIC_LABELS, ...STRAVA_METRIC_LABELS]));
   const [enabledHealth, setEnabledHealth] = useState<Set<string>>(() => new Set(HEALTH_METRIC_LABELS));
-  const [enabledStrava, setEnabledStrava] = useState<Set<string>>(() => new Set(STRAVA_METRIC_LABELS));
 
   function updateSelection(i: number, updater: (s: AnalysisSelection) => AnalysisSelection) {
     setSelections((prev) => prev.map((s, idx) => (idx === i ? updater(s) : s)));
@@ -374,14 +418,6 @@ export function AnalysisTab({
       return next;
     });
   }
-  function toggleStrava(label: string) {
-    setEnabledStrava((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  }
 
   const summaries = useMemo(
     () => selections.map((sel) => summarizeSelection(sel, workouts, healthEntries, cycles)),
@@ -396,15 +432,23 @@ export function AnalysisTab({
     [selections, workouts, cycles]
   );
 
-  const trainingEntries: ComparisonEntry<AnalysisSummary & { kind: "training" }>[] = summaries
-    .map((summary, index) => ({ index, color: SLOT_COLORS[index % SLOT_COLORS.length], label: summary?.label ?? "", summary }))
-    .filter((e): e is ComparisonEntry<AnalysisSummary & { kind: "training" }> => e.summary?.kind === "training");
-  const healthResultEntries: ComparisonEntry<AnalysisSummary & { kind: "health" }>[] = summaries
-    .map((summary, index) => ({ index, color: SLOT_COLORS[index % SLOT_COLORS.length], label: summary?.label ?? "", summary }))
-    .filter((e): e is ComparisonEntry<AnalysisSummary & { kind: "health" }> => e.summary?.kind === "health");
-  const stravaEntries: ComparisonEntry<StravaSummary>[] = stravaSummaries
-    .map((strava, index) => ({ index, color: SLOT_COLORS[index % SLOT_COLORS.length], label: summaries[index]?.label ?? "", summary: strava }))
-    .filter((e): e is ComparisonEntry<StravaSummary> => e.summary != null);
+  const trainingEntries: ComparisonEntry<TrainingWithStrava>[] = summaries
+    .map((summary, index) =>
+      summary?.kind === "training"
+        ? {
+            index,
+            color: SLOT_COLORS[index % SLOT_COLORS.length],
+            label: summary.label,
+            summary: { training: summary as TrainingSummary, strava: stravaSummaries[index] },
+          }
+        : null
+    )
+    .filter((e): e is ComparisonEntry<TrainingWithStrava> => e != null);
+  const healthResultEntries: ComparisonEntry<HealthSummary>[] = summaries
+    .map((summary, index) =>
+      summary?.kind === "health" ? { index, color: SLOT_COLORS[index % SLOT_COLORS.length], label: summary.label, summary } : null
+    )
+    .filter((e): e is ComparisonEntry<HealthSummary> => e != null);
   const emptyEntries = selections
     .map((_, index) => ({ index, color: SLOT_COLORS[index % SLOT_COLORS.length] }))
     .filter((e) => !summaries[e.index]);
@@ -415,14 +459,7 @@ export function AnalysisTab({
         Dodaj dowolną liczbę zestawów danych do zestawienia — porównanie jest jednorazowe i nigdzie nie jest zapisywane.
       </div>
 
-      <MetricPicker
-        enabledTraining={enabledTraining}
-        toggleTraining={toggleTraining}
-        enabledHealth={enabledHealth}
-        toggleHealth={toggleHealth}
-        enabledStrava={enabledStrava}
-        toggleStrava={toggleStrava}
-      />
+      <MetricPicker enabledTraining={enabledTraining} toggleTraining={toggleTraining} enabledHealth={enabledHealth} toggleHealth={toggleHealth} />
 
       {selections.map((selection, i) => {
         const strava = stravaSummaries[i];
@@ -467,10 +504,7 @@ export function AnalysisTab({
         )}
 
         {trainingEntries.length > 0 && (
-          <ComparisonTable title="TRENING" entries={trainingEntries} metricsFn={trainingMetrics} enabledLabels={enabledTraining} />
-        )}
-        {stravaEntries.length > 0 && (
-          <ComparisonTable title="BIEGANIE (STRAVA)" entries={stravaEntries} metricsFn={stravaMetrics} enabledLabels={enabledStrava} />
+          <ComparisonTable title="TRENING" entries={trainingEntries} metricsFn={combinedTrainingMetrics} enabledLabels={enabledTraining} />
         )}
         {healthResultEntries.length > 0 && (
           <ComparisonTable title="ZDROWIE" entries={healthResultEntries} metricsFn={healthMetrics} enabledLabels={enabledHealth} />
