@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fmtDate, fmtPaceMinPerKm } from "@/lib/calculations";
 import {
   computeStravaSummary,
@@ -310,6 +310,47 @@ function MetricChart({
   );
 }
 
+// Strava-sourced rows (distance, elevation, HR, pace) render as a line
+// chart instead of bars — one dot per zestaw, colored to match its slot,
+// joined by a line.
+function MetricLineChart({
+  label,
+  entries,
+  rows,
+}: {
+  label: string;
+  entries: { label: string; color: string }[];
+  rows: MetricRow[];
+}) {
+  const data = entries.map((e, i) => ({ name: e.label, value: rows[i].value, color: e.color }));
+  if (data.every((d) => d.value === 0)) return null;
+  const fmt = rows[0].format;
+
+  return (
+    <div className="mb-3">
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 2 }}>{label}</div>
+      <ResponsiveContainer width="100%" height={110}>
+        <LineChart data={data} margin={{ left: -10, right: 16, top: 8, bottom: 4 }}>
+          <CartesianGrid stroke={LINE} vertical={false} />
+          <XAxis dataKey="name" interval={0} tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} />
+          <YAxis width={40} tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} />
+          <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 11 }} formatter={(v) => [fmt(Number(v)), label]} />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={STRAVA_ORANGE}
+            strokeWidth={2}
+            dot={(props: { cx?: number; cy?: number; index?: number }) => {
+              const i = props.index ?? 0;
+              return <circle key={i} cx={props.cx} cy={props.cy} r={5} fill={data[i].color} stroke={INK} strokeWidth={1.5} />;
+            }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function ComparisonTable<T>({
   title,
   entries,
@@ -363,9 +404,14 @@ function ComparisonTable<T>({
             </table>
           </div>
 
-          {labels.map((label, li) => (
-            <MetricChart key={label} label={label} entries={entries} rows={rowsPerEntry.map((rows) => rows[li])} />
-          ))}
+          {labels.map((label, li) => {
+            const rows = rowsPerEntry.map((r) => r[li]);
+            return STRAVA_METRIC_LABELS.includes(label) ? (
+              <MetricLineChart key={label} label={label} entries={entries} rows={rows} />
+            ) : (
+              <MetricChart key={label} label={label} entries={entries} rows={rows} />
+            );
+          })}
         </>
       )}
     </div>
