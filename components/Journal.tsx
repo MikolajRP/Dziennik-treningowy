@@ -889,8 +889,11 @@ export function Journal({
         onAcceptInvite={handleAcceptInvite}
       />
 
+      {/* A brand-new coach lands here (not /coach/...) until they accept
+          their invite, since they have no active grant yet — the health
+          card is athlete-only, so it must not block that acceptance flow. */}
       <HealthGate
-        open={!hasTodayHealthEntry}
+        open={!hasTodayHealthEntry && pendingInvites.length === 0}
         draft={healthDraft}
         setDraft={setHealthDraft}
         onSave={handleSaveHealthEntry}
