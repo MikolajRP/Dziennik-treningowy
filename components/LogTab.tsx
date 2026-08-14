@@ -461,11 +461,11 @@ export function LogTab({
             <div key={group.date} className="mb-4">
               {group.isNewWeek && (
                 <div className={`flex items-center gap-2 mb-3 ${i === 0 ? "" : "mt-2"}`}>
-                  <div className="flex-1" style={{ height: 1, background: MUSTARD }} />
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: MUSTARD, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  <div className="flex-1" style={{ height: 1, background: INK }} />
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK, fontWeight: 600, whiteSpace: "nowrap" }}>
                     {fmtDate(startOfWeek(group.date))} – {fmtDate(addDays(startOfWeek(group.date), 6))}
                   </div>
-                  <div className="flex-1" style={{ height: 1, background: MUSTARD }} />
+                  <div className="flex-1" style={{ height: 1, background: INK }} />
                 </div>
               )}
 
