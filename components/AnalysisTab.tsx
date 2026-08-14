@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { fmtDate, fmtPaceMinPerKm } from "@/lib/calculations";
+import { Plus, X } from "lucide-react";
+import { fmtDate } from "@/lib/calculations";
 import {
   computeStravaSummary,
   defaultSelection,
@@ -28,17 +27,6 @@ import { StravaSingleActivity } from "./StravaActivityCard";
 import { STRAVA_ORANGE } from "./StravaConnect";
 
 const SLOT_COLORS = [MUSTARD, TEAL, AERO, ISO, PLYO, RUST];
-
-function StatMini({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[9px] uppercase tracking-wide" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
-        {label}
-      </div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 600 }}>{value}</div>
-    </div>
-  );
-}
 
 function MetricPicker({
   enabledTraining,
@@ -204,69 +192,6 @@ function SlotEditor({
   );
 }
 
-function StravaDetailBlock({ summary, color }: { summary: StravaSummary; color: string }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="mb-3 rounded-md" style={{ background: "#FFF5EE", border: `1.5px solid ${STRAVA_ORANGE}` }}>
-      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between p-2.5">
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 12, color: STRAVA_ORANGE, fontWeight: 600 }}>
-          AKTYWNOŚCI STRAVA ({summary.activities.length})
-        </div>
-        {open ? <ChevronUp size={15} color={STRAVA_ORANGE} /> : <ChevronDown size={15} color={STRAVA_ORANGE} />}
-      </button>
-
-      {open && (
-        <div className="px-2.5 pb-2.5">
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <StatMini label="Dystans" value={`${summary.distanceKm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km`} />
-            <StatMini label="Przewyższenie" value={`${Math.round(summary.elevationM)} m`} />
-            {summary.avgHeartrate != null && <StatMini label="Śr. tętno" value={`${Math.round(summary.avgHeartrate)} bpm`} />}
-            {summary.maxHeartrate != null && <StatMini label="Maks. tętno" value={`${Math.round(summary.maxHeartrate)} bpm`} />}
-            {summary.avgRunningPaceMps > 0 && <StatMini label="Śr. tempo (bieg)" value={fmtPaceMinPerKm(summary.avgRunningPaceMps)} />}
-          </div>
-
-          {summary.kmByType.length > 1 && (
-            <div className="mb-3">
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 4 }}>KM WG AKTYWNOŚCI</div>
-              {summary.kmByType.map((t) => (
-                <div key={t.type} className="flex items-center justify-between" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK }}>
-                  <span>{t.label}</span>
-                  <span>{t.km.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} km</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {summary.hrZones.length > 0 && (
-            <div className="mb-3 space-y-1">
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 2 }}>STREFY TĘTNA</div>
-              {summary.hrZones.map((z) => (
-                <div key={z.zone} className="flex items-center gap-2">
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, width: 90 }}>
-                    Strefa {z.zone} · {z.min}-{z.max === -1 ? "∞" : z.max}
-                  </div>
-                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "#fff", border: `1px solid ${LINE}` }}>
-                    <div style={{ width: `${z.pct}%`, background: color, height: "100%" }} />
-                  </div>
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, width: 36, textAlign: "right" }}>
-                    {Math.round(z.pct)}%
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 4 }}>AKTYWNOŚCI</div>
-          {summary.activities.map((a) => (
-            <StravaSingleActivity key={a.id} activity={a} onDetach={() => {}} readOnly />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface ComparisonEntry<T> {
   index: number;
   color: string;
@@ -274,79 +199,28 @@ interface ComparisonEntry<T> {
   summary: T;
 }
 
-// One horizontal bar chart per metric row — a bar per zestaw, colored to
-// match that zestaw's slot color — so the comparison isn't just a table of
-// numbers but a quick visual read too.
-function MetricChart({
-  label,
-  entries,
-  rows,
-}: {
-  label: string;
-  entries: { label: string; color: string }[];
-  rows: MetricRow[];
-}) {
-  const data = entries.map((e, i) => ({ name: e.label, value: rows[i].value, color: e.color }));
-  if (data.every((d) => d.value === 0)) return null;
-  const fmt = rows[0].format;
+// Every zestaw's Strava activities laid out in their own column, side by
+// side, so individual activities (splits/zones/route/charts, each
+// independently expandable via StravaSingleActivity) can be compared
+// directly against the equivalent activities in another zestaw.
+function StravaSideBySide({ entries }: { entries: ComparisonEntry<StravaSummary>[] }) {
+  if (entries.length === 0) return null;
 
   return (
-    <div className="mb-3">
-      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 2 }}>{label}</div>
-      <ResponsiveContainer width="100%" height={Math.max(46, entries.length * 26)}>
-        <BarChart data={data} layout="vertical" margin={{ left: 4, right: 20, top: 2, bottom: 2 }}>
-          <CartesianGrid stroke={LINE} horizontal={false} />
-          <XAxis type="number" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} />
-          <YAxis type="category" dataKey="name" width={88} tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: INK }} />
-          <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 11 }} formatter={(v) => [fmt(Number(v)), label]} />
-          <Bar dataKey="value" radius={[0, 3, 3, 0]}>
-            {data.map((d, i) => (
-              <Cell key={i} fill={d.color} />
+    <div className="mb-5">
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, marginBottom: 6 }}>AKTYWNOŚCI STRAVA</div>
+      <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+        {entries.map((e) => (
+          <div key={e.index} className="shrink-0" style={{ width: 260 }}>
+            <div className="mb-2" style={{ fontFamily: FONT_DISPLAY, fontSize: 12, color: e.color, fontWeight: 600 }}>
+              {e.label}
+            </div>
+            {e.summary.activities.map((a) => (
+              <StravaSingleActivity key={a.id} activity={a} onDetach={() => {}} readOnly />
             ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// Strava-sourced rows (distance, elevation, HR, pace) render as a line
-// chart instead of bars — one dot per zestaw, colored to match its slot,
-// joined by a line.
-function MetricLineChart({
-  label,
-  entries,
-  rows,
-}: {
-  label: string;
-  entries: { label: string; color: string }[];
-  rows: MetricRow[];
-}) {
-  const data = entries.map((e, i) => ({ name: e.label, value: rows[i].value, color: e.color }));
-  if (data.every((d) => d.value === 0)) return null;
-  const fmt = rows[0].format;
-
-  return (
-    <div className="mb-3">
-      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, marginBottom: 2 }}>{label}</div>
-      <ResponsiveContainer width="100%" height={110}>
-        <LineChart data={data} margin={{ left: -10, right: 16, top: 8, bottom: 4 }}>
-          <CartesianGrid stroke={LINE} vertical={false} />
-          <XAxis dataKey="name" interval={0} tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} />
-          <YAxis width={40} tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} />
-          <Tooltip contentStyle={{ fontFamily: FONT_MONO, fontSize: 11 }} formatter={(v) => [fmt(Number(v)), label]} />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={STRAVA_ORANGE}
-            strokeWidth={2}
-            dot={(props: { cx?: number; cy?: number; index?: number }) => {
-              const i = props.index ?? 0;
-              return <circle key={i} cx={props.cx} cy={props.cy} r={5} fill={data[i].color} stroke={INK} strokeWidth={1.5} />;
-            }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -374,45 +248,34 @@ function ComparisonTable<T>({
           Brak zaznaczonych danych do pokazania — wybierz dane powyżej.
         </div>
       ) : (
-        <>
-          <div className="overflow-x-auto mb-3">
-            <table className="w-full" style={{ fontFamily: FONT_MONO, fontSize: 12, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${LINE}` }}>
-                  <th className="text-left py-1.5" />
-                  {entries.map((e) => (
-                    <th key={e.index} className="text-right py-1.5 px-2" style={{ color: e.color, fontWeight: 600 }}>
-                      {e.label}
-                    </th>
+        <div className="overflow-x-auto">
+          <table className="w-full" style={{ fontFamily: FONT_MONO, fontSize: 12, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+                <th className="text-left py-1.5" />
+                {entries.map((e) => (
+                  <th key={e.index} className="text-right py-1.5 px-2" style={{ color: e.color, fontWeight: 600 }}>
+                    {e.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {labels.map((label, li) => (
+                <tr key={label} style={{ borderBottom: `1px solid ${LINE}` }}>
+                  <td className="py-1.5" style={{ color: INK_SOFT }}>
+                    {label}
+                  </td>
+                  {rowsPerEntry.map((rows, ei) => (
+                    <td key={ei} className="text-right py-1.5 px-2" style={{ color: INK }}>
+                      {rows[li].format(rows[li].value)}
+                    </td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {labels.map((label, li) => (
-                  <tr key={label} style={{ borderBottom: `1px solid ${LINE}` }}>
-                    <td className="py-1.5" style={{ color: INK_SOFT }}>
-                      {label}
-                    </td>
-                    {rowsPerEntry.map((rows, ei) => (
-                      <td key={ei} className="text-right py-1.5 px-2" style={{ color: INK }}>
-                        {rows[li].format(rows[li].value)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {labels.map((label, li) => {
-            const rows = rowsPerEntry.map((r) => r[li]);
-            return STRAVA_METRIC_LABELS.includes(label) ? (
-              <MetricLineChart key={label} label={label} entries={entries} rows={rows} />
-            ) : (
-              <MetricChart key={label} label={label} entries={entries} rows={rows} />
-            );
-          })}
-        </>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -495,6 +358,11 @@ export function AnalysisTab({
       summary?.kind === "health" ? { index, color: SLOT_COLORS[index % SLOT_COLORS.length], label: summary.label, summary } : null
     )
     .filter((e): e is ComparisonEntry<HealthSummary> => e != null);
+  const stravaEntries: ComparisonEntry<StravaSummary>[] = stravaSummaries
+    .map((strava, index) =>
+      strava ? { index, color: SLOT_COLORS[index % SLOT_COLORS.length], label: summaries[index]?.label ?? "", summary: strava } : null
+    )
+    .filter((e): e is ComparisonEntry<StravaSummary> => e != null);
   const emptyEntries = selections
     .map((_, index) => ({ index, color: SLOT_COLORS[index % SLOT_COLORS.length] }))
     .filter((e) => !summaries[e.index]);
@@ -507,24 +375,18 @@ export function AnalysisTab({
 
       <MetricPicker enabledTraining={enabledTraining} toggleTraining={toggleTraining} enabledHealth={enabledHealth} toggleHealth={toggleHealth} />
 
-      {selections.map((selection, i) => {
-        const strava = stravaSummaries[i];
-        const color = SLOT_COLORS[i % SLOT_COLORS.length];
-        return (
-          <div key={i}>
-            <SlotEditor
-              index={i}
-              color={color}
-              selection={selection}
-              setSelection={(updater) => updateSelection(i, updater)}
-              onRemove={selections.length > 1 ? () => removeSlot(i) : null}
-              workouts={workouts}
-              cycles={cycles}
-            />
-            {strava && <StravaDetailBlock summary={strava} color={color} />}
-          </div>
-        );
-      })}
+      {selections.map((selection, i) => (
+        <SlotEditor
+          key={i}
+          index={i}
+          color={SLOT_COLORS[i % SLOT_COLORS.length]}
+          selection={selection}
+          setSelection={(updater) => updateSelection(i, updater)}
+          onRemove={selections.length > 1 ? () => removeSlot(i) : null}
+          workouts={workouts}
+          cycles={cycles}
+        />
+      ))}
 
       <button
         onClick={addSlot}
@@ -555,6 +417,7 @@ export function AnalysisTab({
         {healthResultEntries.length > 0 && (
           <ComparisonTable title="ZDROWIE" entries={healthResultEntries} metricsFn={healthMetrics} enabledLabels={enabledHealth} />
         )}
+        <StravaSideBySide entries={stravaEntries} />
       </div>
     </div>
   );
