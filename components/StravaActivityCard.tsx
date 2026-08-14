@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, type HTMLAttributes } from "react";
+import { Fragment, useEffect, useState, type HTMLAttributes } from "react";
 import { ChevronDown, ChevronUp, GripVertical, Heart, Link2Off, Mountain, Route as RouteIcon } from "lucide-react";
 import {
   CartesianGrid,
@@ -108,7 +108,7 @@ function SplitsTable({
   );
 }
 
-function ActivityCharts({ activityRowId, mode }: { activityRowId: string; mode: PaceMode }) {
+function ActivityCharts({ activityRowId, mode, autoLoad = false }: { activityRowId: string; mode: PaceMode; autoLoad?: boolean }) {
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "ready">("idle");
   const [chartData, setChartData] = useState<{ km: number; pace: number; hr?: number; elevation?: number }[]>([]);
   const isCycling = mode === "speed";
@@ -138,7 +138,14 @@ function ActivityCharts({ activityRowId, mode }: { activityRowId: string; mode: 
     }
   }
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (autoLoad) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoad, activityRowId]);
+
   if (status === "idle") {
+    if (autoLoad) return null;
     return (
       <button
         onClick={load}
@@ -260,7 +267,7 @@ export function StravaSingleActivity({
   dragHandleProps?: HTMLAttributes<HTMLDivElement>;
   readOnly?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(readOnly);
   const mode = paceModeFor(activity.type);
 
   return (
@@ -312,7 +319,7 @@ export function StravaSingleActivity({
             <SplitsTable splits={activity.splitsMetric} mode={mode} />
           )}
           {activity.hrZones && activity.hrZones.length > 0 && <ZoneBars zones={activity.hrZones} />}
-          <ActivityCharts activityRowId={activity.id} mode={mode} />
+          <ActivityCharts activityRowId={activity.id} mode={mode} autoLoad={readOnly} />
 
           {!readOnly && (
             <div className="flex justify-end mt-2">
