@@ -7,7 +7,7 @@ import { addDays, getMonthWeeks, startOfMonth, todayISO } from "@/lib/calculatio
 import { healthSeriesForLastDays } from "@/lib/healthCalculations";
 import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
 import { STRAVA_ORANGE } from "./StravaConnect";
-import type { CoachAccess, HealthEntry, PersonalEvent } from "@/lib/types";
+import type { HealthEntry, PersonalEvent } from "@/lib/types";
 import type { WeeklyRunningDatum } from "@/lib/stravaCalculations";
 
 export const HOME_TILE_ZOOM_MS = 320;
@@ -89,30 +89,26 @@ function ZdrowieBackground({ healthEntries }: { healthEntries: HealthEntry[] }) 
   );
 }
 
-function TrenerBackground({ coachGrants }: { coachGrants: CoachAccess[] }) {
-  const grants = coachGrants.filter((g) => g.status !== "revoked").slice(0, 4);
-  if (grants.length === 0) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <Users size={70} color={TEAL} strokeWidth={1.25} opacity={0.3} />
-      </div>
-    );
-  }
+// No natural "chart" fits Trener, so its tile shows a genuine
+// miniaturized screenshot of the real tab instead (mounted read-only by
+// the caller) — natural size, scaled down and clipped to the tile.
+const TRENER_PREVIEW_WIDTH = 380;
+const TRENER_PREVIEW_HEIGHT = 640;
+const TRENER_PREVIEW_SCALE = 0.46;
+function TrenerBackground({ preview }: { preview: ReactNode }) {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-      {grants.map((g, i) => (
-        <div key={g.id} className="flex items-center gap-2.5" style={{ marginLeft: i % 2 === 0 ? -18 : 18 }}>
-          <div
-            className="rounded-full flex items-center justify-center shrink-0"
-            style={{ width: 32, height: 32, background: TEAL, color: "#fff", fontFamily: FONT_MONO, fontSize: 14, fontWeight: 700 }}
-          >
-            {g.coachEmail[0]?.toUpperCase() ?? "?"}
-          </div>
-          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 600 }}>
-            {g.coachEmail}
-          </div>
-        </div>
-      ))}
+    <div className="w-full h-full flex items-center justify-center overflow-hidden">
+      <div
+        style={{
+          width: TRENER_PREVIEW_WIDTH,
+          height: TRENER_PREVIEW_HEIGHT,
+          transform: `scale(${TRENER_PREVIEW_SCALE})`,
+          transformOrigin: "center",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ width: TRENER_PREVIEW_WIDTH, minHeight: TRENER_PREVIEW_HEIGHT, padding: 14 }}>{preview}</div>
+      </div>
     </div>
   );
 }
@@ -138,7 +134,7 @@ export function HomePanel({
   last12WeeksRunning,
   personalEvents,
   healthEntries,
-  coachGrants,
+  trenerPreview,
   onOpenDziennik,
   onOpenPlanner,
   onOpenZdrowie,
@@ -149,7 +145,7 @@ export function HomePanel({
   last12WeeksRunning: WeeklyRunningDatum[];
   personalEvents: PersonalEvent[];
   healthEntries: HealthEntry[];
-  coachGrants: CoachAccess[];
+  trenerPreview: ReactNode;
   onOpenDziennik: () => void;
   onOpenPlanner: () => void;
   onOpenZdrowie: () => void;
@@ -198,7 +194,7 @@ export function HomePanel({
       accent: TEAL,
       action: () => handleClick("coach", onOpenTrener),
       badge: pendingInviteCount,
-      background: <TrenerBackground coachGrants={coachGrants} />,
+      background: <TrenerBackground preview={trenerPreview} />,
     },
   ];
 

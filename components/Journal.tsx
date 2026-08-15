@@ -667,6 +667,24 @@ export function Journal({
     last12WeeksRunning,
   } = useReportsData(workouts, cycles, period, selectedCycleId, customStart, customEnd);
 
+  // The Trener tile's home-panel background is a real screenshot of this
+  // tab (mounted read-only, miniaturized in HomePanel.tsx) rather than a
+  // custom visual, since there's no natural "chart" for it.
+  const trenerPreview = (
+    <CoachTab
+      coachGrants={coachGrants}
+      pendingInvites={pendingInvites}
+      athletesForCoach={athletesForCoach}
+      newCoachEmail=""
+      setNewCoachEmail={() => {}}
+      inviteError={null}
+      onInvite={() => {}}
+      onAccept={() => {}}
+      onTogglePermission={() => {}}
+      onRevoke={() => {}}
+    />
+  );
+
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
@@ -785,7 +803,7 @@ export function Journal({
             last12WeeksRunning={last12WeeksRunning}
             personalEvents={personalEvents}
             healthEntries={healthEntries}
-            coachGrants={coachGrants}
+            trenerPreview={trenerPreview}
             onOpenDziennik={() =>
               afterFade(() => {
                 setView("cluster");
