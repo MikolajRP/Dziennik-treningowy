@@ -679,10 +679,12 @@ export function Journal({
             <ArrowLeft size={14} /> Powrót
           </button>
         )}
-        <div className="flex items-baseline justify-between">
-          <h1 className="text-2xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
-            Dziennik Treningowy
-          </h1>
+        <div className={view === "home" ? "flex items-center justify-end gap-3" : "flex items-baseline justify-between"}>
+          {view !== "home" && (
+            <h1 className="text-2xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
+              Dziennik Treningowy
+            </h1>
+          )}
           <div className="flex items-center gap-3">
             <StravaConnect connected={stravaConnected} />
             <Dumbbell size={20} color={INK} />
@@ -706,6 +708,16 @@ export function Journal({
             </button>
           </div>
         </div>
+        {view === "home" && (
+          <h1
+            className="tracking-wide uppercase text-center"
+            style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700, fontSize: 40, lineHeight: 1.05, margin: "28px 0 22px" }}
+          >
+            Dziennik
+            <br />
+            Treningowy
+          </h1>
+        )}
         {view === "cluster" && (
           <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <button
@@ -770,6 +782,10 @@ export function Journal({
       <div className="px-4 mt-4">
         {view === "home" && (
           <HomePanel
+            workouts={workouts}
+            personalEvents={personalEvents}
+            healthEntries={healthEntries}
+            coachGrants={coachGrants}
             onOpenDziennik={() =>
               afterFade(() => {
                 setView("cluster");

@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { BookOpen, CalendarClock, HeartPulse, Users } from "lucide-react";
+import { fmtShort, todayISO } from "@/lib/calculations";
 import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, PAPER, PLANNER, RACE, TEAL } from "@/lib/design";
+import type { CoachAccess, HealthEntry, PersonalEvent, Workout } from "@/lib/types";
 
-export const HOME_TILE_ZOOM_MS = 280;
+export const HOME_TILE_ZOOM_MS = 320;
 
-// Small abstract line-art standing in for a screenshot of each tab's
-// content — blurred behind a frosted glass wash. Kept intentionally
-// simple: a handful of shapes per tile, not a literal illustration.
+// ---------- abstract fallback art (shown until there's real data to preview) ----------
 function DziennikArt({ accent }: { accent: string }) {
   return (
     <svg viewBox="0 0 200 200" width="100%" height="100%">
@@ -67,6 +67,102 @@ function TrenerArt({ accent }: { accent: string }) {
   );
 }
 
+// ---------- real, lightweight previews of each tab's actual content ----------
+// Deliberately not the real interactive tab components (too heavy to mount
+// four of behind a decorative background) — small static markup fed with
+// the same live data, styled to read like that tab at a glance.
+function DziennikPreview({ workouts, accent }: { workouts: Workout[]; accent: string }) {
+  const recent = [...workouts].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 4);
+  if (recent.length === 0) return <DziennikArt accent={accent} />;
+  return (
+    <div className="w-full h-full flex flex-col justify-center gap-3 px-7">
+      {recent.map((w) => (
+        <div key={w.id} className="flex items-center gap-2">
+          <div className="rounded-full shrink-0" style={{ width: 7, height: 7, background: accent }} />
+          <div className="shrink-0" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent, fontWeight: 600 }}>
+            {fmtShort(w.date)}
+          </div>
+          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent, opacity: 0.75 }}>
+            {w.name || w.category}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function PlannerPreview({ personalEvents, accent }: { personalEvents: PersonalEvent[]; accent: string }) {
+  const today = todayISO();
+  const upcoming = [...personalEvents]
+    .filter((e) => e.date >= today)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.time ?? "") < (b.time ?? "") ? -1 : 1))
+    .slice(0, 4);
+  if (upcoming.length === 0) return <PlannerArt accent={accent} />;
+  return (
+    <div className="w-full h-full flex flex-col justify-center gap-3 px-7">
+      {upcoming.map((e) => (
+        <div key={e.id} className="flex items-center gap-2">
+          <div className="rounded-full shrink-0" style={{ width: 7, height: 7, background: e.color }} />
+          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent }}>
+            {e.title}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function ZdrowiePreview({ healthEntries, accent }: { healthEntries: HealthEntry[]; accent: string }) {
+  const sorted = [...healthEntries].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const latest = sorted[0];
+  if (!latest) return <ZdrowieArt accent={accent} />;
+  const series = sorted.slice(0, 7).reverse();
+  const points = series
+    .map((h, i) => {
+      const x = (i / Math.max(1, series.length - 1)) * 160;
+      const y = 44 - (h.wellbeing / 10) * 38;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+      <svg viewBox="0 0 160 50" width="72%" height={50}>
+        <polyline points={points} fill="none" stroke={accent} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+      </svg>
+      <div className="flex gap-4" style={{ fontFamily: FONT_MONO, fontSize: 12, color: accent, fontWeight: 600 }}>
+        <span>{Math.round(latest.hrv)} ms</span>
+        <span>{Math.round(latest.restingHr)} bpm</span>
+      </div>
+    </div>
+  );
+}
+function TrenerPreview({ coachGrants, accent }: { coachGrants: CoachAccess[]; accent: string }) {
+  const active = coachGrants.filter((g) => g.status === "active");
+  if (active.length === 0) return <TrenerArt accent={accent} />;
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-2.5">
+      {active.slice(0, 3).map((g) => (
+        <div key={g.id} className="flex items-center gap-2">
+          <div
+            className="rounded-full flex items-center justify-center shrink-0"
+            style={{ width: 22, height: 22, background: accent, color: "#fff", fontSize: 10, fontFamily: FONT_MONO, fontWeight: 700 }}
+          >
+            {g.coachEmail[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent }}>
+            {g.coachEmail}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const liquidGlassWash: CSSProperties = {
+  background: "linear-gradient(135deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.24) 45%, rgba(255,255,255,0.34) 100%)",
+  backdropFilter: "blur(16px) saturate(180%)",
+  WebkitBackdropFilter: "blur(16px) saturate(180%)",
+  boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -14px 24px rgba(255,255,255,0.12), inset 0 -1px 2px rgba(27,42,58,0.08)",
+};
+
 interface Tile {
   id: string;
   label: string;
@@ -74,10 +170,14 @@ interface Tile {
   accent: string;
   action: () => void;
   badge?: number;
-  Art: (props: { accent: string }) => ReactNode;
+  Preview: () => ReactNode;
 }
 
 export function HomePanel({
+  workouts,
+  personalEvents,
+  healthEntries,
+  coachGrants,
   onOpenDziennik,
   onOpenPlanner,
   onOpenZdrowie,
@@ -85,6 +185,10 @@ export function HomePanel({
   onTransitionStart,
   pendingInviteCount,
 }: {
+  workouts: Workout[];
+  personalEvents: PersonalEvent[];
+  healthEntries: HealthEntry[];
+  coachGrants: CoachAccess[];
   onOpenDziennik: () => void;
   onOpenPlanner: () => void;
   onOpenZdrowie: () => void;
@@ -102,14 +206,21 @@ export function HomePanel({
   }
 
   const tiles: Tile[] = [
-    { id: "log", label: "Dziennik", icon: <BookOpen size={34} strokeWidth={1.75} />, accent: INK, action: () => handleClick("log", onOpenDziennik), Art: DziennikArt },
+    {
+      id: "log",
+      label: "Dziennik",
+      icon: <BookOpen size={34} strokeWidth={1.75} />,
+      accent: INK,
+      action: () => handleClick("log", onOpenDziennik),
+      Preview: () => <DziennikPreview workouts={workouts} accent={INK} />,
+    },
     {
       id: "planner",
       label: "Planner",
       icon: <CalendarClock size={34} strokeWidth={1.75} />,
       accent: PLANNER,
       action: () => handleClick("planner", onOpenPlanner),
-      Art: PlannerArt,
+      Preview: () => <PlannerPreview personalEvents={personalEvents} accent={PLANNER} />,
     },
     {
       id: "health",
@@ -117,7 +228,7 @@ export function HomePanel({
       icon: <HeartPulse size={34} strokeWidth={1.75} />,
       accent: HEALTH,
       action: () => handleClick("health", onOpenZdrowie),
-      Art: ZdrowieArt,
+      Preview: () => <ZdrowiePreview healthEntries={healthEntries} accent={HEALTH} />,
     },
     {
       id: "coach",
@@ -126,56 +237,85 @@ export function HomePanel({
       accent: TEAL,
       action: () => handleClick("coach", onOpenTrener),
       badge: pendingInviteCount,
-      Art: TrenerArt,
+      Preview: () => <TrenerPreview coachGrants={coachGrants} accent={TEAL} />,
     },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-4 pb-6">
-      {tiles.map((t) => (
-        <button
-          key={t.id}
-          onClick={t.action}
-          className="relative aspect-square rounded-[28px] overflow-hidden"
-          style={{
-            border: "1px solid rgba(27,42,58,0.14)",
-            boxShadow: "0 14px 30px rgba(27,42,58,0.12)",
-            transform: zoomingId === t.id ? "scale(9)" : zoomingId ? "scale(0.92)" : "scale(1)",
-            opacity: zoomingId && zoomingId !== t.id ? 0 : 1,
-            transition: `transform ${HOME_TILE_ZOOM_MS}ms ease, opacity ${HOME_TILE_ZOOM_MS}ms ease`,
-            zIndex: zoomingId === t.id ? 30 : 1,
-          }}
-        >
-          {/* blurred, centered background art */}
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: PAPER }}>
-            <div style={{ filter: "blur(9px)", opacity: 0.5, width: "140%", height: "140%" }}>
-              <t.Art accent={t.accent} />
+      {tiles.map((t) => {
+        const active = zoomingId === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={t.action}
+            className="relative aspect-square rounded-[28px] overflow-hidden"
+            style={{
+              border: "1px solid rgba(27,42,58,0.14)",
+              boxShadow: "0 14px 30px rgba(27,42,58,0.12)",
+              transform: active ? "scale(9)" : zoomingId ? "scale(0.92)" : "scale(1)",
+              opacity: zoomingId && !active ? 0 : 1,
+              transition: `transform ${HOME_TILE_ZOOM_MS}ms cubic-bezier(0.4,0,0.2,1), opacity ${HOME_TILE_ZOOM_MS}ms ease`,
+              zIndex: active ? 30 : 1,
+            }}
+          >
+            {/* real (or fallback abstract) preview of the tab's content —
+                sharpens from blurred to crisp as the tile zooms in */}
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: PAPER }}>
+              <div
+                style={{
+                  filter: active ? "blur(0px)" : "blur(9px)",
+                  transition: `filter ${HOME_TILE_ZOOM_MS}ms ease`,
+                  opacity: 0.62,
+                  width: "140%",
+                  height: "140%",
+                }}
+              >
+                <t.Preview />
+              </div>
             </div>
-          </div>
 
-          {/* frosted glass wash over the whole card */}
-          <div
-            className="absolute inset-0"
-            style={{ background: "rgba(255,255,255,0.4)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
-          />
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-            <div style={{ color: t.accent }}>{t.icon}</div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, letterSpacing: 0.5, color: INK, fontWeight: 700, textTransform: "uppercase" }}>
-              {t.label}
-            </div>
-          </div>
-
-          {!!t.badge && (
+            {/* glossy top-left highlight — the "liquid" in liquid glass */}
             <div
-              className="absolute top-2.5 right-2.5 rounded-full text-[10px] px-1.5 py-0.5"
-              style={{ fontFamily: FONT_MONO, background: RACE, color: "#fff" }}
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                top: "-18%",
+                left: "-14%",
+                width: "75%",
+                height: "55%",
+                background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.75), rgba(255,255,255,0) 68%)",
+                opacity: active ? 0 : 1,
+                transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease`,
+              }}
+            />
+
+            {/* frosted glass wash + icon/label — fades away as the tile
+                zooms in, revealing the now-sharp preview underneath */}
+            <div
+              className="absolute inset-0"
+              style={{ ...liquidGlassWash, opacity: active ? 0 : 1, transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease` }}
+            />
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2.5"
+              style={{ opacity: active ? 0 : 1, transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease` }}
             >
-              {t.badge}
+              <div style={{ color: t.accent }}>{t.icon}</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, letterSpacing: 0.5, color: INK, fontWeight: 700, textTransform: "uppercase" }}>
+                {t.label}
+              </div>
             </div>
-          )}
-        </button>
-      ))}
+
+            {!!t.badge && (
+              <div
+                className="absolute top-2.5 right-2.5 rounded-full text-[10px] px-1.5 py-0.5"
+                style={{ fontFamily: FONT_MONO, background: RACE, color: "#fff", opacity: active ? 0 : 1, transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease` }}
+              >
+                {t.badge}
+              </div>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
