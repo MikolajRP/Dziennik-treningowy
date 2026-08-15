@@ -29,7 +29,7 @@ export const RACE = "#D7263D";
 
 // Zdrowie tab accent (sleep chart, tab icon) — everything else in that tab
 // reuses existing category colors (MUSTARD/TEAL/ISO/RUST/INK) per metric.
-export const HEALTH = "#3B6E8F";
+export const HEALTH = "#C0392B";
 
 // Planner tab accent (tab icon, "dziś" highlight).
 export const PLANNER = "#3E8EDE";
