@@ -2,10 +2,10 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { BookOpen, CalendarClock, HeartPulse, Users } from "lucide-react";
-import { Area, AreaChart, Line, LineChart, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { addDays, getMonthWeeks, startOfMonth, todayISO } from "@/lib/calculations";
 import { healthSeriesForLastDays } from "@/lib/healthCalculations";
-import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, ISO, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
+import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
 import { STRAVA_ORANGE } from "./StravaConnect";
 import type { CoachAccess, HealthEntry, PersonalEvent } from "@/lib/types";
 import type { WeeklyRunningDatum } from "@/lib/stravaCalculations";
@@ -17,14 +17,17 @@ export const HOME_TILE_ZOOM_MS = 320;
 function DziennikBackground({ last12WeeksRunning }: { last12WeeksRunning: WeeklyRunningDatum[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={last12WeeksRunning} margin={{ top: 26, right: 2, left: 2, bottom: 10 }}>
+      <AreaChart data={last12WeeksRunning} margin={{ top: 30, right: 6, left: -18, bottom: 2 }}>
         <defs>
           <linearGradient id="homeRunningFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={STRAVA_ORANGE} stopOpacity={0.6} />
             <stop offset="100%" stopColor={STRAVA_ORANGE} stopOpacity={0.05} />
           </linearGradient>
         </defs>
-        <Area type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={3.5} fill="url(#homeRunningFill)" dot={false} isAnimationActive={false} />
+        <CartesianGrid stroke={LINE} vertical={false} />
+        <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} interval={0} tickLine={false} />
+        <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} width={30} tickLine={false} />
+        <Area type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={3} fill="url(#homeRunningFill)" dot={false} isAnimationActive={false} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -72,8 +75,11 @@ function ZdrowieBackground({ healthEntries }: { healthEntries: HealthEntry[] }) 
   const series = healthSeriesForLastDays(healthEntries, 30, todayISO());
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={series} margin={{ top: 26, right: 6, left: 6, bottom: 10 }}>
-        <Line type="monotone" dataKey="hrv" stroke={ISO} strokeWidth={3.5} dot={false} isAnimationActive={false} />
+      <LineChart data={series} margin={{ top: 30, right: 6, left: -18, bottom: 2 }}>
+        <CartesianGrid stroke={LINE} vertical={false} />
+        <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} interval="preserveStartEnd" tickLine={false} />
+        <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} width={30} domain={["auto", "auto"]} tickLine={false} />
+        <Line type="monotone" dataKey="hrv" stroke={ISO} strokeWidth={3} dot={false} isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
   );
