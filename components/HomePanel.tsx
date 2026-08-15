@@ -2,16 +2,110 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { BookOpen, CalendarClock, HeartPulse, Users } from "lucide-react";
-import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
+import { Area, AreaChart, Line, LineChart, ResponsiveContainer } from "recharts";
+import { addDays, getMonthWeeks, startOfMonth, todayISO } from "@/lib/calculations";
+import { healthSeriesForLastDays } from "@/lib/healthCalculations";
+import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, ISO, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
+import { STRAVA_ORANGE } from "./StravaConnect";
+import type { CoachAccess, HealthEntry, PersonalEvent } from "@/lib/types";
+import type { WeeklyRunningDatum } from "@/lib/stravaCalculations";
 
 export const HOME_TILE_ZOOM_MS = 320;
 
-// Natural size the real tab content is rendered at before being scaled
-// down into the tile — a typical phone content width, tall enough to
-// show a few real rows/cards.
-const PREVIEW_WIDTH = 380;
-const PREVIEW_HEIGHT = 640;
-const PREVIEW_SCALE = 0.48;
+// ---------- one focused, real visual per tile — the same data/colors as
+// the real chart in that tab, not the whole tab mounted ----------
+function DziennikBackground({ last12WeeksRunning }: { last12WeeksRunning: WeeklyRunningDatum[] }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={last12WeeksRunning} margin={{ top: 26, right: 2, left: 2, bottom: 10 }}>
+        <defs>
+          <linearGradient id="homeRunningFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={STRAVA_ORANGE} stopOpacity={0.6} />
+            <stop offset="100%" stopColor={STRAVA_ORANGE} stopOpacity={0.05} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={3.5} fill="url(#homeRunningFill)" dot={false} isAnimationActive={false} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function PlannerBackground({ personalEvents }: { personalEvents: PersonalEvent[] }) {
+  const today = todayISO();
+  const monthStart = startOfMonth(today);
+  const weekStarts = getMonthWeeks(monthStart);
+  const eventColorByDate = new Map<string, string>();
+  personalEvents.forEach((e) => {
+    if (!eventColorByDate.has(e.date)) eventColorByDate.set(e.date, e.color);
+  });
+  return (
+    <div className="w-full h-full flex flex-col justify-center gap-1.5 px-5">
+      {weekStarts.map((weekStart) => (
+        <div key={weekStart} className="flex gap-1.5">
+          {Array.from({ length: 7 }, (_, i) => {
+            const date = addDays(weekStart, i);
+            const inMonth = date.slice(0, 7) === monthStart.slice(0, 7);
+            const isToday = date === today;
+            const eventColor = eventColorByDate.get(date);
+            return (
+              <div
+                key={date}
+                className="flex-1 aspect-square rounded-md flex items-center justify-center relative"
+                style={{ background: isToday ? PLANNER : "rgba(255,255,255,0.55)", opacity: inMonth ? 1 : 0.3 }}
+              >
+                <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: isToday ? "#fff" : INK, fontWeight: 600 }}>
+                  {Number(date.slice(8, 10))}
+                </span>
+                {eventColor && (
+                  <div className="absolute rounded-full" style={{ width: 4.5, height: 4.5, bottom: 3, background: eventColor }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ZdrowieBackground({ healthEntries }: { healthEntries: HealthEntry[] }) {
+  const series = healthSeriesForLastDays(healthEntries, 30, todayISO());
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={series} margin={{ top: 26, right: 6, left: 6, bottom: 10 }}>
+        <Line type="monotone" dataKey="hrv" stroke={ISO} strokeWidth={3.5} dot={false} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function TrenerBackground({ coachGrants }: { coachGrants: CoachAccess[] }) {
+  const grants = coachGrants.filter((g) => g.status !== "revoked").slice(0, 4);
+  if (grants.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <Users size={70} color={TEAL} strokeWidth={1.25} opacity={0.3} />
+      </div>
+    );
+  }
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+      {grants.map((g, i) => (
+        <div key={g.id} className="flex items-center gap-2.5" style={{ marginLeft: i % 2 === 0 ? -18 : 18 }}>
+          <div
+            className="rounded-full flex items-center justify-center shrink-0"
+            style={{ width: 32, height: 32, background: TEAL, color: "#fff", fontFamily: FONT_MONO, fontSize: 14, fontWeight: 700 }}
+          >
+            {g.coachEmail[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 600 }}>
+            {g.coachEmail}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const liquidGlassWash: CSSProperties = {
   background: "linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.08) 100%)",
@@ -27,14 +121,14 @@ interface Tile {
   accent: string;
   action: () => void;
   badge?: number;
-  preview: ReactNode;
+  background: ReactNode;
 }
 
 export function HomePanel({
-  dziennikPreview,
-  plannerPreview,
-  zdrowiePreview,
-  trenerPreview,
+  last12WeeksRunning,
+  personalEvents,
+  healthEntries,
+  coachGrants,
   onOpenDziennik,
   onOpenPlanner,
   onOpenZdrowie,
@@ -42,10 +136,10 @@ export function HomePanel({
   onTransitionStart,
   pendingInviteCount,
 }: {
-  dziennikPreview: ReactNode;
-  plannerPreview: ReactNode;
-  zdrowiePreview: ReactNode;
-  trenerPreview: ReactNode;
+  last12WeeksRunning: WeeklyRunningDatum[];
+  personalEvents: PersonalEvent[];
+  healthEntries: HealthEntry[];
+  coachGrants: CoachAccess[];
   onOpenDziennik: () => void;
   onOpenPlanner: () => void;
   onOpenZdrowie: () => void;
@@ -69,7 +163,7 @@ export function HomePanel({
       icon: <BookOpen size={34} strokeWidth={1.75} />,
       accent: INK,
       action: () => handleClick("log", onOpenDziennik),
-      preview: dziennikPreview,
+      background: <DziennikBackground last12WeeksRunning={last12WeeksRunning} />,
     },
     {
       id: "planner",
@@ -77,7 +171,7 @@ export function HomePanel({
       icon: <CalendarClock size={34} strokeWidth={1.75} />,
       accent: PLANNER,
       action: () => handleClick("planner", onOpenPlanner),
-      preview: plannerPreview,
+      background: <PlannerBackground personalEvents={personalEvents} />,
     },
     {
       id: "health",
@@ -85,7 +179,7 @@ export function HomePanel({
       icon: <HeartPulse size={34} strokeWidth={1.75} />,
       accent: HEALTH,
       action: () => handleClick("health", onOpenZdrowie),
-      preview: zdrowiePreview,
+      background: <ZdrowieBackground healthEntries={healthEntries} />,
     },
     {
       id: "coach",
@@ -94,7 +188,7 @@ export function HomePanel({
       accent: TEAL,
       action: () => handleClick("coach", onOpenTrener),
       badge: pendingInviteCount,
-      preview: trenerPreview,
+      background: <TrenerBackground coachGrants={coachGrants} />,
     },
   ];
 
@@ -116,23 +210,19 @@ export function HomePanel({
               zIndex: active ? 30 : 1,
             }}
           >
-            {/* the real tab, mounted read-only at natural size and scaled
-                down — a genuine miniature of that screen, not a mockup.
-                Sharpens from blurred to crisp as the tile zooms in. */}
-            <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={gridBg}>
+            {/* one real, focused visual per tile — sharpens from blurred
+                to crisp as the tile zooms in */}
+            <div className="absolute inset-0" style={gridBg}>
               <div
                 style={{
                   filter: active ? "blur(0px)" : "blur(2px)",
                   transition: `filter ${HOME_TILE_ZOOM_MS}ms ease`,
-                  width: PREVIEW_WIDTH,
-                  height: PREVIEW_HEIGHT,
-                  transform: `scale(${PREVIEW_SCALE})`,
-                  transformOrigin: "center",
-                  overflow: "hidden",
+                  width: "100%",
+                  height: "100%",
                   pointerEvents: "none",
                 }}
               >
-                <div style={{ ...gridBg, width: PREVIEW_WIDTH, minHeight: PREVIEW_HEIGHT, padding: 14 }}>{t.preview}</div>
+                {t.background}
               </div>
             </div>
 
@@ -151,7 +241,7 @@ export function HomePanel({
             />
 
             {/* frosted glass wash + icon/label — fades away as the tile
-                zooms in, revealing the now-sharp preview underneath */}
+                zooms in, revealing the now-sharp visual underneath */}
             <div
               className="absolute inset-0"
               style={{ ...liquidGlassWash, opacity: active ? 0 : 1, transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease` }}
