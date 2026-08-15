@@ -2,9 +2,16 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { BookOpen, CalendarClock, HeartPulse, Users } from "lucide-react";
-import { fmtShort, todayISO } from "@/lib/calculations";
-import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, PAPER, PLANNER, RACE, TEAL } from "@/lib/design";
+import { computeWorkoutTonnage, fmtShort } from "@/lib/calculations";
+import { EVENT_COLORS, FONT_DISPLAY, FONT_MONO, HEALTH, INK, PAPER, PLANNER, RACE, TEAL } from "@/lib/design";
 import type { CoachAccess, HealthEntry, PersonalEvent, Workout } from "@/lib/types";
+
+const PREVIEW_PALETTE = EVENT_COLORS.map((c) => c.value);
+function hashColor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return PREVIEW_PALETTE[h % PREVIEW_PALETTE.length];
+}
 
 export const HOME_TILE_ZOOM_MS = 320;
 
@@ -72,37 +79,36 @@ function TrenerArt({ accent }: { accent: string }) {
 // four of behind a decorative background) — small static markup fed with
 // the same live data, styled to read like that tab at a glance.
 function DziennikPreview({ workouts, accent }: { workouts: Workout[]; accent: string }) {
-  const recent = [...workouts].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 4);
+  const recent = [...workouts].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
   if (recent.length === 0) return <DziennikArt accent={accent} />;
+  const maxTonnage = Math.max(1, ...recent.map((w) => computeWorkoutTonnage(w)));
   return (
-    <div className="w-full h-full flex flex-col justify-center gap-3 px-7">
-      {recent.map((w) => (
-        <div key={w.id} className="flex items-center gap-2">
-          <div className="rounded-full shrink-0" style={{ width: 7, height: 7, background: accent }} />
-          <div className="shrink-0" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent, fontWeight: 600 }}>
-            {fmtShort(w.date)}
+    <div className="w-full h-full flex flex-col justify-center gap-4 px-8">
+      {recent.map((w) => {
+        const tonnage = computeWorkoutTonnage(w);
+        const widthPct = tonnage > 0 ? 25 + (tonnage / maxTonnage) * 65 : 40;
+        const color = hashColor(w.category || w.id);
+        return (
+          <div key={w.id} className="flex items-center gap-2.5">
+            <div className="shrink-0" style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 700 }}>
+              {fmtShort(w.date).slice(0, 5)}
+            </div>
+            <div className="rounded-full" style={{ height: 11, width: `${widthPct}%`, background: color }} />
           </div>
-          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent, opacity: 0.75 }}>
-            {w.name || w.category}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 function PlannerPreview({ personalEvents, accent }: { personalEvents: PersonalEvent[]; accent: string }) {
-  const today = todayISO();
-  const upcoming = [...personalEvents]
-    .filter((e) => e.date >= today)
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.time ?? "") < (b.time ?? "") ? -1 : 1))
-    .slice(0, 4);
-  if (upcoming.length === 0) return <PlannerArt accent={accent} />;
+  const shown = [...personalEvents].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
+  if (shown.length === 0) return <PlannerArt accent={accent} />;
   return (
-    <div className="w-full h-full flex flex-col justify-center gap-3 px-7">
-      {upcoming.map((e) => (
-        <div key={e.id} className="flex items-center gap-2">
-          <div className="rounded-full shrink-0" style={{ width: 7, height: 7, background: e.color }} />
-          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent }}>
+    <div className="w-full h-full flex flex-col justify-center gap-3.5 px-8">
+      {shown.map((e) => (
+        <div key={e.id} className="flex items-center gap-2.5">
+          <div className="rounded-full shrink-0" style={{ width: 13, height: 13, background: e.color }} />
+          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 14, color: INK, fontWeight: 700 }}>
             {e.title}
           </div>
         </div>
@@ -115,19 +121,23 @@ function ZdrowiePreview({ healthEntries, accent }: { healthEntries: HealthEntry[
   const latest = sorted[0];
   if (!latest) return <ZdrowieArt accent={accent} />;
   const series = sorted.slice(0, 7).reverse();
-  const points = series
-    .map((h, i) => {
-      const x = (i / Math.max(1, series.length - 1)) * 160;
-      const y = 44 - (h.wellbeing / 10) * 38;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const points = series.map((h, i) => {
+    const x = (i / Math.max(1, series.length - 1)) * 160;
+    const y = 44 - (h.wellbeing / 10) * 38;
+    return { x, y };
+  });
+  const line = points.map((p) => `${p.x},${p.y}`).join(" ");
+  const area = `0,50 ${line} 160,50`;
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-      <svg viewBox="0 0 160 50" width="72%" height={50}>
-        <polyline points={points} fill="none" stroke={accent} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+      <svg viewBox="0 0 160 50" width="80%" height={54}>
+        <polygon points={area} fill={accent} opacity={0.22} />
+        <polyline points={line} fill="none" stroke={accent} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={accent} />
+        ))}
       </svg>
-      <div className="flex gap-4" style={{ fontFamily: FONT_MONO, fontSize: 12, color: accent, fontWeight: 600 }}>
+      <div className="flex gap-5" style={{ fontFamily: FONT_MONO, fontSize: 15, color: INK, fontWeight: 700 }}>
         <span>{Math.round(latest.hrv)} ms</span>
         <span>{Math.round(latest.restingHr)} bpm</span>
       </div>
@@ -135,19 +145,19 @@ function ZdrowiePreview({ healthEntries, accent }: { healthEntries: HealthEntry[
   );
 }
 function TrenerPreview({ coachGrants, accent }: { coachGrants: CoachAccess[]; accent: string }) {
-  const active = coachGrants.filter((g) => g.status === "active");
-  if (active.length === 0) return <TrenerArt accent={accent} />;
+  const grants = coachGrants.filter((g) => g.status !== "revoked").slice(0, 3);
+  if (grants.length === 0) return <TrenerArt accent={accent} />;
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-2.5">
-      {active.slice(0, 3).map((g) => (
-        <div key={g.id} className="flex items-center gap-2">
+    <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+      {grants.map((g) => (
+        <div key={g.id} className="flex items-center gap-2.5">
           <div
             className="rounded-full flex items-center justify-center shrink-0"
-            style={{ width: 22, height: 22, background: accent, color: "#fff", fontSize: 10, fontFamily: FONT_MONO, fontWeight: 700 }}
+            style={{ width: 28, height: 28, background: hashColor(g.coachEmail), color: "#fff", fontSize: 12, fontFamily: FONT_MONO, fontWeight: 700 }}
           >
             {g.coachEmail[0]?.toUpperCase() ?? "?"}
           </div>
-          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 11, color: accent }}>
+          <div className="truncate" style={{ fontFamily: FONT_MONO, fontSize: 13, color: INK, fontWeight: 700 }}>
             {g.coachEmail}
           </div>
         </div>
@@ -157,9 +167,9 @@ function TrenerPreview({ coachGrants, accent }: { coachGrants: CoachAccess[]; ac
 }
 
 const liquidGlassWash: CSSProperties = {
-  background: "linear-gradient(135deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.1) 45%, rgba(255,255,255,0.16) 100%)",
-  backdropFilter: "blur(6px) saturate(160%)",
-  WebkitBackdropFilter: "blur(6px) saturate(160%)",
+  background: "linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.08) 100%)",
+  backdropFilter: "blur(3px) saturate(160%)",
+  WebkitBackdropFilter: "blur(3px) saturate(160%)",
   boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -14px 24px rgba(255,255,255,0.1), inset 0 -1px 2px rgba(27,42,58,0.08)",
 };
 
@@ -264,9 +274,9 @@ export function HomePanel({
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: PAPER }}>
               <div
                 style={{
-                  filter: active ? "blur(0px)" : "blur(4px)",
+                  filter: active ? "blur(0px)" : "blur(2.5px)",
                   transition: `filter ${HOME_TILE_ZOOM_MS}ms ease`,
-                  opacity: 0.88,
+                  opacity: 0.95,
                   width: "140%",
                   height: "140%",
                 }}
