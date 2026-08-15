@@ -16,20 +16,22 @@ export const HOME_TILE_ZOOM_MS = 320;
 // the real chart in that tab, not the whole tab mounted ----------
 function DziennikBackground({ last12WeeksRunning }: { last12WeeksRunning: WeeklyRunningDatum[] }) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={last12WeeksRunning} margin={{ top: 30, right: 6, left: -18, bottom: 2 }}>
-        <defs>
-          <linearGradient id="homeRunningFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={STRAVA_ORANGE} stopOpacity={0.6} />
-            <stop offset="100%" stopColor={STRAVA_ORANGE} stopOpacity={0.05} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke={LINE} vertical={false} />
-        <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} interval={0} tickLine={false} />
-        <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} width={30} tickLine={false} />
-        <Area type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={3} fill="url(#homeRunningFill)" dot={false} isAnimationActive={false} />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div style={{ width: "100%", height: "100%", padding: "20px 10px 8px" }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={last12WeeksRunning} margin={{ top: 10, right: 6, left: -18, bottom: 2 }}>
+          <defs>
+            <linearGradient id="homeRunningFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={STRAVA_ORANGE} stopOpacity={0.6} />
+              <stop offset="100%" stopColor={STRAVA_ORANGE} stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke={LINE} vertical={false} />
+          <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 8, fill: INK_SOFT }} interval={0} tickLine={false} />
+          <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 8, fill: INK_SOFT }} width={26} tickLine={false} />
+          <Area type="monotone" dataKey="km" stroke={STRAVA_ORANGE} strokeWidth={2.25} fill="url(#homeRunningFill)" dot={false} isAnimationActive={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -74,14 +76,16 @@ function PlannerBackground({ personalEvents }: { personalEvents: PersonalEvent[]
 function ZdrowieBackground({ healthEntries }: { healthEntries: HealthEntry[] }) {
   const series = healthSeriesForLastDays(healthEntries, 30, todayISO());
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={series} margin={{ top: 30, right: 6, left: -18, bottom: 2 }}>
-        <CartesianGrid stroke={LINE} vertical={false} />
-        <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} interval="preserveStartEnd" tickLine={false} />
-        <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 9, fill: INK_SOFT }} width={30} domain={["auto", "auto"]} tickLine={false} />
-        <Line type="monotone" dataKey="hrv" stroke={ISO} strokeWidth={3} dot={false} isAnimationActive={false} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div style={{ width: "100%", height: "100%", padding: "20px 10px 8px" }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={series} margin={{ top: 10, right: 6, left: -18, bottom: 2 }}>
+          <CartesianGrid stroke={LINE} vertical={false} />
+          <XAxis dataKey="tickLabel" tick={{ fontFamily: FONT_MONO, fontSize: 8, fill: INK_SOFT }} interval="preserveStartEnd" tickLine={false} />
+          <YAxis tick={{ fontFamily: FONT_MONO, fontSize: 8, fill: INK_SOFT }} width={26} domain={["auto", "auto"]} tickLine={false} />
+          <Line type="monotone" dataKey="hrv" stroke={ISO} strokeWidth={2.25} dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
