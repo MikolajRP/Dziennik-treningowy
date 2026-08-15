@@ -49,27 +49,29 @@ export function CircuitEditor({
             <GripVertical size={15} color={RUST} />
           </div>
         )}
-        <Repeat2 size={16} color={RUST} />
+        <Repeat2 size={16} color={RUST} className="shrink-0" />
         <input
           placeholder="Nazwa obwodu (opcjonalnie)"
           value={circuit.name}
           onChange={(e) => onUpdateCircuit({ name: e.target.value })}
-          className="flex-1 px-2 py-1.5 rounded text-sm"
+          className="flex-1 min-w-0 px-2 py-1.5 rounded text-sm"
           style={inputStyle}
         />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>rundy</span>
+        <span className="shrink-0" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>rundy</span>
         <input
           type="number"
           inputMode="numeric"
           min="1"
           value={circuit.rounds}
           onChange={(e) => onUpdateCircuit({ rounds: e.target.value })}
-          className="w-14 px-2 py-1 rounded text-sm"
+          className="w-14 shrink-0 px-2 py-1 rounded text-sm"
           style={inputStyle}
         />
-        <IconBtn onClick={onRemoveCircuit} color={RUST} title="Usuń obwód">
-          <Trash2 size={15} />
-        </IconBtn>
+        <div className="shrink-0">
+          <IconBtn onClick={onRemoveCircuit} color={RUST} title="Usuń obwód">
+            <Trash2 size={15} />
+          </IconBtn>
+        </div>
       </div>
 
       <div className="pl-2 border-l-2" style={{ borderColor: RUST }}>

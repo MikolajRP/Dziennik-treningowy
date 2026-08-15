@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarClock, CalendarDays, Dumbbell, HeartPulse, LogOut, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -29,6 +29,7 @@ import {
 import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
 import { ExportReminderBanner } from "./ExportReminderBanner";
+import { HomePanel } from "./HomePanel";
 import { CoachTab } from "./CoachTab";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { HealthGate } from "./HealthGate";
@@ -110,7 +111,15 @@ export function Journal({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "health" | "stats" | "plan" | "planner" | "coach">("log");
+  // The app opens on a home panel of big tiles; "Dziennik" is the only tile
+  // that leads into a navigable cluster (its own tab bar) — Planner,
+  // Zdrowie, and Trener are standalone destinations reachable only from
+  // the home panel, with no way to hop sideways into the other tabs.
+  const [view, setView] = useState<"home" | "cluster" | "planner" | "health" | "coach">("home");
+  const [clusterTab, setClusterTab] = useState<"log" | "plan" | "stats" | "health">("log");
+  function goHome() {
+    setView("home");
+  }
   const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
   const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
@@ -600,7 +609,8 @@ export function Journal({
 
   // ---------- training plan (read-only for the athlete) ----------
   function jumpToWorkout(workoutId: string) {
-    setTab("log");
+    setView("cluster");
+    setClusterTab("log");
     setExpandedId(workoutId);
     requestAnimationFrame(() => {
       setTimeout(() => {
@@ -643,6 +653,15 @@ export function Journal({
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
+        {view !== "home" && (
+          <button
+            onClick={goHome}
+            className="flex items-center gap-1 text-xs mb-1.5"
+            style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+          >
+            <ArrowLeft size={14} /> Powrót
+          </button>
+        )}
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
             Dziennik Treningowy
@@ -670,58 +689,54 @@ export function Journal({
             </button>
           </div>
         </div>
-        <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          <button
-            onClick={() => setTab("log")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "log" ? INK : INK_SOFT, borderBottom: tab === "log" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <BookOpen size={14} /> DZIENNIK
-          </button>
-          <button
-            onClick={() => setTab("stats")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "stats" ? INK : INK_SOFT, borderBottom: tab === "stats" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <BarChart3 size={14} /> STATYSTYKI
-          </button>
-          <button
-            onClick={() => setTab("plan")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <CalendarDays size={14} /> PLAN
-          </button>
-          <button
-            onClick={() => setTab("planner")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "planner" ? INK : INK_SOFT, borderBottom: tab === "planner" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <CalendarClock size={14} /> PLANNER
-          </button>
-          <button
-            onClick={() => setTab("health")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <HeartPulse size={14} /> ZDROWIE
-          </button>
-          <button
-            onClick={() => setTab("coach")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "coach" ? INK : INK_SOFT, borderBottom: tab === "coach" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <Users size={14} /> TRENER
-            {pendingInvites.length > 0 && (
-              <span
-                className="rounded-full text-[10px] px-1.5"
-                style={{ fontFamily: FONT_MONO, background: "#A6402F", color: "#fff" }}
-              >
-                {pendingInvites.length}
-              </span>
-            )}
-          </button>
-        </div>
+        {view === "cluster" && (
+          <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <button
+              onClick={() => setClusterTab("log")}
+              className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+              style={{
+                fontFamily: FONT_MONO,
+                color: clusterTab === "log" ? INK : INK_SOFT,
+                borderBottom: clusterTab === "log" ? `2px solid ${MUSTARD}` : "2px solid transparent",
+              }}
+            >
+              <BookOpen size={14} /> DZIENNIK
+            </button>
+            <button
+              onClick={() => setClusterTab("plan")}
+              className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+              style={{
+                fontFamily: FONT_MONO,
+                color: clusterTab === "plan" ? INK : INK_SOFT,
+                borderBottom: clusterTab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent",
+              }}
+            >
+              <CalendarDays size={14} /> PLAN
+            </button>
+            <button
+              onClick={() => setClusterTab("stats")}
+              className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+              style={{
+                fontFamily: FONT_MONO,
+                color: clusterTab === "stats" ? INK : INK_SOFT,
+                borderBottom: clusterTab === "stats" ? `2px solid ${MUSTARD}` : "2px solid transparent",
+              }}
+            >
+              <BarChart3 size={14} /> STATYSTYKI
+            </button>
+            <button
+              onClick={() => setClusterTab("health")}
+              className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+              style={{
+                fontFamily: FONT_MONO,
+                color: clusterTab === "health" ? INK : INK_SOFT,
+                borderBottom: clusterTab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent",
+              }}
+            >
+              <HeartPulse size={14} /> ZDROWIE
+            </button>
+          </div>
+        )}
       </div>
 
       <ExportReminderBanner
@@ -736,7 +751,20 @@ export function Journal({
       />
 
       <div className="px-4 mt-4">
-        {tab === "log" && (
+        {view === "home" && (
+          <HomePanel
+            onOpenDziennik={() => {
+              setView("cluster");
+              setClusterTab("log");
+            }}
+            onOpenPlanner={() => setView("planner")}
+            onOpenZdrowie={() => setView("health")}
+            onOpenTrener={() => setView("coach")}
+            pendingInviteCount={pendingInvites.length}
+          />
+        )}
+
+        {view === "cluster" && clusterTab === "log" && (
           <LogTab
             showForm={showForm}
             startNew={startNew}
@@ -780,7 +808,7 @@ export function Journal({
           />
         )}
 
-        {tab === "health" && (
+        {(view === "health" || (view === "cluster" && clusterTab === "health")) && (
           <HealthTab
             healthEntries={healthEntries}
             editingId={editingHealthId}
@@ -797,7 +825,7 @@ export function Journal({
           />
         )}
 
-        {tab === "stats" && (
+        {view === "cluster" && clusterTab === "stats" && (
           <StatsTab
             workouts={workouts}
             healthEntries={healthEntries}
@@ -843,7 +871,7 @@ export function Journal({
           />
         )}
 
-        {tab === "plan" && (
+        {view === "cluster" && clusterTab === "plan" && (
           <PlanTab
             planEntries={planEntries}
             workouts={workouts}
@@ -869,7 +897,7 @@ export function Journal({
           />
         )}
 
-        {tab === "planner" && (
+        {view === "planner" && (
           <PlannerTab
             personalEvents={personalEvents}
             planEntries={planEntries}
@@ -891,7 +919,7 @@ export function Journal({
           />
         )}
 
-        {tab === "coach" && (
+        {view === "coach" && (
           <CoachTab
             coachGrants={coachGrants}
             pendingInvites={pendingInvites}
