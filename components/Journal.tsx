@@ -56,7 +56,7 @@ import {
   updateSetInList,
 } from "@/lib/calculations";
 import { latestHealthEntry } from "@/lib/healthCalculations";
-import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, gridBg } from "@/lib/design";
+import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, PAPER, gridBg } from "@/lib/design";
 import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
 import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry, LeafExercise, LeafKind, PersonalEvent, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
@@ -117,8 +117,25 @@ export function Journal({
   // the home panel, with no way to hop sideways into the other tabs.
   const [view, setView] = useState<"home" | "cluster" | "planner" | "health" | "coach">("home");
   const [clusterTab, setClusterTab] = useState<"log" | "plan" | "stats" | "health">("log");
+
+  // A soft crossfade layered on top of the home panel's tile-zoom (and,
+  // in reverse, the "powrót" return): the overlay fades to opaque, the
+  // view swaps underneath it while hidden, then it fades back out —
+  // masks the instant swap so it reads as one continuous dissolve
+  // instead of a hard cut.
+  const [fading, setFading] = useState(false);
+  function startTileTransition() {
+    setFading(true);
+  }
+  function afterFade(setter: () => void, delayMs: number) {
+    setTimeout(() => {
+      setter();
+      requestAnimationFrame(() => requestAnimationFrame(() => setFading(false)));
+    }, delayMs);
+  }
   function goHome() {
-    setView("home");
+    setFading(true);
+    afterFade(() => setView("home"), 180);
   }
   const [workouts, setWorkouts] = useSyncedState<Workout[]>(initialWorkouts);
   const [cycles, setCycles] = useSyncedState<Cycle[]>(initialCycles);
@@ -753,13 +770,16 @@ export function Journal({
       <div className="px-4 mt-4">
         {view === "home" && (
           <HomePanel
-            onOpenDziennik={() => {
-              setView("cluster");
-              setClusterTab("log");
-            }}
-            onOpenPlanner={() => setView("planner")}
-            onOpenZdrowie={() => setView("health")}
-            onOpenTrener={() => setView("coach")}
+            onOpenDziennik={() =>
+              afterFade(() => {
+                setView("cluster");
+                setClusterTab("log");
+              }, 0)
+            }
+            onOpenPlanner={() => afterFade(() => setView("planner"), 0)}
+            onOpenZdrowie={() => afterFade(() => setView("health"), 0)}
+            onOpenTrener={() => afterFade(() => setView("coach"), 0)}
+            onTransitionStart={startTileTransition}
             pendingInviteCount={pendingInvites.length}
           />
         )}
@@ -952,6 +972,17 @@ export function Journal({
         onSave={handleSaveHealthEntry}
         saving={healthSaving}
         error={healthError}
+      />
+
+      <div
+        className="fixed inset-0"
+        style={{
+          background: PAPER,
+          opacity: fading ? 1 : 0,
+          pointerEvents: "none",
+          transition: "opacity 220ms ease",
+          zIndex: 50,
+        }}
       />
     </div>
   );

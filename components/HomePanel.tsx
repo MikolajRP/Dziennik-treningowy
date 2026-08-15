@@ -4,11 +4,11 @@ import { useState, type ReactNode } from "react";
 import { BookOpen, CalendarClock, HeartPulse, Users } from "lucide-react";
 import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, PAPER, PLANNER, RACE, TEAL } from "@/lib/design";
 
-const ZOOM_MS = 260;
+export const HOME_TILE_ZOOM_MS = 280;
 
 // Small abstract line-art standing in for a screenshot of each tab's
-// content — blurred behind the glass icon. Kept intentionally simple:
-// a handful of shapes per tile, not a literal illustration.
+// content — blurred behind a frosted glass wash. Kept intentionally
+// simple: a handful of shapes per tile, not a literal illustration.
 function DziennikArt({ accent }: { accent: string }) {
   return (
     <svg viewBox="0 0 200 200" width="100%" height="100%">
@@ -82,12 +82,14 @@ export function HomePanel({
   onOpenPlanner,
   onOpenZdrowie,
   onOpenTrener,
+  onTransitionStart,
   pendingInviteCount,
 }: {
   onOpenDziennik: () => void;
   onOpenPlanner: () => void;
   onOpenZdrowie: () => void;
   onOpenTrener: () => void;
+  onTransitionStart: () => void;
   pendingInviteCount: number;
 }) {
   const [zoomingId, setZoomingId] = useState<string | null>(null);
@@ -95,15 +97,16 @@ export function HomePanel({
   function handleClick(id: string, action: () => void) {
     if (zoomingId) return;
     setZoomingId(id);
-    setTimeout(action, ZOOM_MS);
+    onTransitionStart();
+    setTimeout(action, HOME_TILE_ZOOM_MS);
   }
 
   const tiles: Tile[] = [
-    { id: "log", label: "Dziennik", icon: <BookOpen size={30} />, accent: INK, action: () => handleClick("log", onOpenDziennik), Art: DziennikArt },
+    { id: "log", label: "Dziennik", icon: <BookOpen size={34} strokeWidth={1.75} />, accent: INK, action: () => handleClick("log", onOpenDziennik), Art: DziennikArt },
     {
       id: "planner",
       label: "Planner",
-      icon: <CalendarClock size={30} />,
+      icon: <CalendarClock size={34} strokeWidth={1.75} />,
       accent: PLANNER,
       action: () => handleClick("planner", onOpenPlanner),
       Art: PlannerArt,
@@ -111,7 +114,7 @@ export function HomePanel({
     {
       id: "health",
       label: "Zdrowie",
-      icon: <HeartPulse size={30} />,
+      icon: <HeartPulse size={34} strokeWidth={1.75} />,
       accent: HEALTH,
       action: () => handleClick("health", onOpenZdrowie),
       Art: ZdrowieArt,
@@ -119,7 +122,7 @@ export function HomePanel({
     {
       id: "coach",
       label: "Trener",
-      icon: <Users size={30} />,
+      icon: <Users size={34} strokeWidth={1.75} />,
       accent: TEAL,
       action: () => handleClick("coach", onOpenTrener),
       badge: pendingInviteCount,
@@ -133,38 +136,32 @@ export function HomePanel({
         <button
           key={t.id}
           onClick={t.action}
-          className="relative aspect-square rounded-3xl overflow-hidden"
+          className="relative aspect-square rounded-[28px] overflow-hidden"
           style={{
-            border: `1.5px solid ${INK}`,
+            border: "1px solid rgba(27,42,58,0.14)",
+            boxShadow: "0 14px 30px rgba(27,42,58,0.12)",
             transform: zoomingId === t.id ? "scale(9)" : zoomingId ? "scale(0.92)" : "scale(1)",
             opacity: zoomingId && zoomingId !== t.id ? 0 : 1,
-            transition: `transform ${ZOOM_MS}ms ease, opacity ${ZOOM_MS}ms ease`,
+            transition: `transform ${HOME_TILE_ZOOM_MS}ms ease, opacity ${HOME_TILE_ZOOM_MS}ms ease`,
             zIndex: zoomingId === t.id ? 30 : 1,
           }}
         >
-          <div className="absolute inset-0" style={{ background: PAPER }}>
-            <div style={{ filter: "blur(7px)", opacity: 0.55, transform: "scale(1.3)", width: "100%", height: "100%" }}>
+          {/* blurred, centered background art */}
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: PAPER }}>
+            <div style={{ filter: "blur(9px)", opacity: 0.5, width: "140%", height: "140%" }}>
               <t.Art accent={t.accent} />
             </div>
           </div>
 
+          {/* frosted glass wash over the whole card */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(255,255,255,0.4)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+          />
+
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-            <div
-              className="rounded-2xl flex items-center justify-center"
-              style={{
-                width: 64,
-                height: 64,
-                background: "rgba(255,255,255,0.4)",
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-                border: "1px solid rgba(255,255,255,0.65)",
-                boxShadow: "0 6px 20px rgba(27,42,58,0.16)",
-                color: t.accent,
-              }}
-            >
-              {t.icon}
-            </div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13, letterSpacing: 1, color: INK, fontWeight: 700, textTransform: "uppercase" }}>
+            <div style={{ color: t.accent }}>{t.icon}</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, letterSpacing: 0.5, color: INK, fontWeight: 700, textTransform: "uppercase" }}>
               {t.label}
             </div>
           </div>
