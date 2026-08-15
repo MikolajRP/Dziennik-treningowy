@@ -711,7 +711,7 @@ export function Journal({
         {view === "home" && (
           <h1
             className="tracking-wide uppercase text-center"
-            style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700, fontSize: 40, lineHeight: 1.05, margin: "28px 0 22px" }}
+            style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700, fontSize: 54, lineHeight: 1.05, margin: "30px 0 24px" }}
           >
             Dziennik
             <br />

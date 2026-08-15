@@ -157,10 +157,10 @@ function TrenerPreview({ coachGrants, accent }: { coachGrants: CoachAccess[]; ac
 }
 
 const liquidGlassWash: CSSProperties = {
-  background: "linear-gradient(135deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.24) 45%, rgba(255,255,255,0.34) 100%)",
-  backdropFilter: "blur(16px) saturate(180%)",
-  WebkitBackdropFilter: "blur(16px) saturate(180%)",
-  boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -14px 24px rgba(255,255,255,0.12), inset 0 -1px 2px rgba(27,42,58,0.08)",
+  background: "linear-gradient(135deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.1) 45%, rgba(255,255,255,0.16) 100%)",
+  backdropFilter: "blur(6px) saturate(160%)",
+  WebkitBackdropFilter: "blur(6px) saturate(160%)",
+  boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -14px 24px rgba(255,255,255,0.1), inset 0 -1px 2px rgba(27,42,58,0.08)",
 };
 
 interface Tile {
@@ -264,9 +264,9 @@ export function HomePanel({
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: PAPER }}>
               <div
                 style={{
-                  filter: active ? "blur(0px)" : "blur(9px)",
+                  filter: active ? "blur(0px)" : "blur(4px)",
                   transition: `filter ${HOME_TILE_ZOOM_MS}ms ease`,
-                  opacity: 0.62,
+                  opacity: 0.88,
                   width: "140%",
                   height: "140%",
                 }}
@@ -296,10 +296,21 @@ export function HomePanel({
               style={{ ...liquidGlassWash, opacity: active ? 0 : 1, transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease` }}
             />
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2.5"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3"
               style={{ opacity: active ? 0 : 1, transition: `opacity ${HOME_TILE_ZOOM_MS}ms ease` }}
             >
-              <div style={{ color: t.accent }}>{t.icon}</div>
+              <div
+                className="rounded-2xl flex items-center justify-center"
+                style={{
+                  width: 66,
+                  height: 66,
+                  background: `linear-gradient(155deg, rgba(255,255,255,0.85) 0%, ${t.accent}26 55%, ${t.accent}3d 100%)`,
+                  boxShadow: `inset 0 1.5px 1.5px rgba(255,255,255,0.95), inset 0 -6px 10px rgba(27,42,58,0.1), 0 8px 16px rgba(27,42,58,0.22), 0 2px 4px rgba(27,42,58,0.18)`,
+                  border: "1px solid rgba(255,255,255,0.7)",
+                }}
+              >
+                <div style={{ color: t.accent, filter: "drop-shadow(0 2px 3px rgba(27,42,58,0.35))" }}>{t.icon}</div>
+              </div>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, letterSpacing: 0.5, color: INK, fontWeight: 700, textTransform: "uppercase" }}>
                 {t.label}
               </div>
