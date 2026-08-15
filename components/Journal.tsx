@@ -667,6 +667,115 @@ export function Journal({
     last12WeeksRunning,
   } = useReportsData(workouts, cycles, period, selectedCycleId, customStart, customEnd);
 
+  // ---------- home panel: real tab content, mounted read-only and
+  // miniaturized, as the tile backgrounds (see HomePanel.tsx) ----------
+  const noop = () => {};
+  const emptyCircuitHandlers = (): CircuitElementHandlers => ({
+    add: noop,
+    update: noop,
+    remove: noop,
+    toggleUnilateral: noop,
+    addSet: noop,
+    updateSet: noop,
+    removeSet: noop,
+  });
+  const dziennikPreview = (
+    <LogTab
+      readOnly
+      showForm={false}
+      startNew={noop}
+      draft={emptyDraft()}
+      setDraft={noop}
+      categories={categories}
+      newCategoryDrafts={{ bieganie: "", inne: "", silownia: "" }}
+      setNewCategoryDraft={noop}
+      addCategory={noop}
+      addExercise={noop}
+      updateExercise={noop}
+      removeExercise={noop}
+      reorderExercise={noop}
+      addSet={noop}
+      updateSet={noop}
+      removeSet={noop}
+      toggleUnilateral={noop}
+      circuitElementHandlers={emptyCircuitHandlers}
+      saveWorkout={noop}
+      cancelForm={noop}
+      editingId={null}
+      sortedWorkouts={sortedWorkouts}
+      expandedId={null}
+      setExpandedId={noop}
+      startEdit={noop}
+      startDuplicate={noop}
+      confirmDeleteId={null}
+      setConfirmDeleteId={noop}
+      deleteWorkout={noop}
+      prIds={prIds}
+      thisWeekKm={thisWeekRunning.km}
+      formError={null}
+      saveStatus={null}
+      knownExerciseNames={knownExerciseNames}
+      mergeSourceId={null}
+      setMergeSourceId={noop}
+      onMergeConfirm={noop}
+      onReorderWorkouts={noop}
+      onDetachActivity={noop}
+      onReorderActivities={noop}
+    />
+  );
+  const plannerPreview = (
+    <PlannerTab
+      personalEvents={personalEvents}
+      planEntries={planEntries}
+      workouts={workouts}
+      races={races}
+      editingId={null}
+      draft={emptyEventDraft()}
+      setDraft={noop}
+      showAddForm={false}
+      setShowAddForm={noop}
+      startEdit={noop}
+      cancelForm={noop}
+      saveEvent={noop}
+      deleteEvent={noop}
+      toggleDone={noop}
+      reorderEvents={noop}
+      onJumpToWorkout={noop}
+      error={null}
+    />
+  );
+  const zdrowiePreview = (
+    <HealthTab
+      readOnly
+      healthEntries={healthEntries}
+      editingId={null}
+      draft={healthDraft}
+      setDraft={noop}
+      startEdit={noop}
+      cancelEdit={noop}
+      saveEntry={noop}
+      deleteEntry={noop}
+      saving={false}
+      formError={null}
+      confirmDeleteId={null}
+      setConfirmDeleteId={noop}
+    />
+  );
+  const trenerPreview = (
+    <CoachTab
+      coachGrants={coachGrants}
+      pendingInvites={pendingInvites}
+      athletesForCoach={athletesForCoach}
+      newCoachEmail=""
+      setNewCoachEmail={noop}
+      inviteError={null}
+      onInvite={noop}
+      onAccept={noop}
+      onTogglePermission={noop}
+      onRevoke={noop}
+    />
+  );
+
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
@@ -782,10 +891,10 @@ export function Journal({
       <div className="px-4 mt-4">
         {view === "home" && (
           <HomePanel
-            workouts={workouts}
-            personalEvents={personalEvents}
-            healthEntries={healthEntries}
-            coachGrants={coachGrants}
+            dziennikPreview={dziennikPreview}
+            plannerPreview={plannerPreview}
+            zdrowiePreview={zdrowiePreview}
+            trenerPreview={trenerPreview}
             onOpenDziennik={() =>
               afterFade(() => {
                 setView("cluster");
