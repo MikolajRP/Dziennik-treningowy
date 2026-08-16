@@ -1,9 +1,29 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Minus } from "lucide-react";
-import { fmtShort } from "@/lib/calculations";
-import { CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, LINE, PLAN_DONE, RUST } from "@/lib/design";
+import { useState } from "react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Minus } from "lucide-react";
+import {
+  computeWorkoutAerobicMinutes,
+  computeWorkoutFunctionalMinutes,
+  computeWorkoutIsometricTUT,
+  computeWorkoutPlyoReps,
+  computeWorkoutTonnage,
+  fmtDurationShort,
+  fmtShort,
+} from "@/lib/calculations";
+import {
+  computeWorkoutStravaAvgSpeedMps,
+  computeWorkoutStravaDistanceM,
+  computeWorkoutStravaMovingTimeS,
+  isCyclingActivityType,
+  isSwimmingActivityType,
+} from "@/lib/stravaCalculations";
+import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, PLAN_DONE, PLYO, RUST, TEAL } from "@/lib/design";
 import type { HealthEntry, Workout } from "@/lib/types";
+import { StravaCollapsedSummary, StravaSingleActivity } from "./StravaActivityCard";
+import { WorkoutExerciseSummary } from "./WorkoutExerciseSummary";
+
+const noop = () => {};
 
 // green = risen since the previous measurement, red = dropped, gray dash =
 // unchanged or there's no previous measurement to compare against.
@@ -37,10 +57,70 @@ function MetricCell({
   );
 }
 
+// The "ostatni trening" row of the quick profile, expandable in place —
+// a read-only, self-contained trim of LogTab's WorkoutCard (no drag/edit/
+// merge, since this is just a glance, not the Dziennik itself).
+function LastWorkoutPreview({ workout }: { workout: Workout }) {
+  const [expanded, setExpanded] = useState(false);
+  const tonnage = computeWorkoutTonnage(workout);
+  const plyoReps = computeWorkoutPlyoReps(workout);
+  const isometricTUT = computeWorkoutIsometricTUT(workout);
+  const functionalMin = computeWorkoutFunctionalMinutes(workout);
+  const aerobicMin = computeWorkoutAerobicMinutes(workout);
+  const hasStrava = (workout.stravaActivities?.length ?? 0) > 0;
+  const allCycling = hasStrava && workout.stravaActivities!.every((a) => isCyclingActivityType(a.type));
+  const allSwimming = hasStrava && workout.stravaActivities!.every((a) => isSwimmingActivityType(a.type));
+
+  return (
+    <div>
+      <button className="w-full px-4 py-2.5 flex items-center justify-between gap-2" onClick={() => setExpanded((e) => !e)}>
+        <div className="text-left">
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Ostatni trening
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK, fontWeight: 600 }}>
+            {fmtShort(workout.date)} · {workout.category}
+            {workout.name ? ` — ${workout.name}` : ""}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {hasStrava ? (
+            <StravaCollapsedSummary
+              distanceM={computeWorkoutStravaDistanceM(workout)}
+              movingTimeS={computeWorkoutStravaMovingTimeS(workout)}
+              avgSpeedMps={computeWorkoutStravaAvgSpeedMps(workout)}
+              mode={allCycling ? "speed" : allSwimming ? "pace100m" : "pace"}
+            />
+          ) : (
+            <div className="text-right" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK }}>
+              {tonnage > 0 && <div>{Math.round(tonnage)} kg</div>}
+              {plyoReps > 0 && <div style={{ color: PLYO }}>{plyoReps} powt. plyo</div>}
+              {isometricTUT > 0 && <div style={{ color: ISO }}>TUT {fmtDurationShort(isometricTUT)} izo</div>}
+              {functionalMin > 0 && <div style={{ color: TEAL }}>{functionalMin} min funkc.</div>}
+              {aerobicMin > 0 && <div style={{ color: AERO }}>{aerobicMin} min aerob.</div>}
+            </div>
+          )}
+          {expanded ? <ChevronUp size={16} color={INK_SOFT} /> : <ChevronDown size={16} color={INK_SOFT} />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-3 pt-1" style={{ borderTop: `1px dashed ${LINE}` }}>
+          {workout.notes && <div className="text-xs mb-2 italic" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>{workout.notes}</div>}
+          {hasStrava &&
+            workout.stravaActivities!.map((a) => <StravaSingleActivity key={a.id} activity={a} onDetach={noop} readOnly />)}
+          {workout.exercises.length > 0 && <WorkoutExerciseSummary exercises={workout.exercises} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // A quick-glance profile strip shown under the coach's home-panel title:
 // the athlete's most recent HRV and self-reported wellbeing (each with a
 // trend arrow vs. their previous measurement) plus their last logged
-// workout — everything a coach checks first, before opening any tab.
+// workout, expandable in place for a full read-only preview — everything
+// a coach checks first, before opening any tab.
 export function AthleteProfileCard({
   latestHealth,
   previousHealth,
@@ -67,15 +147,7 @@ export function AthleteProfileCard({
           />
         </div>
       )}
-      {lastWorkout && (
-        <div className="px-4 py-2.5 flex items-baseline justify-between gap-2" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>
-          <span>Ostatni trening</span>
-          <span style={{ color: INK, fontWeight: 600 }}>
-            {fmtShort(lastWorkout.date)} · {lastWorkout.category}
-            {lastWorkout.name ? ` — ${lastWorkout.name}` : ""}
-          </span>
-        </div>
-      )}
+      {lastWorkout && <LastWorkoutPreview workout={lastWorkout} />}
     </div>
   );
 }

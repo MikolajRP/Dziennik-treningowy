@@ -398,37 +398,49 @@ export function CoachAthleteView({
             <NotebookPen size={14} /> Dodaj notatkę
           </button>
         </div>
-        <div className="mt-2">
-          {editingName ? (
-            <div className="flex items-center gap-1.5">
-              <input
-                autoFocus
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveAthleteName()}
-                placeholder="Imię i nazwisko zawodnika"
-                className="px-2 py-1 rounded text-sm"
-                style={inputStyle}
-              />
-              <IconBtn onClick={saveAthleteName} title="Zapisz">
-                <Check size={16} />
-              </IconBtn>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setNameInput(displayName ?? "");
-                setEditingName(true);
-              }}
-              className="flex items-center gap-1.5"
-            >
-              <h1 className="text-xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
-                {displayName || athleteEmail}
-              </h1>
-              <Pencil size={13} color={INK_SOFT} />
-            </button>
-          )}
-        </div>
+        {view !== "home" && (
+          <div className="mt-2">
+            {editingName ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveAthleteName()}
+                  placeholder="Imię i nazwisko zawodnika"
+                  className="px-2 py-1 rounded text-sm"
+                  style={inputStyle}
+                />
+                <IconBtn onClick={saveAthleteName} title="Zapisz">
+                  <Check size={16} />
+                </IconBtn>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setNameInput(displayName ?? "");
+                  setEditingName(true);
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <h1 className="text-xl tracking-wide uppercase" style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700 }}>
+                  {displayName || athleteEmail}
+                </h1>
+                <Pencil size={13} color={INK_SOFT} />
+              </button>
+            )}
+          </div>
+        )}
+        {view === "home" && (
+          <h1
+            className="tracking-wide uppercase text-center"
+            style={{ fontFamily: FONT_DISPLAY, color: INK, fontWeight: 700, fontSize: 54, lineHeight: 1.05, margin: "30px 0 24px" }}
+          >
+            Dziennik
+            <br />
+            Treningowy
+          </h1>
+        )}
         {view === "cluster" && (
           <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <button
