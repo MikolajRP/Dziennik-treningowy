@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { BookOpen, CalendarClock, HeartPulse, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarClock, CalendarDays, HeartPulse, Users } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { addDays, getMonthWeeks, startOfMonth, todayISO } from "@/lib/calculations";
 import { healthSeriesForLastDays } from "@/lib/healthCalculations";
-import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
+import { entriesForDate, raceForDate } from "@/lib/planCalculations";
+import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE, PLAN_DONE, PLAN_FUTURE, PLAN_MISSED, PLANNER, RACE, TEAL, gridBg } from "@/lib/design";
 import { STRAVA_ORANGE } from "./StravaConnect";
-import type { HealthEntry, PersonalEvent } from "@/lib/types";
+import type { HealthEntry, PersonalEvent, PlanEntry, Race, Workout } from "@/lib/types";
 import type { WeeklyRunningDatum } from "@/lib/stravaCalculations";
 
 export const HOME_TILE_ZOOM_MS = 320;
@@ -73,6 +74,46 @@ function PlannerBackground({ personalEvents }: { personalEvents: PersonalEvent[]
   );
 }
 
+// The coach's "Plan" tile shows the same month grid shape as Planner, but
+// each day is colored by real training-plan status (done/missed/planned)
+// instead of personal-event colors, with race days pinned in RACE red.
+function PlanCalendarBackground({ planEntries, workouts, races }: { planEntries: PlanEntry[]; workouts: Workout[]; races: Race[] }) {
+  const today = todayISO();
+  const monthStart = startOfMonth(today);
+  const weekStarts = getMonthWeeks(monthStart);
+  const STATUS_COLOR: Record<string, string> = { done: PLAN_DONE, missed: PLAN_MISSED, planned: PLAN_FUTURE };
+  return (
+    <div className="w-full h-full flex flex-col justify-center gap-1.5 px-5">
+      {weekStarts.map((weekStart) => (
+        <div key={weekStart} className="flex gap-1.5">
+          {Array.from({ length: 7 }, (_, i) => {
+            const date = addDays(weekStart, i);
+            const inMonth = date.slice(0, 7) === monthStart.slice(0, 7);
+            const isToday = date === today;
+            const dayEntries = entriesForDate(planEntries, workouts, date);
+            const race = raceForDate(races, date);
+            const dotColor = race ? RACE : dayEntries.length > 0 ? STATUS_COLOR[dayEntries[0].status] : undefined;
+            return (
+              <div
+                key={date}
+                className="flex-1 aspect-square rounded-md flex items-center justify-center relative"
+                style={{ background: isToday ? PLANNER : "rgba(255,255,255,0.55)", opacity: inMonth ? 1 : 0.3 }}
+              >
+                <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: isToday ? "#fff" : INK, fontWeight: 600 }}>
+                  {Number(date.slice(8, 10))}
+                </span>
+                {dotColor && (
+                  <div className="absolute rounded-full" style={{ width: 4.5, height: 4.5, bottom: 3, background: dotColor }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ZdrowieBackground({ healthEntries }: { healthEntries: HealthEntry[] }) {
   const series = healthSeriesForLastDays(healthEntries, 30, todayISO());
   return (
@@ -120,83 +161,28 @@ const liquidGlassWash: CSSProperties = {
   boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -14px 24px rgba(255,255,255,0.1), inset 0 -1px 2px rgba(27,42,58,0.08)",
 };
 
-interface Tile {
+export interface HomeTile {
   id: string;
   label: string;
   icon: ReactNode;
   accent: string;
-  action: () => void;
+  onOpen: () => void;
   badge?: number;
   background: ReactNode;
 }
 
-export function HomePanel({
-  last12WeeksRunning,
-  personalEvents,
-  healthEntries,
-  trenerPreview,
-  onOpenDziennik,
-  onOpenPlanner,
-  onOpenZdrowie,
-  onOpenTrener,
-  onTransitionStart,
-  pendingInviteCount,
-}: {
-  last12WeeksRunning: WeeklyRunningDatum[];
-  personalEvents: PersonalEvent[];
-  healthEntries: HealthEntry[];
-  trenerPreview: ReactNode;
-  onOpenDziennik: () => void;
-  onOpenPlanner: () => void;
-  onOpenZdrowie: () => void;
-  onOpenTrener: () => void;
-  onTransitionStart: () => void;
-  pendingInviteCount: number;
-}) {
+// Shared grid + zoom-transition chrome for both the athlete's and the
+// coach's home panels — only the tile list (icons/colors/backgrounds/
+// destinations) differs between the two.
+function HomeTileGrid({ tiles, onTransitionStart }: { tiles: HomeTile[]; onTransitionStart: () => void }) {
   const [zoomingId, setZoomingId] = useState<string | null>(null);
 
-  function handleClick(id: string, action: () => void) {
+  function handleClick(t: HomeTile) {
     if (zoomingId) return;
-    setZoomingId(id);
+    setZoomingId(t.id);
     onTransitionStart();
-    setTimeout(action, HOME_TILE_ZOOM_MS);
+    setTimeout(t.onOpen, HOME_TILE_ZOOM_MS);
   }
-
-  const tiles: Tile[] = [
-    {
-      id: "log",
-      label: "Dziennik",
-      icon: <BookOpen size={34} strokeWidth={1.75} />,
-      accent: INK,
-      action: () => handleClick("log", onOpenDziennik),
-      background: <DziennikBackground last12WeeksRunning={last12WeeksRunning} />,
-    },
-    {
-      id: "planner",
-      label: "Planner",
-      icon: <CalendarClock size={34} strokeWidth={1.75} />,
-      accent: PLANNER,
-      action: () => handleClick("planner", onOpenPlanner),
-      background: <PlannerBackground personalEvents={personalEvents} />,
-    },
-    {
-      id: "health",
-      label: "Zdrowie",
-      icon: <HeartPulse size={34} strokeWidth={1.75} />,
-      accent: HEALTH,
-      action: () => handleClick("health", onOpenZdrowie),
-      background: <ZdrowieBackground healthEntries={healthEntries} />,
-    },
-    {
-      id: "coach",
-      label: "Trener",
-      icon: <Users size={34} strokeWidth={1.75} />,
-      accent: TEAL,
-      action: () => handleClick("coach", onOpenTrener),
-      badge: pendingInviteCount,
-      background: <TrenerBackground preview={trenerPreview} />,
-    },
-  ];
 
   return (
     <div className="grid grid-cols-2 gap-4 pb-6">
@@ -205,7 +191,7 @@ export function HomePanel({
         return (
           <button
             key={t.id}
-            onClick={t.action}
+            onClick={() => handleClick(t)}
             className="relative aspect-square rounded-[28px] overflow-hidden"
             style={{
               border: "1px solid rgba(27,42,58,0.14)",
@@ -286,4 +272,127 @@ export function HomePanel({
       })}
     </div>
   );
+}
+
+export function HomePanel({
+  last12WeeksRunning,
+  personalEvents,
+  healthEntries,
+  trenerPreview,
+  onOpenDziennik,
+  onOpenPlanner,
+  onOpenZdrowie,
+  onOpenTrener,
+  onTransitionStart,
+  pendingInviteCount,
+}: {
+  last12WeeksRunning: WeeklyRunningDatum[];
+  personalEvents: PersonalEvent[];
+  healthEntries: HealthEntry[];
+  trenerPreview: ReactNode;
+  onOpenDziennik: () => void;
+  onOpenPlanner: () => void;
+  onOpenZdrowie: () => void;
+  onOpenTrener: () => void;
+  onTransitionStart: () => void;
+  pendingInviteCount: number;
+}) {
+  const tiles: HomeTile[] = [
+    {
+      id: "log",
+      label: "Dziennik",
+      icon: <BookOpen size={34} strokeWidth={1.75} />,
+      accent: INK,
+      onOpen: onOpenDziennik,
+      background: <DziennikBackground last12WeeksRunning={last12WeeksRunning} />,
+    },
+    {
+      id: "planner",
+      label: "Planner",
+      icon: <CalendarClock size={34} strokeWidth={1.75} />,
+      accent: PLANNER,
+      onOpen: onOpenPlanner,
+      background: <PlannerBackground personalEvents={personalEvents} />,
+    },
+    {
+      id: "health",
+      label: "Zdrowie",
+      icon: <HeartPulse size={34} strokeWidth={1.75} />,
+      accent: HEALTH,
+      onOpen: onOpenZdrowie,
+      background: <ZdrowieBackground healthEntries={healthEntries} />,
+    },
+    {
+      id: "coach",
+      label: "Trener",
+      icon: <Users size={34} strokeWidth={1.75} />,
+      accent: TEAL,
+      onOpen: onOpenTrener,
+      badge: pendingInviteCount,
+      background: <TrenerBackground preview={trenerPreview} />,
+    },
+  ];
+
+  return <HomeTileGrid tiles={tiles} onTransitionStart={onTransitionStart} />;
+}
+
+// The coach's home panel — same glass-tile grid and zoom/crossfade chrome
+// as the athlete's, but for the three tabs a coach actually has: the
+// training Plan (which is also the gateway into Dziennik/Statystyki/Notatki
+// for that athlete), Zdrowie, and Statystyki, each standing on its own.
+export function CoachHomePanel({
+  planEntries,
+  workouts,
+  races,
+  healthEntries,
+  last12WeeksRunning,
+  onOpenPlan,
+  onOpenZdrowie,
+  onOpenStatystyki,
+  onTransitionStart,
+  canViewReports,
+}: {
+  planEntries: PlanEntry[];
+  workouts: Workout[];
+  races: Race[];
+  healthEntries: HealthEntry[];
+  last12WeeksRunning: WeeklyRunningDatum[];
+  onOpenPlan: () => void;
+  onOpenZdrowie: () => void;
+  onOpenStatystyki: () => void;
+  onTransitionStart: () => void;
+  canViewReports: boolean;
+}) {
+  const tiles: HomeTile[] = [
+    {
+      id: "plan",
+      label: "Plan",
+      icon: <CalendarDays size={34} strokeWidth={1.75} />,
+      accent: PLANNER,
+      onOpen: onOpenPlan,
+      background: <PlanCalendarBackground planEntries={planEntries} workouts={workouts} races={races} />,
+    },
+    {
+      id: "health",
+      label: "Zdrowie",
+      icon: <HeartPulse size={34} strokeWidth={1.75} />,
+      accent: HEALTH,
+      onOpen: onOpenZdrowie,
+      background: <ZdrowieBackground healthEntries={healthEntries} />,
+    },
+    ...(canViewReports
+      ? [
+          {
+            id: "stats",
+            label: "Statystyki",
+            icon: <BarChart3 size={34} strokeWidth={1.75} />,
+            accent: TEAL,
+            onOpen: onOpenStatystyki,
+            background: <DziennikBackground last12WeeksRunning={last12WeeksRunning} />,
+          } satisfies HomeTile,
+        ]
+      : []),
+  ];
+
+  return <HomeTileGrid tiles={tiles} onTransitionStart={onTransitionStart} />;
 }

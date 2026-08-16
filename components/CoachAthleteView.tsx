@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, NotebookPen, Pencil, StickyNote } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HelpCircle, LogOut, NotebookPen, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -21,7 +21,7 @@ import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
 import { coachTutorialSeenKey } from "@/lib/onboarding";
-import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, RACE, gridBg, inputStyle } from "@/lib/design";
+import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, PAPER, RACE, gridBg, inputStyle } from "@/lib/design";
 import type { Category, CoachNote, Cycle, HealthEntry, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
@@ -33,6 +33,8 @@ import { HealthTab } from "./HealthTab";
 import { EMPTY_HEALTH_DRAFT } from "./HealthEntryForm";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { FloatingNoteWidget } from "./FloatingNoteWidget";
+import { CoachHomePanel } from "./HomePanel";
+import { AthleteProfileCard } from "./AthleteProfileCard";
 import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
 
@@ -72,8 +74,28 @@ export function CoachAthleteView({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [tab, setTab] = useState<"log" | "health" | "stats" | "plan" | "notes">("plan");
+  // Same two-level navigation as the athlete's own Journal: a home panel of
+  // tiles, with "Plan" as the one tile that leads into a navigable cluster
+  // (Plan/Statystyki/Dziennik/Notatki) and Zdrowie/Statystyki reachable
+  // directly as standalone destinations too.
+  const [view, setView] = useState<"home" | "cluster" | "health" | "stats">("home");
+  const [clusterTab, setClusterTab] = useState<"plan" | "stats" | "log" | "notes">("plan");
   const [showNoteWidget, setShowNoteWidget] = useState(false);
+
+  const [fading, setFading] = useState(false);
+  function startTileTransition() {
+    setFading(true);
+  }
+  function afterFade(setter: () => void, delayMs: number) {
+    setTimeout(() => {
+      setter();
+      requestAnimationFrame(() => requestAnimationFrame(() => setFading(false)));
+    }, delayMs);
+  }
+  function goHome() {
+    setFading(true);
+    afterFade(() => setView("home"), 180);
+  }
   const [healthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
   const healthByDate = useMemo(() => {
     const map: Record<string, HealthEntry> = {};
@@ -282,7 +304,7 @@ export function CoachAthleteView({
   }
 
   function jumpToWorkout(workoutId: string) {
-    setTab("log");
+    setClusterTab("log");
     setExpandedId(workoutId);
     requestAnimationFrame(() => {
       setTimeout(() => {
@@ -321,6 +343,14 @@ export function CoachAthleteView({
     last12WeeksRunning,
   } = useReportsData(workouts, cycles, period, selectedCycleId, customStart, customEnd);
 
+  // Home-panel profile strip: the two most recent health entries (for the
+  // HRV/samopoczucie trend arrows) and the single most recent workout —
+  // independent of the report period filter above, always "right now."
+  const sortedHealthEntries = useMemo(() => [...healthEntries].sort((a, b) => (a.date < b.date ? 1 : -1)), [healthEntries]);
+  const latestHealthEntry = sortedHealthEntries[0] ?? null;
+  const previousHealthEntry = sortedHealthEntries[1] ?? null;
+  const lastWorkout = sortedWorkouts[0] ?? null;
+
   const emptyCircuitHandlers = (): CircuitElementHandlers => ({
     add: noop,
     update: noop,
@@ -334,6 +364,15 @@ export function CoachAthleteView({
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
+        {view !== "home" && (
+          <button
+            onClick={goHome}
+            className="flex items-center gap-1 text-xs mb-1.5"
+            style={{ fontFamily: FONT_MONO, color: INK_SOFT }}
+          >
+            <ArrowLeft size={14} /> Powrót
+          </button>
+        )}
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={() => signOut()}
@@ -390,49 +429,67 @@ export function CoachAthleteView({
             </button>
           )}
         </div>
-        <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          <button
-            onClick={() => setTab("plan")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "plan" ? INK : INK_SOFT, borderBottom: tab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <CalendarDays size={14} /> PLAN
-          </button>
-          <button
-            onClick={() => setTab("notes")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "notes" ? INK : INK_SOFT, borderBottom: tab === "notes" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <StickyNote size={14} /> NOTATKI
-          </button>
-          <button
-            onClick={() => setTab("log")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "log" ? INK : INK_SOFT, borderBottom: tab === "log" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <BookOpen size={14} /> DZIENNIK
-          </button>
-          <button
-            onClick={() => setTab("health")}
-            className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-            style={{ fontFamily: FONT_MONO, color: tab === "health" ? INK : INK_SOFT, borderBottom: tab === "health" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
-          >
-            <HeartPulse size={14} /> ZDROWIE
-          </button>
-          {canViewReports && (
+        {view === "cluster" && (
+          <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <button
-              onClick={() => setTab("stats")}
+              onClick={() => setClusterTab("plan")}
               className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
-              style={{ fontFamily: FONT_MONO, color: tab === "stats" ? INK : INK_SOFT, borderBottom: tab === "stats" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+              style={{ fontFamily: FONT_MONO, color: clusterTab === "plan" ? INK : INK_SOFT, borderBottom: clusterTab === "plan" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
             >
-              <BarChart3 size={14} /> STATYSTYKI
+              <CalendarDays size={14} /> PLAN
             </button>
-          )}
-        </div>
+            {canViewReports && (
+              <button
+                onClick={() => setClusterTab("stats")}
+                className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+                style={{ fontFamily: FONT_MONO, color: clusterTab === "stats" ? INK : INK_SOFT, borderBottom: clusterTab === "stats" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+              >
+                <BarChart3 size={14} /> STATYSTYKI
+              </button>
+            )}
+            <button
+              onClick={() => setClusterTab("log")}
+              className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+              style={{ fontFamily: FONT_MONO, color: clusterTab === "log" ? INK : INK_SOFT, borderBottom: clusterTab === "log" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+            >
+              <BookOpen size={14} /> DZIENNIK
+            </button>
+            <button
+              onClick={() => setClusterTab("notes")}
+              className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
+              style={{ fontFamily: FONT_MONO, color: clusterTab === "notes" ? INK : INK_SOFT, borderBottom: clusterTab === "notes" ? `2px solid ${MUSTARD}` : "2px solid transparent" }}
+            >
+              <StickyNote size={14} /> NOTATKI
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="px-4 mt-4">
-        {tab === "log" && (
+        {view === "home" && (
+          <>
+            <AthleteProfileCard latestHealth={latestHealthEntry} previousHealth={previousHealthEntry} lastWorkout={lastWorkout} />
+            <CoachHomePanel
+              planEntries={planEntries}
+              workouts={workouts}
+              races={races}
+              healthEntries={healthEntries}
+              last12WeeksRunning={last12WeeksRunning}
+              onOpenPlan={() =>
+                afterFade(() => {
+                  setView("cluster");
+                  setClusterTab("plan");
+                }, 0)
+              }
+              onOpenZdrowie={() => afterFade(() => setView("health"), 0)}
+              onOpenStatystyki={() => afterFade(() => setView("stats"), 0)}
+              onTransitionStart={startTileTransition}
+              canViewReports={canViewReports}
+            />
+          </>
+        )}
+
+        {view === "cluster" && clusterTab === "log" && (
           <LogTab
             readOnly
             showForm={false}
@@ -477,7 +534,7 @@ export function CoachAthleteView({
           />
         )}
 
-        {tab === "health" && (
+        {view === "health" && (
           <HealthTab
             readOnly
             healthEntries={healthEntries}
@@ -495,9 +552,10 @@ export function CoachAthleteView({
           />
         )}
 
-        {tab === "stats" && canViewReports && (
+        {(view === "stats" || (view === "cluster" && clusterTab === "stats")) && canViewReports && (
           <StatsTab
             readOnly
+            showHealthSubTab
             workouts={workouts}
             healthEntries={healthEntries}
             period={period}
@@ -542,7 +600,7 @@ export function CoachAthleteView({
           />
         )}
 
-        {tab === "plan" && (
+        {view === "cluster" && clusterTab === "plan" && (
           <PlanTab
             planEntries={planEntries}
             workouts={workouts}
@@ -571,13 +629,24 @@ export function CoachAthleteView({
           />
         )}
 
-        {tab === "notes" && (
+        {view === "cluster" && clusterTab === "notes" && (
           <NotesTab notes={coachNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} />
         )}
       </div>
 
       <CoachHelpModal open={showHelp} onClose={closeHelp} />
       <FloatingNoteWidget open={showNoteWidget} onClose={() => setShowNoteWidget(false)} notes={coachNotes} onSaveNote={handleSaveNote} />
+
+      <div
+        className="fixed inset-0"
+        style={{
+          background: PAPER,
+          opacity: fading ? 1 : 0,
+          pointerEvents: "none",
+          transition: "opacity 220ms ease",
+          zIndex: 50,
+        }}
+      />
     </div>
   );
 }
