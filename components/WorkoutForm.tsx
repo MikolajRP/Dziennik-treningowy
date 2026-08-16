@@ -129,10 +129,11 @@ export function WorkoutForm({
       </Field>
 
       <Field label="Podtytuł (opcjonalnie)">
-        <input
+        <textarea
           placeholder="np. tydzień 3, przed zawodami"
           value={draft.subtitle ?? ""}
           onChange={(e) => setDraft((d) => ({ ...d, subtitle: e.target.value }))}
+          rows={2}
           className="w-full px-2 py-1.5 rounded text-sm"
           style={inputStyle}
         />
