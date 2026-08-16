@@ -38,22 +38,24 @@ function MetricCell({
   unit,
   current,
   previous,
+  onClick,
 }: {
   label: string;
   value: string;
   unit: string;
   current: number;
   previous: number | null;
+  onClick: () => void;
 }) {
   return (
-    <div className="flex-1 flex flex-col items-center gap-1 px-2 py-2.5">
+    <button onClick={onClick} className="flex-1 flex flex-col items-center gap-1 px-2 py-2.5" title="Przejdź do zakładki Zdrowie">
       <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: INK_SOFT, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
       <div className="flex items-center gap-1.5">
         <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: INK }}>{value}</span>
         <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT }}>{unit}</span>
         <TrendArrow current={current} previous={previous} />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -125,10 +127,12 @@ export function AthleteProfileCard({
   latestHealth,
   previousHealth,
   lastWorkout,
+  onOpenZdrowie,
 }: {
   latestHealth: HealthEntry | null;
   previousHealth: HealthEntry | null;
   lastWorkout: Workout | null;
+  onOpenZdrowie: () => void;
 }) {
   if (!latestHealth && !lastWorkout) return null;
 
@@ -136,7 +140,14 @@ export function AthleteProfileCard({
     <div className="rounded-2xl mb-6 overflow-hidden" style={{ background: CARD, border: `1px solid ${LINE}` }}>
       {latestHealth && (
         <div className="flex" style={{ borderBottom: lastWorkout ? `1px solid ${LINE}` : undefined }}>
-          <MetricCell label="HRV" value={String(latestHealth.hrv)} unit="ms" current={latestHealth.hrv} previous={previousHealth?.hrv ?? null} />
+          <MetricCell
+            label="HRV"
+            value={String(latestHealth.hrv)}
+            unit="ms"
+            current={latestHealth.hrv}
+            previous={previousHealth?.hrv ?? null}
+            onClick={onOpenZdrowie}
+          />
           <div style={{ width: 1, background: LINE }} />
           <MetricCell
             label="Samopoczucie"
@@ -144,6 +155,7 @@ export function AthleteProfileCard({
             unit="/10"
             current={latestHealth.wellbeing}
             previous={previousHealth?.wellbeing ?? null}
+            onClick={onOpenZdrowie}
           />
         </div>
       )}

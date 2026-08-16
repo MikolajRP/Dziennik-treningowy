@@ -480,7 +480,15 @@ export function CoachAthleteView({
       <div className="px-4 mt-4">
         {view === "home" && (
           <>
-            <AthleteProfileCard latestHealth={latestHealthEntry} previousHealth={previousHealthEntry} lastWorkout={lastWorkout} />
+            <AthleteProfileCard
+              latestHealth={latestHealthEntry}
+              previousHealth={previousHealthEntry}
+              lastWorkout={lastWorkout}
+              onOpenZdrowie={() => {
+                startTileTransition();
+                afterFade(() => setView("health"), 180);
+              }}
+            />
             <CoachHomePanel
               planEntries={planEntries}
               workouts={workouts}
