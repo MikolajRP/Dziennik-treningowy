@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { BarChart3, BookOpen, CalendarClock, CalendarDays, HeartPulse, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarClock, CalendarDays, HeartPulse, Link2 } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { addDays, getMonthWeeks, startOfMonth, todayISO } from "@/lib/calculations";
 import { healthSeriesForLastDays } from "@/lib/healthCalculations";
@@ -130,25 +130,25 @@ function ZdrowieBackground({ healthEntries }: { healthEntries: HealthEntry[] }) 
   );
 }
 
-// No natural "chart" fits Trener, so its tile shows a genuine
+// No natural "chart" fits Połączenia, so its tile shows a genuine
 // miniaturized screenshot of the real tab instead (mounted read-only by
 // the caller) — natural size, scaled down and clipped to the tile.
-const TRENER_PREVIEW_WIDTH = 380;
-const TRENER_PREVIEW_HEIGHT = 640;
-const TRENER_PREVIEW_SCALE = 0.46;
-function TrenerBackground({ preview }: { preview: ReactNode }) {
+const CONNECTIONS_PREVIEW_WIDTH = 380;
+const CONNECTIONS_PREVIEW_HEIGHT = 640;
+const CONNECTIONS_PREVIEW_SCALE = 0.46;
+function ConnectionsBackground({ preview }: { preview: ReactNode }) {
   return (
     <div className="w-full h-full flex items-center justify-center overflow-hidden">
       <div
         style={{
-          width: TRENER_PREVIEW_WIDTH,
-          height: TRENER_PREVIEW_HEIGHT,
-          transform: `scale(${TRENER_PREVIEW_SCALE})`,
+          width: CONNECTIONS_PREVIEW_WIDTH,
+          height: CONNECTIONS_PREVIEW_HEIGHT,
+          transform: `scale(${CONNECTIONS_PREVIEW_SCALE})`,
           transformOrigin: "center",
           overflow: "hidden",
         }}
       >
-        <div style={{ width: TRENER_PREVIEW_WIDTH, minHeight: TRENER_PREVIEW_HEIGHT, padding: 14 }}>{preview}</div>
+        <div style={{ width: CONNECTIONS_PREVIEW_WIDTH, minHeight: CONNECTIONS_PREVIEW_HEIGHT, padding: 14 }}>{preview}</div>
       </div>
     </div>
   );
@@ -278,22 +278,22 @@ export function HomePanel({
   last12WeeksRunning,
   personalEvents,
   healthEntries,
-  trenerPreview,
+  connectionsPreview,
   onOpenDziennik,
   onOpenPlanner,
   onOpenZdrowie,
-  onOpenTrener,
+  onOpenConnections,
   onTransitionStart,
   pendingInviteCount,
 }: {
   last12WeeksRunning: WeeklyRunningDatum[];
   personalEvents: PersonalEvent[];
   healthEntries: HealthEntry[];
-  trenerPreview: ReactNode;
+  connectionsPreview: ReactNode;
   onOpenDziennik: () => void;
   onOpenPlanner: () => void;
   onOpenZdrowie: () => void;
-  onOpenTrener: () => void;
+  onOpenConnections: () => void;
   onTransitionStart: () => void;
   pendingInviteCount: number;
 }) {
@@ -323,13 +323,13 @@ export function HomePanel({
       background: <ZdrowieBackground healthEntries={healthEntries} />,
     },
     {
-      id: "coach",
-      label: "Trener",
-      icon: <Users size={34} strokeWidth={1.75} />,
+      id: "connections",
+      label: "Połączenia",
+      icon: <Link2 size={34} strokeWidth={1.75} />,
       accent: TEAL,
-      onOpen: onOpenTrener,
+      onOpen: onOpenConnections,
       badge: pendingInviteCount,
-      background: <TrenerBackground preview={trenerPreview} />,
+      background: <ConnectionsBackground preview={connectionsPreview} />,
     },
   ];
 

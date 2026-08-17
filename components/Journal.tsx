@@ -14,6 +14,7 @@ import {
   deletePersonalEventRow,
   deleteWorkoutRow,
   detachStravaActivity,
+  disconnectStrava,
   inviteCoach,
   markWorkoutCommentRead,
   reorderPersonalEventsForDay,
@@ -32,10 +33,10 @@ import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
 import { ExportReminderBanner } from "./ExportReminderBanner";
 import { HomePanel } from "./HomePanel";
-import { CoachTab } from "./CoachTab";
+import { ConnectionsTab } from "./ConnectionsTab";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { HealthGate } from "./HealthGate";
-import { isHealthDraftComplete, type HealthDraft } from "./HealthEntryForm";
+import type { HealthDraft } from "./HealthEntryForm";
 import { HealthTab } from "./HealthTab";
 import { PlanTab } from "./PlanTab";
 import { PlannerTab, emptyEventDraft, type EventDraft } from "./PlannerTab";
@@ -71,11 +72,6 @@ function emptyHealthDraft(entries: HealthEntry[]): HealthDraft {
   const latest = latestHealthEntry(entries);
   return {
     date: todayISO(),
-    sleepHours: latest?.sleepHours,
-    sleepQuality: latest?.sleepQuality ?? 50,
-    hrv: latest?.hrv,
-    restingHr: latest?.restingHr,
-    weightKg: latest?.weightKg,
     wellbeing: latest?.wellbeing ?? 5,
     notes: "",
   };
@@ -119,9 +115,9 @@ export function Journal({
 
   // The app opens on a home panel of big tiles; "Dziennik" is the only tile
   // that leads into a navigable cluster (its own tab bar) — Planner,
-  // Zdrowie, and Trener are standalone destinations reachable only from
+  // Zdrowie, and Połączenia are standalone destinations reachable only from
   // the home panel, with no way to hop sideways into the other tabs.
-  const [view, setView] = useState<"home" | "cluster" | "planner" | "health" | "coach">("home");
+  const [view, setView] = useState<"home" | "cluster" | "planner" | "health" | "connections">("home");
   const [clusterTab, setClusterTab] = useState<"log" | "plan" | "stats" | "health">("log");
 
   // A soft crossfade layered on top of the home panel's tile-zoom (and,
@@ -178,11 +174,6 @@ export function Journal({
   function startHealthEdit(entry: HealthEntry) {
     setHealthDraft({
       date: entry.date,
-      sleepHours: entry.sleepHours,
-      sleepQuality: entry.sleepQuality,
-      hrv: entry.hrv,
-      restingHr: entry.restingHr,
-      weightKg: entry.weightKg,
       wellbeing: entry.wellbeing,
       notes: entry.notes,
     });
@@ -194,20 +185,24 @@ export function Journal({
     setHealthError(null);
   }
   async function handleSaveHealthEntry() {
-    if (!isHealthDraftComplete(healthDraft)) return;
     setHealthSaving(true);
     setHealthError(null);
     try {
+      // Sleep/HRV/resting HR/weight aren't in the form anymore (Garmin
+      // supplies them) — carry over whatever this date already has instead
+      // of clobbering it, defaulting to 0 for a brand-new entry that a
+      // Garmin sync (triggered below) will fill in moments later.
+      const existingForDate = healthEntries.find((h) => h.date === healthDraft.date);
       const saved = await saveHealthEntryRow(
         supabase,
         userId,
         {
           date: healthDraft.date,
-          sleepHours: healthDraft.sleepHours!,
-          sleepQuality: healthDraft.sleepQuality,
-          hrv: healthDraft.hrv!,
-          restingHr: healthDraft.restingHr!,
-          weightKg: healthDraft.weightKg!,
+          sleepHours: existingForDate?.sleepHours ?? 0,
+          sleepQuality: existingForDate?.sleepQuality ?? 50,
+          hrv: existingForDate?.hrv ?? 0,
+          restingHr: existingForDate?.restingHr ?? 0,
+          weightKg: existingForDate?.weightKg ?? 0,
           wellbeing: healthDraft.wellbeing,
           notes: healthDraft.notes,
         },
@@ -215,6 +210,11 @@ export function Journal({
       );
       setHealthEntries((prev) => (editingHealthId ? prev.map((h) => (h.id === saved.id ? saved : h)) : [saved, ...prev]));
       setEditingHealthId(null);
+      if (healthDraft.date === todayISO() && garminStatus.connected) {
+        fetch("/api/garmin/sync", { method: "POST" })
+          .then(() => router.refresh())
+          .catch(() => {});
+      }
     } catch {
       setHealthError("Nie udało się zapisać karty zdrowia — spróbuj ponownie.");
     } finally {
@@ -326,10 +326,15 @@ export function Journal({
     }
   }
 
-  // Reflects the server's fresh read on this page load — the Strava OAuth
-  // callback does a full server-driven redirect back to "/", so this is
-  // already up to date without needing client-side state.
-  const stravaConnected = initialStravaConnected;
+  // The Strava OAuth callback does a full server-driven redirect back to
+  // "/", so this only needs router.refresh() (not its own mutation path)
+  // to reflect a fresh connect — but disconnecting from Połączenia is a
+  // plain client-side action, hence still a synced (not static) value.
+  const [stravaConnected] = useSyncedState<boolean>(initialStravaConnected);
+  async function handleDisconnectStrava() {
+    await disconnectStrava(supabase);
+    router.refresh();
+  }
   const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
 
   const [coachGrants, setCoachGrants] = useSyncedState<CoachAccess[]>(initialCoachGrants);
@@ -690,11 +695,11 @@ export function Journal({
     last12WeeksRunning,
   } = useReportsData(workouts, cycles, period, selectedCycleId, customStart, customEnd);
 
-  // The Trener tile's home-panel background is a real screenshot of this
-  // tab (mounted read-only, miniaturized in HomePanel.tsx) rather than a
-  // custom visual, since there's no natural "chart" for it.
-  const trenerPreview = (
-    <CoachTab
+  // The Połączenia tile's home-panel background is a real screenshot of
+  // this tab (mounted read-only, miniaturized in HomePanel.tsx) rather than
+  // a custom visual, since there's no natural "chart" for it.
+  const connectionsPreview = (
+    <ConnectionsTab
       coachGrants={coachGrants}
       pendingInvites={pendingInvites}
       athletesForCoach={athletesForCoach}
@@ -705,6 +710,11 @@ export function Journal({
       onAccept={() => {}}
       onTogglePermission={() => {}}
       onRevoke={() => {}}
+      garminConnected={garminStatus.connected}
+      garminLastSyncedAt={garminStatus.lastSyncedAt}
+      garminLastSyncError={garminStatus.lastSyncError}
+      stravaConnected={stravaConnected}
+      onDisconnectStrava={async () => {}}
     />
   );
 
@@ -826,7 +836,7 @@ export function Journal({
             last12WeeksRunning={last12WeeksRunning}
             personalEvents={personalEvents}
             healthEntries={healthEntries}
-            trenerPreview={trenerPreview}
+            connectionsPreview={connectionsPreview}
             onOpenDziennik={() =>
               afterFade(() => {
                 setView("cluster");
@@ -835,7 +845,7 @@ export function Journal({
             }
             onOpenPlanner={() => afterFade(() => setView("planner"), 0)}
             onOpenZdrowie={() => afterFade(() => setView("health"), 0)}
-            onOpenTrener={() => afterFade(() => setView("coach"), 0)}
+            onOpenConnections={() => afterFade(() => setView("connections"), 0)}
             onTransitionStart={startTileTransition}
             pendingInviteCount={pendingInvites.length}
           />
@@ -903,9 +913,6 @@ export function Journal({
             formError={healthError}
             confirmDeleteId={confirmDeleteHealthId}
             setConfirmDeleteId={setConfirmDeleteHealthId}
-            garminConnected={garminStatus.connected}
-            garminLastSyncedAt={garminStatus.lastSyncedAt}
-            garminLastSyncError={garminStatus.lastSyncError}
           />
         )}
 
@@ -1003,8 +1010,8 @@ export function Journal({
           />
         )}
 
-        {view === "coach" && (
-          <CoachTab
+        {view === "connections" && (
+          <ConnectionsTab
             coachGrants={coachGrants}
             pendingInvites={pendingInvites}
             athletesForCoach={athletesForCoach}
@@ -1015,6 +1022,11 @@ export function Journal({
             onAccept={handleAcceptInvite}
             onTogglePermission={handleTogglePermission}
             onRevoke={handleRevokeCoach}
+            garminConnected={garminStatus.connected}
+            garminLastSyncedAt={garminStatus.lastSyncedAt}
+            garminLastSyncError={garminStatus.lastSyncError}
+            stravaConnected={stravaConnected}
+            onDisconnectStrava={handleDisconnectStrava}
           />
         )}
       </div>

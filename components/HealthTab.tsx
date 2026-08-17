@@ -8,7 +8,6 @@ import { healthSeriesForLastDays, type HealthSeriesPoint } from "@/lib/healthCal
 import { CARD, FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, ISO, LINE as LINE_COLOR, MUSTARD, RUST, TEAL } from "@/lib/design";
 import type { HealthEntry } from "@/lib/types";
 import { Chip, IconBtn, SubTabBar } from "./atoms";
-import { GarminConnect } from "./GarminConnect";
 import { HealthEntryForm, type HealthDraft } from "./HealthEntryForm";
 
 type HealthSubTab = "stats" | "history";
@@ -146,9 +145,6 @@ export function HealthTab({
   formError,
   confirmDeleteId,
   setConfirmDeleteId,
-  garminConnected = false,
-  garminLastSyncedAt = null,
-  garminLastSyncError = null,
 }: {
   healthEntries: HealthEntry[];
   readOnly?: boolean;
@@ -163,9 +159,6 @@ export function HealthTab({
   formError: string | null;
   confirmDeleteId: string | null;
   setConfirmDeleteId: (id: string | null) => void;
-  garminConnected?: boolean;
-  garminLastSyncedAt?: string | null;
-  garminLastSyncError?: string | null;
 }) {
   const [subTab, setSubTab] = useState<HealthSubTab>("stats");
   const [days, setDays] = useState<7 | 30 | 90>(30);
@@ -181,8 +174,6 @@ export function HealthTab({
 
   return (
     <div>
-      {!readOnly && <GarminConnect connected={garminConnected} lastSyncedAt={garminLastSyncedAt} lastSyncError={garminLastSyncError} />}
-
       <SubTabBar
         tabs={[
           { id: "stats" as const, label: "Statystyki", icon: <TrendingUp size={14} /> },
