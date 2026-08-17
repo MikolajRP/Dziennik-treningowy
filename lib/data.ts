@@ -713,17 +713,27 @@ export async function deleteCoachNote(supabase: SupabaseClient, id: string): Pro
 
 // ---------- workout coach comments (athlete-visible, unlike coach notes) ----------
 // One remark per workout — keyed by workout id, upserted in place, so the
-// UI just needs a { [workoutId]: text } map rather than tracking row ids.
+// UI just needs a { [workoutId]: {text, unread} } map rather than tracking
+// row ids. `unread` is `read_at is null`: the coach's save resets it to
+// null, the athlete's mark-read call sets it — see 0018 migration.
 
-export async function fetchWorkoutCoachComments(supabase: SupabaseClient, athleteUserId: string): Promise<Record<string, string>> {
+export interface WorkoutCoachCommentState {
+  text: string;
+  unread: boolean;
+}
+
+export async function fetchWorkoutCoachComments(
+  supabase: SupabaseClient,
+  athleteUserId: string
+): Promise<Record<string, WorkoutCoachCommentState>> {
   const { data, error } = await supabase
     .from("workout_coach_comments")
-    .select("workout_id, text")
+    .select("workout_id, text, read_at")
     .eq("athlete_user_id", athleteUserId);
   if (error) throw error;
-  const map: Record<string, string> = {};
-  (data as { workout_id: string; text: string }[]).forEach((r) => {
-    map[r.workout_id] = r.text;
+  const map: Record<string, WorkoutCoachCommentState> = {};
+  (data as { workout_id: string; text: string; read_at: string | null }[]).forEach((r) => {
+    map[r.workout_id] = { text: r.text, unread: r.read_at === null };
   });
   return map;
 }
@@ -737,7 +747,18 @@ export async function saveWorkoutCoachComment(
 ): Promise<void> {
   const { error } = await supabase
     .from("workout_coach_comments")
-    .upsert({ workout_id: workoutId, athlete_user_id: athleteUserId, coach_user_id: coachUserId, text }, { onConflict: "workout_id" });
+    .upsert(
+      { workout_id: workoutId, athlete_user_id: athleteUserId, coach_user_id: coachUserId, text, read_at: null },
+      { onConflict: "workout_id" }
+    );
+  if (error) throw error;
+}
+
+export async function markWorkoutCommentRead(supabase: SupabaseClient, workoutId: string): Promise<void> {
+  const { error } = await supabase
+    .from("workout_coach_comments")
+    .update({ read_at: new Date().toISOString() })
+    .eq("workout_id", workoutId);
   if (error) throw error;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type HTMLAttributes, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Copy, Link2, MessageSquare, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState, type HTMLAttributes, type ReactNode } from "react";
+import { ChevronDown, ChevronUp, Copy, Link2, MessageCircle, MessageSquare, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
   MouseSensor,
@@ -34,6 +34,7 @@ import {
   isSwimmingActivityType,
 } from "@/lib/stravaCalculations";
 import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL, inputStyle } from "@/lib/design";
+import type { WorkoutCoachCommentState } from "@/lib/data";
 import type { Category, CategoryGroup, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { IconBtn } from "./atoms";
 import { WorkoutForm } from "./WorkoutForm";
@@ -90,6 +91,7 @@ function WorkoutCard({
   coachComment,
   coachCommentEditable,
   onSaveCoachComment,
+  onMarkCommentRead,
 }: {
   w: Workout;
   expanded: boolean;
@@ -105,11 +107,20 @@ function WorkoutCard({
   confirmDeleteId: string | null;
   setConfirmDeleteId: (id: string | null) => void;
   deleteWorkout: (id: string) => void;
-  coachComment: string | undefined;
+  coachComment: WorkoutCoachCommentState | undefined;
   coachCommentEditable: boolean;
   onSaveCoachComment: (workoutId: string, text: string) => void;
+  onMarkCommentRead: (workoutId: string) => void;
 }) {
-  const [commentDraft, setCommentDraft] = useState(coachComment ?? "");
+  const [commentDraft, setCommentDraft] = useState(coachComment?.text ?? "");
+  // Unread only ever matters for the athlete reading a coach's remark, not
+  // for the coach viewing their own — the badge/mark-read flow is gated on
+  // !coachCommentEditable so a coach never fires this for themselves.
+  const commentUnread = !coachCommentEditable && !!coachComment?.unread;
+  useEffect(() => {
+    if (expanded && commentUnread) onMarkCommentRead(w.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, commentUnread]);
   const activitySensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
@@ -150,10 +161,20 @@ function WorkoutCard({
         boxShadow: isDragging ? "0 6px 16px rgba(27,42,58,0.25)" : "none",
         transform: CSS.Transform.toString(transform),
         transition,
-        position: isDragging ? "relative" : undefined,
+        position: "relative",
         zIndex: isDragging ? 20 : undefined,
       }}
     >
+      {commentUnread && (
+        <div
+          className="absolute top-2 right-2 rounded-full flex items-center justify-center"
+          style={{ width: 20, height: 20, background: RUST, zIndex: 2 }}
+          title="Nieprzeczytana uwaga trenera"
+        >
+          <MessageCircle size={11} color="#fff" fill={RUST} />
+        </div>
+      )}
+
       <button
         className="w-full flex items-center justify-between p-3 text-left"
         onClick={() => setExpandedId(expanded ? null : w.id)}
@@ -245,7 +266,7 @@ function WorkoutCard({
             </div>
           )}
 
-          {(coachCommentEditable || (coachComment && coachComment.trim())) && (
+          {(coachCommentEditable || (coachComment?.text && coachComment.text.trim())) && (
             <div className="mt-2 pt-2" style={{ borderTop: `1px dashed ${TEAL}` }}>
               <div
                 className="flex items-center gap-1 mb-1"
@@ -258,7 +279,7 @@ function WorkoutCard({
                   value={commentDraft}
                   onChange={(e) => setCommentDraft(e.target.value)}
                   onBlur={() => {
-                    if (commentDraft !== (coachComment ?? "")) onSaveCoachComment(w.id, commentDraft);
+                    if (commentDraft !== (coachComment?.text ?? "")) onSaveCoachComment(w.id, commentDraft);
                   }}
                   placeholder="Uwagi dla zawodnika o tym treningu…"
                   rows={2}
@@ -267,7 +288,7 @@ function WorkoutCard({
                 />
               ) : (
                 <div className="whitespace-pre-wrap" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
-                  {coachComment}
+                  {coachComment?.text}
                 </div>
               )}
             </div>
@@ -346,6 +367,7 @@ export function LogTab({
   coachComments,
   coachCommentEditable,
   onSaveCoachComment,
+  onMarkCommentRead,
   readOnly = false,
 }: {
   showForm: boolean;
@@ -387,9 +409,10 @@ export function LogTab({
   onReorderWorkouts: (activeId: string, overId: string) => void;
   onDetachActivity: (activityRowId: string) => void;
   onReorderActivities: (workoutId: string, activeId: string, overId: string) => void;
-  coachComments: Record<string, string>;
+  coachComments: Record<string, WorkoutCoachCommentState>;
   coachCommentEditable: boolean;
   onSaveCoachComment: (workoutId: string, text: string) => void;
+  onMarkCommentRead: (workoutId: string) => void;
   readOnly?: boolean;
 }) {
   const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
@@ -539,6 +562,7 @@ export function LogTab({
                       coachComment={coachComments[w.id]}
                       coachCommentEditable={coachCommentEditable}
                       onSaveCoachComment={onSaveCoachComment}
+                      onMarkCommentRead={onMarkCommentRead}
                     />
                   ))}
                 </div>

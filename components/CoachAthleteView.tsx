@@ -18,6 +18,7 @@ import {
   updateAthleteName,
   updatePlanEntry,
 } from "@/lib/data";
+import type { WorkoutCoachCommentState } from "@/lib/data";
 import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
@@ -70,7 +71,7 @@ export function CoachAthleteView({
   initialCoachNotes: CoachNote[];
   initialRaces: Race[];
   initialHealthEntries: HealthEntry[];
-  initialWorkoutCoachComments: Record<string, string>;
+  initialWorkoutCoachComments: Record<string, WorkoutCoachCommentState>;
   canViewReports: boolean;
   canEditPlan: boolean;
 }) {
@@ -286,9 +287,12 @@ export function CoachAthleteView({
   }
 
   // ---------- workout comments (athlete-visible, unlike coach notes) ----------
-  const [workoutCoachComments, setWorkoutCoachComments] = useSyncedState<Record<string, string>>(initialWorkoutCoachComments);
+  const [workoutCoachComments, setWorkoutCoachComments] =
+    useSyncedState<Record<string, WorkoutCoachCommentState>>(initialWorkoutCoachComments);
   async function handleSaveWorkoutComment(workoutId: string, text: string) {
-    setWorkoutCoachComments((prev) => ({ ...prev, [workoutId]: text }));
+    // `unread` only matters for the athlete's own read-tracking; saving
+    // resets it (mirrors the server, which does the same on upsert).
+    setWorkoutCoachComments((prev) => ({ ...prev, [workoutId]: { text, unread: true } }));
     try {
       await saveWorkoutCoachComment(supabase, workoutId, athleteUserId, coachUserId, text);
     } catch {
@@ -565,6 +569,7 @@ export function CoachAthleteView({
             onReorderWorkouts={noop}
             onDetachActivity={noop}
             onReorderActivities={noop}
+            onMarkCommentRead={noop}
             coachComments={workoutCoachComments}
             coachCommentEditable={canEditPlan}
             onSaveCoachComment={handleSaveWorkoutComment}

@@ -15,6 +15,7 @@ import {
   deleteWorkoutRow,
   detachStravaActivity,
   inviteCoach,
+  markWorkoutCommentRead,
   reorderPersonalEventsForDay,
   reorderStravaActivitiesInWorkout,
   reorderWorkoutsInDay,
@@ -26,6 +27,7 @@ import {
   sendCoachInviteEmail,
   updateCoachPermissions,
 } from "@/lib/data";
+import type { WorkoutCoachCommentState } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
 import { ExportReminderBanner } from "./ExportReminderBanner";
@@ -108,7 +110,7 @@ export function Journal({
   initialRaces: Race[];
   initialHealthEntries: HealthEntry[];
   initialPersonalEvents: PersonalEvent[];
-  initialWorkoutCoachComments: Record<string, string>;
+  initialWorkoutCoachComments: Record<string, WorkoutCoachCommentState>;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -144,8 +146,20 @@ export function Journal({
   const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
   const [planEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
   const [races] = useSyncedState<Race[]>(initialRaces);
-  // Read-only here — only a coach with can_edit_plan writes these.
-  const [workoutCoachComments] = useSyncedState<Record<string, string>>(initialWorkoutCoachComments);
+  // The text itself is coach-written and read-only here — only `unread`
+  // ever changes from this side, flipped by handleMarkCommentRead below.
+  const [workoutCoachComments, setWorkoutCoachComments] =
+    useSyncedState<Record<string, WorkoutCoachCommentState>>(initialWorkoutCoachComments);
+  async function handleMarkCommentRead(workoutId: string) {
+    setWorkoutCoachComments((prev) =>
+      prev[workoutId] ? { ...prev, [workoutId]: { ...prev[workoutId], unread: false } } : prev
+    );
+    try {
+      await markWorkoutCommentRead(supabase, workoutId);
+    } catch {
+      // best-effort — the badge just re-appears after the next refresh if this failed
+    }
+  }
 
   // ---------- health (daily wellness check-in) ----------
   const [healthEntries, setHealthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
@@ -866,6 +880,7 @@ export function Journal({
             coachComments={workoutCoachComments}
             coachCommentEditable={false}
             onSaveCoachComment={() => {}}
+            onMarkCommentRead={handleMarkCommentRead}
           />
         )}
 
