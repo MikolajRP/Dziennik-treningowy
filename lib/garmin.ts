@@ -2,8 +2,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { GarminConnect } from "garmin-connect";
 import type { IOauth1Token, IOauth2Token } from "garmin-connect/dist/garmin/types";
+import type { IActivity } from "garmin-connect/dist/garmin/types/activity";
 import { todayISO } from "./calculations";
-import { fetchHealthEntries, saveHealthEntry } from "./data";
+import { fetchHealthEntries, fetchStravaActivitiesMissingGarminEnrichment, saveGarminActivityEnrichment, saveHealthEntry } from "./data";
 
 export interface GarminTokens {
   oauth1: IOauth1Token;
@@ -142,4 +143,62 @@ export async function syncGarminHealthEntryForToday(
   );
 
   return { syncedFields: syncedFields.map((k) => SNAPSHOT_FIELD_LABEL[k]) };
+}
+
+// Strava and Garmin activities share no common ID, so a synced Strava
+// activity is matched to the Garmin activity that started closest to the
+// same instant — same watch, same GPS-synced clock, so a few minutes of
+// tolerance easily covers upload/rounding differences without risking a
+// mismatch against a different real activity nearby in time.
+const GARMIN_MATCH_TOLERANCE_MS = 3 * 60 * 1000;
+const GARMIN_ENRICHMENT_LOOKBACK_DAYS = 14;
+
+export async function enrichStravaActivitiesWithGarmin(
+  supabase: SupabaseClient,
+  userId: string,
+  client: GarminConnect
+): Promise<{ enrichedCount: number }> {
+  const since = new Date(Date.now() - GARMIN_ENRICHMENT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const pending = await fetchStravaActivitiesMissingGarminEnrichment(supabase, userId, since);
+  if (pending.length === 0) return { enrichedCount: 0 };
+
+  let garminActivities: IActivity[];
+  try {
+    garminActivities = await client.getActivities(0, 50);
+  } catch {
+    return { enrichedCount: 0 };
+  }
+
+  const usedGarminIds = new Set<number>();
+  let enrichedCount = 0;
+
+  for (const activity of pending) {
+    const targetMs = new Date(activity.startDate).getTime();
+    let best: IActivity | null = null;
+    let bestDiff = Infinity;
+    for (const ga of garminActivities) {
+      if (usedGarminIds.has(ga.activityId) || typeof ga.beginTimestamp !== "number") continue;
+      const diff = Math.abs(ga.beginTimestamp - targetMs);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = ga;
+      }
+    }
+    if (!best || bestDiff > GARMIN_MATCH_TOLERANCE_MS) continue;
+    usedGarminIds.add(best.activityId);
+
+    await saveGarminActivityEnrichment(supabase, activity.id, {
+      garminActivityId: best.activityId,
+      vo2max: typeof best.vO2MaxValue === "number" ? best.vO2MaxValue : undefined,
+      trainingEffectAerobic: typeof best.aerobicTrainingEffect === "number" ? best.aerobicTrainingEffect : undefined,
+      trainingEffectAnaerobic: typeof best.anaerobicTrainingEffect === "number" ? best.anaerobicTrainingEffect : undefined,
+      trainingEffectLabel: typeof best.trainingEffectLabel === "string" ? best.trainingEffectLabel : undefined,
+      trainingLoad: typeof best.activityTrainingLoad === "number" ? best.activityTrainingLoad : undefined,
+      avgRespirationRate: typeof best.avgRespirationRate === "number" ? best.avgRespirationRate : undefined,
+      avgStress: typeof best.avgStress === "number" ? best.avgStress : undefined,
+    });
+    enrichedCount++;
+  }
+
+  return { enrichedCount };
 }

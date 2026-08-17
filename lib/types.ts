@@ -138,6 +138,16 @@ export interface StravaActivity {
   hrZones: StravaHrZoneBucket[] | null;
   polyline: string | null;
   sortOrder: number; // manual display order among a workout's own activities, drag-reorderable
+  // Garmin-only metrics Strava's API doesn't expose — filled in by a Garmin
+  // sync matching this activity by start time (see lib/garmin.ts). Absent
+  // until a match is found, and absent per-field if Garmin didn't report it.
+  garminVo2max?: number;
+  garminTrainingEffectAerobic?: number;
+  garminTrainingEffectAnaerobic?: number;
+  garminTrainingEffectLabel?: string;
+  garminTrainingLoad?: number;
+  garminAvgRespirationRate?: number;
+  garminAvgStress?: number;
 }
 
 export type CycleType = "mezocykl" | "makrocykl";

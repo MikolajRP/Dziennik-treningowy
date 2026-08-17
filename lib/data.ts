@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORIES } from "./design";
 import type { Category, CategoryGroup, CoachAccess, CoachNote, Cycle, HealthEntry, PersonalEvent, PlanEntry, Race, StravaActivity, Workout, WorkoutExercise } from "./types";
 
 const WORKOUT_SELECT =
-  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline, sort_order)";
+  "id, date, category, name, subtitle, notes, exercises, duration_minutes, time_of_day, sort_order, strava_activities(id, strava_activity_id, name, type, start_date, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, average_speed_mps, average_heartrate, max_heartrate, splits_metric, hr_zones, polyline, sort_order, garmin_vo2max, garmin_training_effect_aerobic, garmin_training_effect_anaerobic, garmin_training_effect_label, garmin_training_load, garmin_avg_respiration_rate, garmin_avg_stress)";
 
 interface StravaActivityRow {
   id: string;
@@ -22,6 +22,13 @@ interface StravaActivityRow {
   hr_zones: StravaActivity["hrZones"];
   polyline: string | null;
   sort_order: number;
+  garmin_vo2max: number | null;
+  garmin_training_effect_aerobic: number | null;
+  garmin_training_effect_anaerobic: number | null;
+  garmin_training_effect_label: string | null;
+  garmin_training_load: number | null;
+  garmin_avg_respiration_rate: number | null;
+  garmin_avg_stress: number | null;
 }
 interface WorkoutRow {
   id: string;
@@ -65,6 +72,13 @@ const stravaActivityFromRow = (r: StravaActivityRow): StravaActivity => ({
   hrZones: r.hr_zones,
   polyline: r.polyline,
   sortOrder: r.sort_order,
+  garminVo2max: r.garmin_vo2max ?? undefined,
+  garminTrainingEffectAerobic: r.garmin_training_effect_aerobic ?? undefined,
+  garminTrainingEffectAnaerobic: r.garmin_training_effect_anaerobic ?? undefined,
+  garminTrainingEffectLabel: r.garmin_training_effect_label ?? undefined,
+  garminTrainingLoad: r.garmin_training_load ?? undefined,
+  garminAvgRespirationRate: r.garmin_avg_respiration_rate ?? undefined,
+  garminAvgStress: r.garmin_avg_stress ?? undefined,
 });
 
 const workoutFromRow = (r: WorkoutRow): Workout => ({
@@ -396,6 +410,53 @@ export async function detachStravaActivity(
     sourceWorkoutId,
     sourceDeleted,
   };
+}
+
+// ---------- Garmin activity enrichment (see lib/garmin.ts) ----------
+
+export async function fetchStravaActivitiesMissingGarminEnrichment(
+  supabase: SupabaseClient,
+  userId: string,
+  sinceISO: string
+): Promise<{ id: string; startDate: string }[]> {
+  const { data, error } = await supabase
+    .from("strava_activities")
+    .select("id, start_date")
+    .eq("user_id", userId)
+    .is("garmin_activity_id", null)
+    .gte("start_date", sinceISO);
+  if (error) throw error;
+  return (data as { id: string; start_date: string }[]).map((r) => ({ id: r.id, startDate: r.start_date }));
+}
+
+export async function saveGarminActivityEnrichment(
+  supabase: SupabaseClient,
+  stravaActivityRowId: string,
+  enrichment: {
+    garminActivityId: number;
+    vo2max?: number;
+    trainingEffectAerobic?: number;
+    trainingEffectAnaerobic?: number;
+    trainingEffectLabel?: string;
+    trainingLoad?: number;
+    avgRespirationRate?: number;
+    avgStress?: number;
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from("strava_activities")
+    .update({
+      garmin_activity_id: enrichment.garminActivityId,
+      garmin_vo2max: enrichment.vo2max ?? null,
+      garmin_training_effect_aerobic: enrichment.trainingEffectAerobic ?? null,
+      garmin_training_effect_anaerobic: enrichment.trainingEffectAnaerobic ?? null,
+      garmin_training_effect_label: enrichment.trainingEffectLabel ?? null,
+      garmin_training_load: enrichment.trainingLoad ?? null,
+      garmin_avg_respiration_rate: enrichment.avgRespirationRate ?? null,
+      garmin_avg_stress: enrichment.avgStress ?? null,
+    })
+    .eq("id", stravaActivityRowId);
+  if (error) throw error;
 }
 
 // ---------- coach access ----------

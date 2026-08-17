@@ -10,6 +10,17 @@ import { CARD, FONT_MONO, HEALTH, INK, INK_SOFT, LINE, RUST, inputStyle } from "
 // about that trade-off and surfaces sync results/errors inline, since a
 // login can fail for reasons the athlete needs to actually act on (MFA,
 // locked account, ...), not just "try again".
+// Shared between the connect-and-sync and plain sync results, since both
+// report the same two things: fields merged into today's health entry, and
+// how many Strava-synced activities picked up Garmin training data.
+function summarizeSync(prefix: string, syncedFields: string[] | undefined, enrichedCount: number | undefined): string {
+  const parts: string[] = [];
+  if (syncedFields?.length) parts.push(syncedFields.join(", "));
+  if (enrichedCount) parts.push(`dane Garmina w ${enrichedCount} ${enrichedCount === 1 ? "treningu" : "treningach"}`);
+  if (parts.length === 0) return `${prefix}, ale brak nowych danych na dziś.`;
+  return `${prefix}: ${parts.join(" · ")}.`;
+}
+
 export function GarminConnect({
   connected,
   lastSyncedAt,
@@ -45,11 +56,7 @@ export function GarminConnect({
       }
       setPassword("");
       setOpen(false);
-      setMessage(
-        data.syncedFields?.length
-          ? `Połączono i zsynchronizowano: ${data.syncedFields.join(", ")}.`
-          : "Połączono z Garmin Connect."
-      );
+      setMessage(summarizeSync("Połączono i zsynchronizowano", data.syncedFields, data.enrichedCount));
       router.refresh();
     } finally {
       setBusy(false);
@@ -67,7 +74,7 @@ export function GarminConnect({
         setError(data.error ?? "Synchronizacja nie powiodła się.");
         return;
       }
-      setMessage(data.syncedFields?.length ? `Zsynchronizowano: ${data.syncedFields.join(", ")}.` : "Brak nowych danych z Garmina na dziś.");
+      setMessage(summarizeSync("Zsynchronizowano", data.syncedFields, data.enrichedCount));
       router.refresh();
     } finally {
       setBusy(false);

@@ -44,6 +44,60 @@ function fmtPaceOrSpeed(mode: PaceMode, mps: number): string {
   return fmtPaceMinPerKm(mps);
 }
 
+// Garmin's own vocabulary for what an activity trained, shown next to the
+// aerobic/anaerobic Training Effect scores it computed for it.
+const GARMIN_TRAINING_EFFECT_LABEL_PL: Record<string, string> = {
+  AEROBIC_BASE: "baza aerobowa",
+  TEMPO: "tempo",
+  LACTATE_THRESHOLD: "próg mleczanowy",
+  VO2MAX: "VO2max",
+  ANAEROBIC_CAPACITY: "pojemność beztlenowa",
+  SPRINT_TRAINING: "sprint",
+  RECOVERY: "regeneracja",
+  NO_BENEFIT: "brak efektu",
+  NONE: "brak efektu",
+  MAINTAINING: "podtrzymanie formy",
+  OVERREACHING: "przetrenowanie",
+  UNKNOWN: "nieznany",
+};
+
+// Metrics Garmin computes that Strava's API doesn't expose — filled in by a
+// Garmin sync matching this activity by start time (lib/garmin.ts). Shown
+// only once at least one field actually landed.
+function GarminEnrichment({ activity }: { activity: StravaActivity }) {
+  const hasTrainingEffect = activity.garminTrainingEffectAerobic !== undefined || activity.garminTrainingEffectAnaerobic !== undefined;
+  const hasAny =
+    hasTrainingEffect ||
+    activity.garminVo2max !== undefined ||
+    activity.garminTrainingLoad !== undefined ||
+    activity.garminAvgRespirationRate !== undefined ||
+    activity.garminAvgStress !== undefined;
+  if (!hasAny) return null;
+
+  return (
+    <div className="mt-2 pt-2 border-t" style={{ borderColor: LINE }}>
+      <div className="text-[10px] uppercase tracking-wide mb-1" style={{ fontFamily: FONT_MONO, color: INK_SOFT }}>
+        Dane z Garmina
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK }}>
+        {hasTrainingEffect && (
+          <div>
+            Efekt treningowy: {activity.garminTrainingEffectAerobic?.toFixed(1) ?? "–"} aer. /{" "}
+            {activity.garminTrainingEffectAnaerobic?.toFixed(1) ?? "–"} beztl.
+          </div>
+        )}
+        {activity.garminTrainingEffectLabel && (
+          <div>{GARMIN_TRAINING_EFFECT_LABEL_PL[activity.garminTrainingEffectLabel] ?? activity.garminTrainingEffectLabel}</div>
+        )}
+        {activity.garminVo2max !== undefined && <div>VO2max: {activity.garminVo2max}</div>}
+        {activity.garminTrainingLoad !== undefined && <div>Obciążenie: {Math.round(activity.garminTrainingLoad)}</div>}
+        {activity.garminAvgRespirationRate !== undefined && <div>Oddech: {Math.round(activity.garminAvgRespirationRate)}/min</div>}
+        {activity.garminAvgStress !== undefined && <div>Stres: {Math.round(activity.garminAvgStress)}</div>}
+      </div>
+    </div>
+  );
+}
+
 function ZoneBars({ zones }: { zones: NonNullable<StravaActivity["hrZones"]> }) {
   const total = zones.reduce((s, z) => s + z.time, 0);
   if (total === 0) return null;
@@ -320,6 +374,7 @@ export function StravaSingleActivity({
           )}
           {activity.hrZones && activity.hrZones.length > 0 && <ZoneBars zones={activity.hrZones} />}
           <ActivityCharts activityRowId={activity.id} mode={mode} autoLoad={readOnly} />
+          <GarminEnrichment activity={activity} />
 
           {!readOnly && (
             <div className="flex justify-end mt-2">
