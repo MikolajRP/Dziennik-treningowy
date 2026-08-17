@@ -93,6 +93,7 @@ export function Journal({
   initialRaces,
   initialHealthEntries,
   initialPersonalEvents,
+  initialWorkoutCoachComments,
 }: {
   userId: string;
   userEmail: string;
@@ -107,6 +108,7 @@ export function Journal({
   initialRaces: Race[];
   initialHealthEntries: HealthEntry[];
   initialPersonalEvents: PersonalEvent[];
+  initialWorkoutCoachComments: Record<string, string>;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -142,6 +144,8 @@ export function Journal({
   const [categories, setCategories] = useSyncedState<Category[]>(initialCategories);
   const [planEntries] = useSyncedState<PlanEntry[]>(initialPlanEntries);
   const [races] = useSyncedState<Race[]>(initialRaces);
+  // Read-only here — only a coach with can_edit_plan writes these.
+  const [workoutCoachComments] = useSyncedState<Record<string, string>>(initialWorkoutCoachComments);
 
   // ---------- health (daily wellness check-in) ----------
   const [healthEntries, setHealthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
@@ -859,6 +863,9 @@ export function Journal({
             onReorderWorkouts={handleReorderWorkouts}
             onDetachActivity={handleDetachActivity}
             onReorderActivities={handleReorderActivities}
+            coachComments={workoutCoachComments}
+            coachCommentEditable={false}
+            onSaveCoachComment={() => {}}
           />
         )}
 

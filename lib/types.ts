@@ -184,6 +184,7 @@ export interface PlanEntry {
   slot: PlanSlot;
   category: string;
   notes: string;
+  guidance: string; // longer coach description/tips, shown below `notes`
   isDraft: boolean; // coach-only until published — see 0007 migration
 }
 

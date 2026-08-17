@@ -14,6 +14,7 @@ import {
   saveCoachNote,
   saveCycleRow,
   saveRace,
+  saveWorkoutCoachComment,
   updateAthleteName,
   updatePlanEntry,
 } from "@/lib/data";
@@ -53,6 +54,7 @@ export function CoachAthleteView({
   initialCoachNotes,
   initialRaces,
   initialHealthEntries,
+  initialWorkoutCoachComments,
   canViewReports,
   canEditPlan,
 }: {
@@ -68,6 +70,7 @@ export function CoachAthleteView({
   initialCoachNotes: CoachNote[];
   initialRaces: Race[];
   initialHealthEntries: HealthEntry[];
+  initialWorkoutCoachComments: Record<string, string>;
   canViewReports: boolean;
   canEditPlan: boolean;
 }) {
@@ -242,7 +245,7 @@ export function CoachAthleteView({
       setPlanError(SAVE_ERROR);
     }
   }
-  async function handleUpdateEntry(id: string, patch: { notes?: string; isDraft?: boolean }) {
+  async function handleUpdateEntry(id: string, patch: { notes?: string; guidance?: string; isDraft?: boolean }) {
     setPlanError(null);
     setPlanEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
     try {
@@ -277,6 +280,17 @@ export function CoachAthleteView({
     try {
       await deleteCoachNote(supabase, id);
       setCoachNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      setPlanError(SAVE_ERROR);
+    }
+  }
+
+  // ---------- workout comments (athlete-visible, unlike coach notes) ----------
+  const [workoutCoachComments, setWorkoutCoachComments] = useSyncedState<Record<string, string>>(initialWorkoutCoachComments);
+  async function handleSaveWorkoutComment(workoutId: string, text: string) {
+    setWorkoutCoachComments((prev) => ({ ...prev, [workoutId]: text }));
+    try {
+      await saveWorkoutCoachComment(supabase, workoutId, athleteUserId, coachUserId, text);
     } catch {
       setPlanError(SAVE_ERROR);
     }
@@ -551,6 +565,9 @@ export function CoachAthleteView({
             onReorderWorkouts={noop}
             onDetachActivity={noop}
             onReorderActivities={noop}
+            coachComments={workoutCoachComments}
+            coachCommentEditable={canEditPlan}
+            onSaveCoachComment={handleSaveWorkoutComment}
           />
         )}
 

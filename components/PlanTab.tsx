@@ -49,12 +49,13 @@ function PlanEntryCard({
   matchedWorkoutId: string | null;
   editable: boolean;
   knownPlanNotes: string[];
-  onUpdateEntry: (id: string, patch: { notes?: string; isDraft?: boolean }) => void;
+  onUpdateEntry: (id: string, patch: { notes?: string; guidance?: string; isDraft?: boolean }) => void;
   onDeleteEntry: (id: string) => void;
   onJumpToWorkout: (workoutId: string) => void;
 }) {
   const [notes, setNotes] = useState(entry.notes);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [guidance, setGuidance] = useState(entry.guidance);
   const color = STATUS_COLOR[status];
 
   const suggestions = useMemo(() => {
@@ -68,6 +69,11 @@ function PlanEntryCard({
   function commitNotes(value: string) {
     setNotes(value);
     if (value !== entry.notes) onUpdateEntry(entry.id, { notes: value });
+  }
+
+  function commitGuidance(value: string) {
+    setGuidance(value);
+    if (value !== entry.guidance) onUpdateEntry(entry.id, { guidance: value });
   }
 
   return (
@@ -153,6 +159,24 @@ function PlanEntryCard({
         </div>
       ) : (
         entry.notes && <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK_SOFT }}>{entry.notes}</div>
+      )}
+
+      {editable ? (
+        <textarea
+          value={guidance}
+          onChange={(e) => setGuidance(e.target.value)}
+          onBlur={() => commitGuidance(guidance)}
+          placeholder="Wskazówki (opcjonalnie) — np. technika, tempo, na co zwrócić uwagę"
+          rows={2}
+          className="w-full px-2 py-1 rounded text-xs mt-1.5"
+          style={inputStyle}
+        />
+      ) : (
+        entry.guidance && (
+          <div className="mt-1.5 whitespace-pre-wrap" style={{ fontFamily: FONT_MONO, fontSize: 11, color: INK_SOFT, fontStyle: "italic" }}>
+            {entry.guidance}
+          </div>
+        )
       )}
 
       {status === "done" && matchedWorkoutId && (
@@ -378,7 +402,7 @@ export function PlanTab({
   knownPlanNotes: string[];
   onAddEntry: (date: string) => void;
   onAddSecond: (date: string, firstEntryId: string) => void;
-  onUpdateEntry: (id: string, patch: { notes?: string; isDraft?: boolean }) => void;
+  onUpdateEntry: (id: string, patch: { notes?: string; guidance?: string; isDraft?: boolean }) => void;
   onDeleteEntry: (id: string) => void;
   onJumpToWorkout: (workoutId: string) => void;
   onSaveNote: (date: string, text: string, existingId?: string) => void;

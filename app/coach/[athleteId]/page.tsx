@@ -8,6 +8,7 @@ import {
   fetchHealthEntries,
   fetchPlanEntries,
   fetchRaces,
+  fetchWorkoutCoachComments,
   fetchWorkouts,
 } from "@/lib/data";
 import { CoachAthleteView } from "@/components/CoachAthleteView";
@@ -27,7 +28,7 @@ export default async function CoachAthletePage({
   const grant = await fetchCoachGrantForAthlete(supabase, user.id, athleteId);
   if (!grant || !grant.canViewWorkouts) notFound();
 
-  const [workouts, categories, cycles, planEntries, coachNotes, races, healthEntries] = await Promise.all([
+  const [workouts, categories, cycles, planEntries, coachNotes, races, healthEntries, workoutCoachComments] = await Promise.all([
     fetchWorkouts(supabase, athleteId),
     fetchCategoriesReadOnly(supabase, athleteId),
     fetchCycles(supabase, athleteId),
@@ -35,6 +36,7 @@ export default async function CoachAthletePage({
     fetchCoachNotes(supabase, athleteId),
     fetchRaces(supabase, athleteId),
     fetchHealthEntries(supabase, athleteId),
+    fetchWorkoutCoachComments(supabase, athleteId),
   ]);
 
   return (
@@ -51,6 +53,7 @@ export default async function CoachAthletePage({
       initialCoachNotes={coachNotes}
       initialRaces={races}
       initialHealthEntries={healthEntries}
+      initialWorkoutCoachComments={workoutCoachComments}
       canViewReports={grant.canViewReports}
       canEditPlan={grant.canEditPlan}
     />

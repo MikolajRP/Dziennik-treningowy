@@ -574,10 +574,11 @@ interface PlanEntryRow {
   slot: PlanEntry["slot"];
   category: string;
   notes: string;
+  guidance: string;
   is_draft: boolean;
 }
 
-const PLAN_ENTRY_SELECT = "id, athlete_user_id, created_by, date, slot, category, notes, is_draft";
+const PLAN_ENTRY_SELECT = "id, athlete_user_id, created_by, date, slot, category, notes, guidance, is_draft";
 
 const planEntryFromRow = (r: PlanEntryRow): PlanEntry => ({
   id: r.id,
@@ -587,6 +588,7 @@ const planEntryFromRow = (r: PlanEntryRow): PlanEntry => ({
   slot: r.slot,
   category: r.category,
   notes: r.notes,
+  guidance: r.guidance,
   isDraft: r.is_draft,
 });
 
@@ -604,7 +606,7 @@ export async function addPlanEntry(
   supabase: SupabaseClient,
   athleteUserId: string,
   coachUserId: string,
-  entry: { date: string; slot: PlanEntry["slot"]; category: string; notes: string; isDraft?: boolean }
+  entry: { date: string; slot: PlanEntry["slot"]; category: string; notes: string; guidance?: string; isDraft?: boolean }
 ): Promise<PlanEntry> {
   const { data, error } = await supabase
     .from("plan_entries")
@@ -615,6 +617,7 @@ export async function addPlanEntry(
       slot: entry.slot,
       category: entry.category,
       notes: entry.notes,
+      guidance: entry.guidance ?? "",
       is_draft: entry.isDraft ?? false,
     })
     .select(PLAN_ENTRY_SELECT)
@@ -626,7 +629,7 @@ export async function addPlanEntry(
 export async function updatePlanEntry(
   supabase: SupabaseClient,
   id: string,
-  patch: { slot?: PlanEntry["slot"]; category?: string; notes?: string; isDraft?: boolean }
+  patch: { slot?: PlanEntry["slot"]; category?: string; notes?: string; guidance?: string; isDraft?: boolean }
 ): Promise<void> {
   const { error } = await supabase
     .from("plan_entries")
@@ -635,6 +638,7 @@ export async function updatePlanEntry(
       ...(patch.slot !== undefined && { slot: patch.slot }),
       ...(patch.category !== undefined && { category: patch.category }),
       ...(patch.notes !== undefined && { notes: patch.notes }),
+      ...(patch.guidance !== undefined && { guidance: patch.guidance }),
     })
     .eq("id", id);
   if (error) throw error;
@@ -704,6 +708,36 @@ export async function saveCoachNote(
 
 export async function deleteCoachNote(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("coach_notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------- workout coach comments (athlete-visible, unlike coach notes) ----------
+// One remark per workout — keyed by workout id, upserted in place, so the
+// UI just needs a { [workoutId]: text } map rather than tracking row ids.
+
+export async function fetchWorkoutCoachComments(supabase: SupabaseClient, athleteUserId: string): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from("workout_coach_comments")
+    .select("workout_id, text")
+    .eq("athlete_user_id", athleteUserId);
+  if (error) throw error;
+  const map: Record<string, string> = {};
+  (data as { workout_id: string; text: string }[]).forEach((r) => {
+    map[r.workout_id] = r.text;
+  });
+  return map;
+}
+
+export async function saveWorkoutCoachComment(
+  supabase: SupabaseClient,
+  workoutId: string,
+  athleteUserId: string,
+  coachUserId: string,
+  text: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("workout_coach_comments")
+    .upsert({ workout_id: workoutId, athlete_user_id: athleteUserId, coach_user_id: coachUserId, text }, { onConflict: "workout_id" });
   if (error) throw error;
 }
 

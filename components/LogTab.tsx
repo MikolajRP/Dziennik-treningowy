@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type HTMLAttributes, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Copy, Link2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Link2, MessageSquare, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
   MouseSensor,
@@ -33,7 +33,7 @@ import {
   isCyclingActivityType,
   isSwimmingActivityType,
 } from "@/lib/stravaCalculations";
-import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL } from "@/lib/design";
+import { AERO, CARD, FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, ISO, LINE, MUSTARD, PLYO, RUST, TEAL, inputStyle } from "@/lib/design";
 import type { Category, CategoryGroup, LeafKind, Workout, WorkoutExercise } from "@/lib/types";
 import { IconBtn } from "./atoms";
 import { WorkoutForm } from "./WorkoutForm";
@@ -87,6 +87,9 @@ function WorkoutCard({
   confirmDeleteId,
   setConfirmDeleteId,
   deleteWorkout,
+  coachComment,
+  coachCommentEditable,
+  onSaveCoachComment,
 }: {
   w: Workout;
   expanded: boolean;
@@ -102,7 +105,11 @@ function WorkoutCard({
   confirmDeleteId: string | null;
   setConfirmDeleteId: (id: string | null) => void;
   deleteWorkout: (id: string) => void;
+  coachComment: string | undefined;
+  coachCommentEditable: boolean;
+  onSaveCoachComment: (workoutId: string, text: string) => void;
 }) {
+  const [commentDraft, setCommentDraft] = useState(coachComment ?? "");
   const activitySensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
@@ -238,6 +245,34 @@ function WorkoutCard({
             </div>
           )}
 
+          {(coachCommentEditable || (coachComment && coachComment.trim())) && (
+            <div className="mt-2 pt-2" style={{ borderTop: `1px dashed ${TEAL}` }}>
+              <div
+                className="flex items-center gap-1 mb-1"
+                style={{ fontFamily: FONT_MONO, fontSize: 10, color: TEAL, textTransform: "uppercase", letterSpacing: 0.5 }}
+              >
+                <MessageSquare size={11} /> Uwagi trenera
+              </div>
+              {coachCommentEditable ? (
+                <textarea
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  onBlur={() => {
+                    if (commentDraft !== (coachComment ?? "")) onSaveCoachComment(w.id, commentDraft);
+                  }}
+                  placeholder="Uwagi dla zawodnika o tym treningu…"
+                  rows={2}
+                  className="w-full px-2 py-1 rounded text-xs"
+                  style={inputStyle}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap" style={{ fontFamily: FONT_MONO, fontSize: 12, color: INK }}>
+                  {coachComment}
+                </div>
+              )}
+            </div>
+          )}
+
           {!readOnly && (
             <div className="flex items-center gap-2 mt-3">
               <IconBtn onClick={() => startEdit(w)} title="Edytuj">
@@ -308,6 +343,9 @@ export function LogTab({
   onReorderWorkouts,
   onDetachActivity,
   onReorderActivities,
+  coachComments,
+  coachCommentEditable,
+  onSaveCoachComment,
   readOnly = false,
 }: {
   showForm: boolean;
@@ -349,6 +387,9 @@ export function LogTab({
   onReorderWorkouts: (activeId: string, overId: string) => void;
   onDetachActivity: (activityRowId: string) => void;
   onReorderActivities: (workoutId: string, activeId: string, overId: string) => void;
+  coachComments: Record<string, string>;
+  coachCommentEditable: boolean;
+  onSaveCoachComment: (workoutId: string, text: string) => void;
   readOnly?: boolean;
 }) {
   const mergeSource = sortedWorkouts.find((w) => w.id === mergeSourceId) || null;
@@ -495,6 +536,9 @@ export function LogTab({
                       confirmDeleteId={confirmDeleteId}
                       setConfirmDeleteId={setConfirmDeleteId}
                       deleteWorkout={deleteWorkout}
+                      coachComment={coachComments[w.id]}
+                      coachCommentEditable={coachCommentEditable}
+                      onSaveCoachComment={onSaveCoachComment}
                     />
                   ))}
                 </div>
