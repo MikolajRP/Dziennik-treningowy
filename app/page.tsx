@@ -5,6 +5,7 @@ import {
   fetchCategories,
   fetchCoachGrantsAsAthlete,
   fetchCycles,
+  fetchGarminConnectionStatus,
   fetchHealthEntries,
   fetchPendingInvitesForMe,
   fetchPersonalEvents,
@@ -46,6 +47,7 @@ export default async function Home() {
     healthEntries,
     personalEvents,
     workoutCoachComments,
+    garminStatus,
   ] = await Promise.all([
     fetchWorkouts(supabase),
     fetchCategories(supabase, user.id),
@@ -58,6 +60,7 @@ export default async function Home() {
     fetchHealthEntries(supabase, user.id),
     fetchPersonalEvents(supabase, user.id),
     fetchWorkoutCoachComments(supabase, user.id),
+    fetchGarminConnectionStatus(supabase),
   ]);
 
   return (
@@ -76,6 +79,7 @@ export default async function Home() {
       initialHealthEntries={healthEntries}
       initialPersonalEvents={personalEvents}
       initialWorkoutCoachComments={workoutCoachComments}
+      initialGarminStatus={garminStatus}
     />
   );
 }

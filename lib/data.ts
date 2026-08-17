@@ -293,6 +293,18 @@ export async function disconnectStrava(supabase: SupabaseClient): Promise<void> 
   if (error) throw error;
 }
 
+export interface GarminConnectionStatus {
+  connected: boolean;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
+}
+
+export async function fetchGarminConnectionStatus(supabase: SupabaseClient): Promise<GarminConnectionStatus> {
+  const { data } = await supabase.from("garmin_connections").select("last_synced_at, last_sync_error").maybeSingle();
+  if (!data) return { connected: false, lastSyncedAt: null, lastSyncError: null };
+  return { connected: true, lastSyncedAt: data.last_synced_at, lastSyncError: data.last_sync_error };
+}
+
 // Moves every Strava activity from `sourceWorkoutId` onto `targetWorkoutId`,
 // then deletes the now-empty source workout. Covers both "attach a run to a
 // strength day" and "combine two runs" — the target just determines which

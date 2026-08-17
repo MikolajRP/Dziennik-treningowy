@@ -27,7 +27,7 @@ import {
   sendCoachInviteEmail,
   updateCoachPermissions,
 } from "@/lib/data";
-import type { WorkoutCoachCommentState } from "@/lib/data";
+import type { GarminConnectionStatus, WorkoutCoachCommentState } from "@/lib/data";
 import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
 import { ExportReminderBanner } from "./ExportReminderBanner";
@@ -96,6 +96,7 @@ export function Journal({
   initialHealthEntries,
   initialPersonalEvents,
   initialWorkoutCoachComments,
+  initialGarminStatus,
 }: {
   userId: string;
   userEmail: string;
@@ -111,6 +112,7 @@ export function Journal({
   initialHealthEntries: HealthEntry[];
   initialPersonalEvents: PersonalEvent[];
   initialWorkoutCoachComments: Record<string, WorkoutCoachCommentState>;
+  initialGarminStatus: GarminConnectionStatus;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -163,6 +165,9 @@ export function Journal({
 
   // ---------- health (daily wellness check-in) ----------
   const [healthEntries, setHealthEntries] = useSyncedState<HealthEntry[]>(initialHealthEntries);
+  // GarminConnect.tsx mutates via its own API routes and calls router.refresh()
+  // afterwards — this just picks up the freshly re-fetched server value.
+  const [garminStatus] = useSyncedState<GarminConnectionStatus>(initialGarminStatus);
   const hasTodayHealthEntry = healthEntries.some((h) => h.date === todayISO());
   const [editingHealthId, setEditingHealthId] = useState<string | null>(null);
   const [healthDraft, setHealthDraft] = useState<HealthDraft>(() => emptyHealthDraft(initialHealthEntries));
@@ -898,6 +903,9 @@ export function Journal({
             formError={healthError}
             confirmDeleteId={confirmDeleteHealthId}
             setConfirmDeleteId={setConfirmDeleteHealthId}
+            garminConnected={garminStatus.connected}
+            garminLastSyncedAt={garminStatus.lastSyncedAt}
+            garminLastSyncError={garminStatus.lastSyncError}
           />
         )}
 
