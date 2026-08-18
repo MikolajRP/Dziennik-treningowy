@@ -61,24 +61,29 @@ function NumberField({
   label,
   placeholder,
   value,
-  step,
   onChange,
 }: {
   label: string;
   placeholder: string;
   value: number | undefined;
-  step: number;
   onChange: (v: number | undefined) => void;
 }) {
   return (
     <Field label={label}>
       <input
-        type="number"
+        type="text"
         inputMode="decimal"
-        step={step}
         placeholder={placeholder}
         value={value ?? ""}
-        onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+        onChange={(e) => {
+          const raw = e.target.value.trim().replace(",", ".");
+          if (raw === "") {
+            onChange(undefined);
+            return;
+          }
+          const n = Number(raw);
+          if (!Number.isNaN(n)) onChange(n);
+        }}
         className="w-full px-2 py-1.5 rounded text-sm"
         style={inputStyle}
       />
@@ -123,8 +128,7 @@ export function HealthEntryForm({
 
       <NumberField
         label="Masa ciała (kg)"
-        placeholder="np. 74.5"
-        step={0.1}
+        placeholder="np. 74,5"
         value={draft.weightKg}
         onChange={(v) => setDraft((d) => ({ ...d, weightKg: v }))}
       />
