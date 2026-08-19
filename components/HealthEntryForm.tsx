@@ -10,14 +10,19 @@ import { Field } from "./atoms";
 // subjective fields Garmin can't measure at all.
 export interface HealthDraft {
   date: string;
-  weightKg: number | undefined;
+  // Raw text, not a parsed number — a controlled input that reformats its
+  // own value on every keystroke (as Number(...) would force) strips
+  // whatever separator the user just typed before they can type digits
+  // after it, making "," (or even ".") impossible to enter. Parsed at
+  // save time instead (see Journal.tsx's handleSaveHealthEntry).
+  weightKg: string;
   wellbeing: number; // 1-10
   notes: string;
 }
 
 export const EMPTY_HEALTH_DRAFT: HealthDraft = {
   date: "",
-  weightKg: undefined,
+  weightKg: "",
   wellbeing: 5,
   notes: "",
 };
@@ -65,8 +70,8 @@ function NumberField({
 }: {
   label: string;
   placeholder: string;
-  value: number | undefined;
-  onChange: (v: number | undefined) => void;
+  value: string;
+  onChange: (v: string) => void;
 }) {
   return (
     <Field label={label}>
@@ -74,16 +79,8 @@ function NumberField({
         type="text"
         inputMode="decimal"
         placeholder={placeholder}
-        value={value ?? ""}
-        onChange={(e) => {
-          const raw = e.target.value.trim().replace(",", ".");
-          if (raw === "") {
-            onChange(undefined);
-            return;
-          }
-          const n = Number(raw);
-          if (!Number.isNaN(n)) onChange(n);
-        }}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="w-full px-2 py-1.5 rounded text-sm"
         style={inputStyle}
       />

@@ -72,7 +72,7 @@ function emptyHealthDraft(entries: HealthEntry[]): HealthDraft {
   const latest = latestHealthEntry(entries);
   return {
     date: todayISO(),
-    weightKg: latest?.weightKg,
+    weightKg: latest ? String(latest.weightKg) : "",
     wellbeing: latest?.wellbeing ?? 5,
     notes: "",
   };
@@ -175,7 +175,7 @@ export function Journal({
   function startHealthEdit(entry: HealthEntry) {
     setHealthDraft({
       date: entry.date,
-      weightKg: entry.weightKg,
+      weightKg: String(entry.weightKg),
       wellbeing: entry.wellbeing,
       notes: entry.notes,
     });
@@ -194,9 +194,12 @@ export function Journal({
       // them) — carry over whatever this date already has instead of
       // clobbering it, defaulting to 0 for a brand-new entry that a Garmin
       // sync (triggered below) will fill in moments later. Weight stays
-      // manual, so it comes straight from the draft (falling back the same
-      // way when left blank, e.g. no new weigh-in today).
+      // manual (raw text in the draft, comma or dot — see
+      // HealthEntryForm.tsx), falling back the same way when left blank or
+      // unparseable.
       const existingForDate = healthEntries.find((h) => h.date === healthDraft.date);
+      const weightParsed = Number(healthDraft.weightKg.trim().replace(",", "."));
+      const weightKg = healthDraft.weightKg.trim() !== "" && !Number.isNaN(weightParsed) ? weightParsed : (existingForDate?.weightKg ?? 0);
       const saved = await saveHealthEntryRow(
         supabase,
         userId,
@@ -206,7 +209,7 @@ export function Journal({
           sleepQuality: existingForDate?.sleepQuality ?? 50,
           hrv: existingForDate?.hrv ?? 0,
           restingHr: existingForDate?.restingHr ?? 0,
-          weightKg: healthDraft.weightKg ?? existingForDate?.weightKg ?? 0,
+          weightKg,
           wellbeing: healthDraft.wellbeing,
           notes: healthDraft.notes,
         },
