@@ -44,9 +44,17 @@ export interface GarminHealthSnapshot {
 // Each field is fetched defensively: Garmin doesn't have every metric for
 // every day (no weigh-in that day, watch not worn overnight, ...), and this
 // unofficial API throws on an empty response — one missing field should
-// never fail the whole sync.
-export async function fetchGarminHealthSnapshot(client: GarminConnect, date: Date): Promise<GarminHealthSnapshot> {
+// never fail the whole sync. `debug` collects, per field, either the raw
+// error or (when the call succeeds but none of the expected fields are
+// there — this API is reverse-engineered, so its response shape is a
+// best guess) the actual top-level keys that came back, so a silent
+// mismatch is diagnosable instead of just quietly producing nothing.
+export async function fetchGarminHealthSnapshot(
+  client: GarminConnect,
+  date: Date
+): Promise<{ snapshot: GarminHealthSnapshot; debug: string[] }> {
   const snapshot: GarminHealthSnapshot = {};
+  const debug: string[] = [];
 
   try {
     const sleep = await client.getSleepData(date);
@@ -56,16 +64,21 @@ export async function fetchGarminHealthSnapshot(client: GarminConnect, date: Dat
     if (typeof score === "number") snapshot.sleepQuality = score;
     if (typeof sleep.avgOvernightHrv === "number" && sleep.avgOvernightHrv > 0) snapshot.hrv = Math.round(sleep.avgOvernightHrv);
     if (typeof sleep.restingHeartRate === "number" && sleep.restingHeartRate > 0) snapshot.restingHr = Math.round(sleep.restingHeartRate);
-  } catch {
-    // no sleep data for this day — leave those fields unset
+    if (snapshot.sleepHours === undefined && snapshot.hrv === undefined) {
+      const topKeys = Object.keys(sleep ?? {}).join(", ") || "(brak)";
+      const dtoKeys = sleep?.dailySleepDTO ? Object.keys(sleep.dailySleepDTO).join(", ") : "(brak dailySleepDTO)";
+      debug.push(`sen/HRV: odpowiedź bez oczekiwanych pól — klucze: ${topKeys}; dailySleepDTO: ${dtoKeys}`);
+    }
+  } catch (err) {
+    debug.push(`sen/HRV — błąd zapytania: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   if (snapshot.restingHr === undefined) {
     try {
       const hr = await client.getHeartRate(date);
       if (typeof hr.restingHeartRate === "number" && hr.restingHeartRate > 0) snapshot.restingHr = Math.round(hr.restingHeartRate);
-    } catch {
-      // no heart-rate data for this day either
+    } catch (err) {
+      debug.push(`tętno spoczynkowe — błąd zapytania: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -78,10 +91,10 @@ export async function fetchGarminHealthSnapshot(client: GarminConnect, date: Dat
       snapshot.weightKg = Math.round((latest.weight / 1000) * 10) / 10;
     }
   } catch {
-    // no weigh-in for this day
+    // waga zostaje ręczna — brak wpisu wagi u Garmina tego dnia to normalka, nie warto o tym ostrzegać
   }
 
-  return snapshot;
+  return { snapshot, debug };
 }
 
 // The library's own error messages are English and reference its internal
@@ -116,11 +129,11 @@ export async function syncGarminHealthEntryForToday(
   supabase: SupabaseClient,
   userId: string,
   client: GarminConnect
-): Promise<{ syncedFields: string[] }> {
-  const snapshot = await fetchGarminHealthSnapshot(client, new Date());
+): Promise<{ syncedFields: string[]; debug: string[] }> {
+  const { snapshot, debug } = await fetchGarminHealthSnapshot(client, new Date());
   const syncedFields = (Object.keys(snapshot) as (keyof GarminHealthSnapshot)[]).filter((k) => snapshot[k] !== undefined);
 
-  if (syncedFields.length === 0) return { syncedFields: [] };
+  if (syncedFields.length === 0) return { syncedFields: [], debug };
 
   const today = todayISO();
   const existingEntries = await fetchHealthEntries(supabase, userId);
@@ -142,7 +155,7 @@ export async function syncGarminHealthEntryForToday(
     existing?.id ?? null
   );
 
-  return { syncedFields: syncedFields.map((k) => SNAPSHOT_FIELD_LABEL[k]) };
+  return { syncedFields: syncedFields.map((k) => SNAPSHOT_FIELD_LABEL[k]), debug };
 }
 
 // Strava and Garmin activities share no common ID, so a synced Strava

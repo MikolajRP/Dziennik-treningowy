@@ -54,13 +54,13 @@ export async function POST() {
   }
 
   try {
-    const { syncedFields } = await syncGarminHealthEntryForToday(supabase, user.id, client);
+    const { syncedFields, debug } = await syncGarminHealthEntryForToday(supabase, user.id, client);
     const { enrichedCount } = await enrichStravaActivitiesWithGarmin(supabase, user.id, client);
     await supabase
       .from("garmin_connections")
       .update({ oauth1_token: tokens.oauth1, oauth2_token: tokens.oauth2, last_synced_at: new Date().toISOString(), last_sync_error: null })
       .eq("user_id", user.id);
-    return NextResponse.json({ synced: true, syncedFields, enrichedCount });
+    return NextResponse.json({ synced: true, syncedFields, enrichedCount, debug });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await supabase

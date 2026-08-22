@@ -37,12 +37,19 @@ export function GarminConnect({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Temporary diagnostics: this is an unofficial, reverse-engineered API, so
+  // when a field silently comes back empty, this surfaces why (a thrown
+  // error, or — since the response shape here is a best guess — the actual
+  // keys Garmin sent back) right in the UI instead of only in server logs
+  // the athlete can't see.
+  const [debug, setDebug] = useState<string[]>([]);
 
   async function handleConnect() {
     if (!username.trim() || !password) return;
     setBusy(true);
     setError(null);
     setMessage(null);
+    setDebug([]);
     try {
       const res = await fetch("/api/garmin/connect", {
         method: "POST",
@@ -57,6 +64,7 @@ export function GarminConnect({
       setPassword("");
       setOpen(false);
       setMessage(summarizeSync("Połączono i zsynchronizowano", data.syncedFields, data.enrichedCount));
+      setDebug(data.debug ?? []);
       router.refresh();
     } finally {
       setBusy(false);
@@ -67,6 +75,7 @@ export function GarminConnect({
     setBusy(true);
     setError(null);
     setMessage(null);
+    setDebug([]);
     try {
       const res = await fetch("/api/garmin/sync", { method: "POST" });
       const data = await res.json();
@@ -75,6 +84,7 @@ export function GarminConnect({
         return;
       }
       setMessage(summarizeSync("Zsynchronizowano", data.syncedFields, data.enrichedCount));
+      setDebug(data.debug ?? []);
       router.refresh();
     } finally {
       setBusy(false);
@@ -132,6 +142,11 @@ export function GarminConnect({
         )}
         {error && <div className="mt-1.5 text-xs" style={{ fontFamily: FONT_MONO, color: RUST }}>{error}</div>}
         {message && <div className="mt-1.5 text-xs" style={{ fontFamily: FONT_MONO, color: HEALTH }}>{message}</div>}
+        {debug.length > 0 && (
+          <div className="mt-1.5 p-2 rounded text-[10px] whitespace-pre-wrap" style={{ fontFamily: FONT_MONO, color: INK_SOFT, background: "#fff", border: `1px solid ${LINE}` }}>
+            {debug.join("\n")}
+          </div>
+        )}
       </div>
     );
   }
