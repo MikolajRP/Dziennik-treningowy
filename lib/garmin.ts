@@ -4,6 +4,7 @@ import { GarminConnect } from "garmin-connect";
 import type { IOauth1Token, IOauth2Token } from "garmin-connect/dist/garmin/types";
 import type { IActivity } from "garmin-connect/dist/garmin/types/activity";
 import { todayISO } from "./calculations";
+import { decryptSecret } from "./crypto";
 import { fetchHealthEntries, fetchStravaActivitiesMissingGarminEnrichment, saveGarminActivityEnrichment, saveHealthEntry } from "./data";
 
 export interface GarminTokens {
@@ -31,6 +32,30 @@ export async function garminRestoreSession(username: string, password: string, t
   client.loadToken(tokens.oauth1, tokens.oauth2);
   await client.getUserProfile(); // cheap call that proves the session still works
   return { client, tokens: client.exportToken() as GarminTokens };
+}
+
+export interface GarminConnectionRow {
+  username_encrypted: string;
+  password_encrypted: string;
+  oauth1_token: IOauth1Token | null;
+  oauth2_token: IOauth2Token | null;
+}
+
+// Shared by the per-user sync route and the cron-driven catch-up sync
+// (see app/api/garmin/cron-sync/route.ts): try the cached session first,
+// fall back to a full re-login if it no longer works.
+export async function establishGarminClient(connection: GarminConnectionRow): Promise<{ client: GarminConnect; tokens: GarminTokens }> {
+  const username = decryptSecret(connection.username_encrypted);
+  const password = decryptSecret(connection.password_encrypted);
+
+  if (connection.oauth1_token && connection.oauth2_token) {
+    try {
+      return await garminRestoreSession(username, password, { oauth1: connection.oauth1_token, oauth2: connection.oauth2_token });
+    } catch {
+      // cached session no longer works — fall through to a full re-login
+    }
+  }
+  return garminLogin(username, password);
 }
 
 export interface GarminHealthSnapshot {
