@@ -731,7 +731,7 @@ export function Journal({
 
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
-      <div className={`sticky top-0 z-10 px-4 ${view !== "home" ? "lg:pr-28" : ""} pt-4 pb-2`} style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
+      <div className="sticky top-0 z-[2010] px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
         {view !== "home" && (
           <button
             onClick={goHome}
@@ -906,7 +906,16 @@ export function Journal({
         categories={categories}
       />
 
-      <div className={`px-4 ${view !== "home" ? "lg:pr-28" : ""} mt-4`}>
+      {/* On desktop, non-home content becomes an actual "page": an opaque
+          card (matches lib/design's CARD) sitting above the tab nav
+          (z-[2000] vs. the nav's <1200), stopping short of the true
+          right edge so the tabs read as living behind it, tucked under
+          its edge, rather than floating in empty margin beside it. */}
+      <div
+        className={`px-4 mt-4 ${
+          view !== "home" ? "lg:relative lg:z-[2000] lg:mr-6 lg:pb-10 lg:rounded-l-2xl lg:bg-[#F6F6EF] lg:shadow-[-10px_0_26px_rgba(27,42,58,0.16)]" : ""
+        }`}
+      >
         {view === "home" && (
           <HomePanel
             last12WeeksRunning={last12WeeksRunning}
