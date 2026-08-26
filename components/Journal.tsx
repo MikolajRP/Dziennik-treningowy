@@ -728,7 +728,7 @@ export function Journal({
 
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
-      <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
+      <div className={`sticky top-0 z-10 px-4 ${view !== "home" ? "lg:pr-28" : ""} pt-4 pb-2`} style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
         {view !== "home" && (
           <button
             onClick={goHome}
@@ -778,7 +778,7 @@ export function Journal({
           </h1>
         )}
         {view === "cluster" && (
-          <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="flex gap-4 mt-3 overflow-x-auto lg:hidden" style={{ scrollbarWidth: "none" }}>
             <button
               onClick={() => setClusterTab("log")}
               className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
@@ -827,58 +827,76 @@ export function Journal({
         )}
       </div>
 
-      <PaperTabNav
-        tabs={[
-          {
-            id: "log",
-            label: "Dziennik",
-            icon: <BookOpen size={16} />,
-            accent: INK,
-            active: view === "cluster",
-            onOpen: () => {
-              startTileTransition();
-              afterFade(() => {
-                setView("cluster");
-                setClusterTab("log");
-              }, 180);
+      {view !== "home" && (
+        <PaperTabNav
+          groups={[
+            {
+              compact: true,
+              tabs:
+                view === "cluster"
+                  ? [
+                      { id: "log", label: "Dziennik", icon: <BookOpen size={14} />, accent: MUSTARD, active: clusterTab === "log", onOpen: () => setClusterTab("log") },
+                      { id: "plan", label: "Plan", icon: <CalendarDays size={14} />, accent: MUSTARD, active: clusterTab === "plan", onOpen: () => setClusterTab("plan") },
+                      { id: "stats", label: "Statystyki", icon: <BarChart3 size={14} />, accent: MUSTARD, active: clusterTab === "stats", onOpen: () => setClusterTab("stats") },
+                      { id: "health-sub", label: "Zdrowie", icon: <HeartPulse size={14} />, accent: MUSTARD, active: clusterTab === "health", onOpen: () => setClusterTab("health") },
+                    ]
+                  : [],
             },
-          },
-          {
-            id: "planner",
-            label: "Planner",
-            icon: <CalendarClock size={16} />,
-            accent: PLANNER,
-            active: view === "planner",
-            onOpen: () => {
-              startTileTransition();
-              afterFade(() => setView("planner"), 180);
+            {
+              tabs: [
+                {
+                  id: "log-main",
+                  label: "Dziennik",
+                  icon: <BookOpen size={16} />,
+                  accent: INK,
+                  active: view === "cluster",
+                  onOpen: () => {
+                    startTileTransition();
+                    afterFade(() => {
+                      setView("cluster");
+                      setClusterTab("log");
+                    }, 180);
+                  },
+                },
+                {
+                  id: "planner",
+                  label: "Planner",
+                  icon: <CalendarClock size={16} />,
+                  accent: PLANNER,
+                  active: view === "planner",
+                  onOpen: () => {
+                    startTileTransition();
+                    afterFade(() => setView("planner"), 180);
+                  },
+                },
+                {
+                  id: "health-main",
+                  label: "Zdrowie",
+                  icon: <HeartPulse size={16} />,
+                  accent: HEALTH,
+                  active: view === "health",
+                  onOpen: () => {
+                    startTileTransition();
+                    afterFade(() => setView("health"), 180);
+                  },
+                },
+                {
+                  id: "connections",
+                  label: "Połączenia",
+                  icon: <Link2 size={16} />,
+                  accent: TEAL,
+                  active: view === "connections",
+                  badge: pendingInvites.length,
+                  onOpen: () => {
+                    startTileTransition();
+                    afterFade(() => setView("connections"), 180);
+                  },
+                },
+              ],
             },
-          },
-          {
-            id: "health",
-            label: "Zdrowie",
-            icon: <HeartPulse size={16} />,
-            accent: HEALTH,
-            active: view === "health",
-            onOpen: () => {
-              startTileTransition();
-              afterFade(() => setView("health"), 180);
-            },
-          },
-          {
-            id: "connections",
-            label: "Połączenia",
-            icon: <Link2 size={16} />,
-            accent: TEAL,
-            active: view === "connections",
-            badge: pendingInvites.length,
-            onOpen: () => {
-              startTileTransition();
-              afterFade(() => setView("connections"), 180);
-            },
-          },
-        ]}
-      />
+          ]}
+        />
+      )}
 
       <ExportReminderBanner
         userId={userId}
@@ -891,7 +909,7 @@ export function Journal({
         categories={categories}
       />
 
-      <div className="px-4 mt-4">
+      <div className={`px-4 ${view !== "home" ? "lg:pr-28" : ""} mt-4`}>
         {view === "home" && (
           <HomePanel
             last12WeeksRunning={last12WeeksRunning}
