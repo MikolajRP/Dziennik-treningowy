@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HelpCircle, LogOut, NotebookPen, Pencil, StickyNote } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, NotebookPen, Pencil, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -23,7 +23,7 @@ import { addDays, emptyDraft, todayISO } from "@/lib/calculations";
 import { collectKnownPlanNotes } from "@/lib/planCalculations";
 import { LATEST_CHANGELOG_DATE } from "@/lib/changelog";
 import { coachTutorialSeenKey } from "@/lib/onboarding";
-import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, PAPER, RACE, gridBg, inputStyle } from "@/lib/design";
+import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, MUSTARD, PAPER, PLANNER, RACE, TEAL, gridBg, inputStyle } from "@/lib/design";
 import type { Category, CoachNote, Cycle, HealthEntry, PlanEntry, Period, Race, Workout } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
 import { useSyncedState } from "@/lib/useSyncedState";
@@ -36,6 +36,7 @@ import { EMPTY_HEALTH_DRAFT } from "./HealthEntryForm";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { FloatingNoteWidget } from "./FloatingNoteWidget";
 import { CoachHomePanel } from "./HomePanel";
+import { PaperTabNav } from "./PaperTabNav";
 import { AthleteProfileCard } from "./AthleteProfileCard";
 import { IconBtn } from "./atoms";
 import type { CircuitElementHandlers } from "./CircuitEditor";
@@ -495,9 +496,54 @@ export function CoachAthleteView({
         )}
       </div>
 
+      <PaperTabNav
+        tabs={[
+          {
+            id: "plan",
+            label: "Plan",
+            icon: <CalendarDays size={16} />,
+            accent: PLANNER,
+            active: view === "cluster",
+            onOpen: () => {
+              startTileTransition();
+              afterFade(() => {
+                setView("cluster");
+                setClusterTab("plan");
+              }, 180);
+            },
+          },
+          {
+            id: "health",
+            label: "Zdrowie",
+            icon: <HeartPulse size={16} />,
+            accent: HEALTH,
+            active: view === "health",
+            onOpen: () => {
+              startTileTransition();
+              afterFade(() => setView("health"), 180);
+            },
+          },
+          ...(canViewReports
+            ? [
+                {
+                  id: "stats",
+                  label: "Statystyki",
+                  icon: <BarChart3 size={16} />,
+                  accent: TEAL,
+                  active: view === "stats" || (view === "cluster" && clusterTab === "stats"),
+                  onOpen: () => {
+                    startTileTransition();
+                    afterFade(() => setView("stats"), 180);
+                  },
+                },
+              ]
+            : []),
+        ]}
+      />
+
       <div className="px-4 mt-4">
         {view === "home" && (
-          <>
+          <div className="w-full max-w-[400px] mx-auto">
             <AthleteProfileCard
               latestHealth={latestHealthEntry}
               previousHealth={previousHealthEntry}
@@ -524,7 +570,7 @@ export function CoachAthleteView({
               onTransitionStart={startTileTransition}
               canViewReports={canViewReports}
             />
-          </>
+          </div>
         )}
 
         {view === "cluster" && clusterTab === "log" && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, LogOut } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarClock, CalendarDays, Dumbbell, HeartPulse, Link2, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -33,6 +33,7 @@ import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
 import { ExportReminderBanner } from "./ExportReminderBanner";
 import { HomePanel } from "./HomePanel";
+import { PaperTabNav } from "./PaperTabNav";
 import { ConnectionsTab } from "./ConnectionsTab";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { HealthGate } from "./HealthGate";
@@ -59,7 +60,7 @@ import {
   updateSetInList,
 } from "@/lib/calculations";
 import { latestHealthEntry } from "@/lib/healthCalculations";
-import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, PAPER, gridBg } from "@/lib/design";
+import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, MUSTARD, PAPER, PLANNER, TEAL, gridBg } from "@/lib/design";
 import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
 import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry, LeafExercise, LeafKind, PersonalEvent, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
@@ -825,6 +826,59 @@ export function Journal({
           </div>
         )}
       </div>
+
+      <PaperTabNav
+        tabs={[
+          {
+            id: "log",
+            label: "Dziennik",
+            icon: <BookOpen size={16} />,
+            accent: INK,
+            active: view === "cluster",
+            onOpen: () => {
+              startTileTransition();
+              afterFade(() => {
+                setView("cluster");
+                setClusterTab("log");
+              }, 180);
+            },
+          },
+          {
+            id: "planner",
+            label: "Planner",
+            icon: <CalendarClock size={16} />,
+            accent: PLANNER,
+            active: view === "planner",
+            onOpen: () => {
+              startTileTransition();
+              afterFade(() => setView("planner"), 180);
+            },
+          },
+          {
+            id: "health",
+            label: "Zdrowie",
+            icon: <HeartPulse size={16} />,
+            accent: HEALTH,
+            active: view === "health",
+            onOpen: () => {
+              startTileTransition();
+              afterFade(() => setView("health"), 180);
+            },
+          },
+          {
+            id: "connections",
+            label: "Połączenia",
+            icon: <Link2 size={16} />,
+            accent: TEAL,
+            active: view === "connections",
+            badge: pendingInvites.length,
+            onOpen: () => {
+              startTileTransition();
+              afterFade(() => setView("connections"), 180);
+            },
+          },
+        ]}
+      />
 
       <ExportReminderBanner
         userId={userId}

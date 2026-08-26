@@ -185,7 +185,7 @@ function HomeTileGrid({ tiles, onTransitionStart }: { tiles: HomeTile[]; onTrans
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 pb-6">
+    <div className="grid grid-cols-2 gap-4 pb-6 w-full max-w-[400px] mx-auto">
       {tiles.map((t) => {
         const active = zoomingId === t.id;
         return (
