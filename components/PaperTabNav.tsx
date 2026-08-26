@@ -33,9 +33,9 @@ function Tab({ t, small, paperStyle }: { t: PaperTab; small: boolean; paperStyle
   return (
     <button
       onClick={t.onOpen}
-      className={`relative flex flex-col items-center justify-center rounded-xl transition-all duration-150 hover:opacity-100 hover:translate-x-1.5 ${
+      className={`relative flex flex-col items-center justify-center rounded-xl transition-all duration-150 hover:opacity-100 hover:-translate-x-1.5 ${
         small ? "gap-1.5 py-2.5" : "gap-2 py-3.5"
-      } ${t.active ? "translate-x-1.5 opacity-100" : "translate-x-0 opacity-85"}`}
+      } ${t.active ? "-translate-x-1.5 opacity-100" : "translate-x-0 opacity-85"}`}
       style={{ ...style, width: small ? 34 : 44, minHeight: small ? 88 : 112 }}
     >
       {t.icon}
