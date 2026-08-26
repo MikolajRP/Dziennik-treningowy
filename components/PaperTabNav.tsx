@@ -16,36 +16,27 @@ export interface PaperTab {
   subtabs?: PaperTab[];
 }
 
-// The die-cut notch of a real index tab: the edge that meets the page
-// comes to a point instead of a flat rectangle, which is what actually
-// reads as "a tab clipped onto a page" rather than just a colored button.
-const TAB_CLIP_PATH = "polygon(12px 0%, 100% 0%, 100% 100%, 12px 100%, 0% 50%)";
-
 function Tab({ t, small, paperStyle }: { t: PaperTab; small: boolean; paperStyle?: boolean }) {
   const style: CSSProperties = paperStyle
     ? {
         background: PAPER,
         color: INK,
         border: `1px solid ${LINE}`,
-        clipPath: TAB_CLIP_PATH,
-        WebkitClipPath: TAB_CLIP_PATH,
         boxShadow: "-3px 3px 7px rgba(27,42,58,0.18)",
       }
     : {
         background: t.accent,
         backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.38), rgba(255,255,255,0) 45%)",
         color: "#fff",
-        clipPath: TAB_CLIP_PATH,
-        WebkitClipPath: TAB_CLIP_PATH,
         boxShadow: "-4px 4px 10px rgba(27,42,58,0.32), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 3px rgba(0,0,0,0.15)",
       };
   return (
     <button
       onClick={t.onOpen}
-      className={`relative flex items-center transition-all duration-150 hover:opacity-100 hover:-translate-x-2 ${
-        small ? "gap-1.5 pl-4 pr-2.5 py-2" : "gap-2 pl-5 pr-3 py-2.5"
+      className={`relative flex flex-col items-center justify-center rounded-xl transition-all duration-150 hover:opacity-100 hover:-translate-x-2 ${
+        small ? "gap-1.5 py-2.5" : "gap-2 py-3.5"
       } ${t.active ? "-translate-x-2 opacity-100" : "translate-x-0 opacity-85"}`}
-      style={style}
+      style={{ ...style, width: small ? 34 : 44, minHeight: small ? 88 : 112 }}
     >
       {t.icon}
       <span
@@ -56,13 +47,15 @@ function Tab({ t, small, paperStyle }: { t: PaperTab; small: boolean; paperStyle
           letterSpacing: 0.5,
           textTransform: "uppercase",
           whiteSpace: "nowrap",
+          writingMode: "vertical-rl",
+          transform: "rotate(180deg)",
         }}
       >
         {t.label}
       </span>
       {!!t.badge && (
         <span
-          className="absolute -top-1.5 -left-1.5 rounded-full text-[10px] px-1.5 py-0.5 leading-none"
+          className="absolute -top-1.5 right-0.5 rounded-full text-[10px] px-1.5 py-0.5 leading-none"
           style={{ fontFamily: FONT_DISPLAY, background: "#fff", color: t.accent, fontWeight: 700 }}
         >
           {t.badge}
@@ -72,10 +65,11 @@ function Tab({ t, small, paperStyle }: { t: PaperTab; small: boolean; paperStyle
   );
 }
 
-// Desktop-only quick nav styled after a real ring-binder's colored index
-// tabs sticking out past the edge of a page — short flags stacked one
-// after another down the edge. Hidden below `lg` so phone/tablet is
-// untouched.
+// Desktop-only quick nav styled after a real spiral notebook's colored
+// tab dividers sticking out past the edge of a page — small rounded
+// portrait flags with the label rotated to read like a spine label,
+// stacked one after another down the edge. Hidden below `lg` so
+// phone/tablet is untouched.
 //
 // A tab's own `subtabs` only render while that tab is active, sliding
 // out directly underneath it in the same column — colored to match the
