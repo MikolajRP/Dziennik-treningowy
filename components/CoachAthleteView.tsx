@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, LogOut, NotebookPen, Pencil, StickyNote } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Check, HeartPulse, HelpCircle, History, LogOut, NotebookPen, Pencil, StickyNote, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -31,7 +31,7 @@ import { LogTab } from "./LogTab";
 import { StatsTab } from "./StatsTab";
 import { PlanTab } from "./PlanTab";
 import { NotesTab } from "./NotesTab";
-import { HealthTab } from "./HealthTab";
+import { HealthTab, type HealthSubTab } from "./HealthTab";
 import { EMPTY_HEALTH_DRAFT } from "./HealthEntryForm";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { FloatingNoteWidget } from "./FloatingNoteWidget";
@@ -86,6 +86,9 @@ export function CoachAthleteView({
   const [view, setView] = useState<"home" | "cluster" | "health" | "stats">("home");
   const [clusterTab, setClusterTab] = useState<"plan" | "stats" | "log" | "notes">("plan");
   const [showNoteWidget, setShowNoteWidget] = useState(false);
+  // Normally local to HealthTab, lifted here only so the desktop side-tab
+  // nav's "Zdrowie" flyout (Statystyki/Historia) can read and drive it.
+  const [healthSubTab, setHealthSubTab] = useState<HealthSubTab>("stats");
 
   const [fading, setFading] = useState(false);
   function startTileTransition() {
@@ -498,65 +501,59 @@ export function CoachAthleteView({
 
       {view !== "home" && (
         <PaperTabNav
-          groups={[
+          tabs={[
             {
-              compact: true,
-              tabs:
-                view === "cluster"
-                  ? [
-                      { id: "plan-sub", label: "Plan", icon: <CalendarDays size={14} />, accent: MUSTARD, active: clusterTab === "plan", onOpen: () => setClusterTab("plan") },
-                      ...(canViewReports
-                        ? [{ id: "stats-sub", label: "Statystyki", icon: <BarChart3 size={14} />, accent: MUSTARD, active: clusterTab === "stats", onOpen: () => setClusterTab("stats") }]
-                        : []),
-                      { id: "log-sub", label: "Dziennik", icon: <BookOpen size={14} />, accent: MUSTARD, active: clusterTab === "log", onOpen: () => setClusterTab("log") },
-                      { id: "notes-sub", label: "Notatki", icon: <StickyNote size={14} />, accent: MUSTARD, active: clusterTab === "notes", onOpen: () => setClusterTab("notes") },
-                    ]
-                  : [],
-            },
-            {
-              tabs: [
-                {
-                  id: "plan",
-                  label: "Plan",
-                  icon: <CalendarDays size={16} />,
-                  accent: PLANNER,
-                  active: view === "cluster",
-                  onOpen: () => {
-                    startTileTransition();
-                    afterFade(() => {
-                      setView("cluster");
-                      setClusterTab("plan");
-                    }, 180);
-                  },
-                },
-                {
-                  id: "health",
-                  label: "Zdrowie",
-                  icon: <HeartPulse size={16} />,
-                  accent: HEALTH,
-                  active: view === "health",
-                  onOpen: () => {
-                    startTileTransition();
-                    afterFade(() => setView("health"), 180);
-                  },
-                },
+              id: "plan",
+              label: "Plan",
+              icon: <CalendarDays size={16} />,
+              accent: PLANNER,
+              active: view === "cluster",
+              onOpen: () => {
+                startTileTransition();
+                afterFade(() => {
+                  setView("cluster");
+                  setClusterTab("plan");
+                }, 180);
+              },
+              subtabs: [
+                { id: "plan-sub", label: "Plan", icon: <CalendarDays size={14} />, accent: MUSTARD, active: clusterTab === "plan", onOpen: () => setClusterTab("plan") },
                 ...(canViewReports
-                  ? [
-                      {
-                        id: "stats",
-                        label: "Statystyki",
-                        icon: <BarChart3 size={16} />,
-                        accent: TEAL,
-                        active: view === "stats" || (view === "cluster" && clusterTab === "stats"),
-                        onOpen: () => {
-                          startTileTransition();
-                          afterFade(() => setView("stats"), 180);
-                        },
-                      },
-                    ]
+                  ? [{ id: "stats-sub", label: "Statystyki", icon: <BarChart3 size={14} />, accent: MUSTARD, active: clusterTab === "stats", onOpen: () => setClusterTab("stats") }]
                   : []),
+                { id: "log-sub", label: "Dziennik", icon: <BookOpen size={14} />, accent: MUSTARD, active: clusterTab === "log", onOpen: () => setClusterTab("log") },
+                { id: "notes-sub", label: "Notatki", icon: <StickyNote size={14} />, accent: MUSTARD, active: clusterTab === "notes", onOpen: () => setClusterTab("notes") },
               ],
             },
+            {
+              id: "health",
+              label: "Zdrowie",
+              icon: <HeartPulse size={16} />,
+              accent: HEALTH,
+              active: view === "health",
+              onOpen: () => {
+                startTileTransition();
+                afterFade(() => setView("health"), 180);
+              },
+              subtabs: [
+                { id: "health-stats", label: "Statystyki", icon: <TrendingUp size={14} />, accent: MUSTARD, active: healthSubTab === "stats", onOpen: () => setHealthSubTab("stats") },
+                { id: "health-history", label: "Historia", icon: <History size={14} />, accent: MUSTARD, active: healthSubTab === "history", onOpen: () => setHealthSubTab("history") },
+              ],
+            },
+            ...(canViewReports
+              ? [
+                  {
+                    id: "stats",
+                    label: "Statystyki",
+                    icon: <BarChart3 size={16} />,
+                    accent: TEAL,
+                    active: view === "stats" || (view === "cluster" && clusterTab === "stats"),
+                    onOpen: () => {
+                      startTileTransition();
+                      afterFade(() => setView("stats"), 180);
+                    },
+                  },
+                ]
+              : []),
           ]}
         />
       )}
@@ -657,6 +654,8 @@ export function CoachAthleteView({
             formError={null}
             confirmDeleteId={null}
             setConfirmDeleteId={noop}
+            subTab={healthSubTab}
+            onSubTabChange={setHealthSubTab}
           />
         )}
 

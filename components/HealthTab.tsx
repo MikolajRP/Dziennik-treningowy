@@ -10,7 +10,7 @@ import type { HealthEntry } from "@/lib/types";
 import { Chip, IconBtn, SubTabBar } from "./atoms";
 import { HealthEntryForm, type HealthDraft } from "./HealthEntryForm";
 
-type HealthSubTab = "stats" | "history";
+export type HealthSubTab = "stats" | "history";
 
 function StatMini({ label, value }: { label: string; value: string }) {
   return (
@@ -145,6 +145,8 @@ export function HealthTab({
   formError,
   confirmDeleteId,
   setConfirmDeleteId,
+  subTab: subTabProp,
+  onSubTabChange,
 }: {
   healthEntries: HealthEntry[];
   readOnly?: boolean;
@@ -159,8 +161,15 @@ export function HealthTab({
   formError: string | null;
   confirmDeleteId: string | null;
   setConfirmDeleteId: (id: string | null) => void;
+  // Normally local, but the desktop side-tab nav (Journal.tsx/
+  // CoachAthleteView.tsx) needs to read and drive this from outside so
+  // its own "Zdrowie" flyout stays in sync with what's actually showing.
+  subTab?: HealthSubTab;
+  onSubTabChange?: (t: HealthSubTab) => void;
 }) {
-  const [subTab, setSubTab] = useState<HealthSubTab>("stats");
+  const [subTabState, setSubTabState] = useState<HealthSubTab>("stats");
+  const subTab = subTabProp ?? subTabState;
+  const setSubTab = onSubTabChange ?? setSubTabState;
   const [days, setDays] = useState<7 | 30 | 90>(30);
 
   const series = useMemo(() => healthSeriesForLastDays(healthEntries, days, todayISO()), [healthEntries, days]);
