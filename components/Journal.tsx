@@ -906,7 +906,7 @@ export function Journal({
         categories={categories}
       />
 
-      <div className={`px-4 ${view !== "home" ? "lg:pr-28" : ""} mt-4`}>
+      <div className={`px-4 ${view !== "home" ? "lg:relative lg:z-[3] lg:pr-28" : ""} mt-4`}>
         {view === "home" && (
           <HomePanel
             last12WeeksRunning={last12WeeksRunning}

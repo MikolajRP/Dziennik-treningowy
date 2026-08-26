@@ -92,15 +92,29 @@ function TabStack({ items, small, paperStyle, zBase }: { items: PaperTab[]; smal
   );
 }
 
+// CSS-only mottled leather look (no image asset needed) for the small
+// frame directly behind the tabs — sized to the tab stack itself (via
+// padding, below), so it only peeks through the gaps around and
+// between the tab notches, not as a whole-page texture.
+const LEATHER_BG: CSSProperties = {
+  backgroundColor: "#3d2415",
+  backgroundImage:
+    "radial-gradient(circle at 25% 20%, rgba(0,0,0,0.35), transparent 55%)," +
+    "radial-gradient(circle at 75% 65%, rgba(255,255,255,0.05), transparent 60%)," +
+    "radial-gradient(circle at 45% 85%, rgba(0,0,0,0.25), transparent 55%)," +
+    "linear-gradient(135deg, #5a3825 0%, #3d2415 55%, #2c1a10 100%)",
+};
+
 // Desktop-only quick nav styled after a real planner's colored index
-// tabs — the page sits in front (see Journal.tsx/CoachAthleteView.tsx's
-// desktop "page" card, given a higher z-index than this whole nav), and
-// these tabs live behind its edge, each one tucked a little under the
-// one before it, only the active one popping fully forward. Hidden
+// tabs set into a small leather-covered frame: the page sits in front
+// (given a higher z-index than this whole nav in Journal.tsx/
+// CoachAthleteView.tsx), tabs stay fully visible, and the leather —
+// sized to the tab stack itself via padding, not the whole viewport —
+// only shows in the gaps around and between the tab shapes. Hidden
 // below `lg` so phone/tablet is untouched.
 export function PaperTabNav({ tabs }: { tabs: PaperTab[] }) {
   return (
-    <div className="hidden lg:flex flex-col fixed right-0 top-1/2 -translate-y-1/2">
+    <div className="hidden lg:flex flex-col fixed right-0 top-1/2 -translate-y-1/2 z-[2] rounded-l-2xl p-2" style={LEATHER_BG}>
       <TabStack items={tabs} small={false} zBase={1000} />
       <style>{`
         @keyframes paperTabFlyout {

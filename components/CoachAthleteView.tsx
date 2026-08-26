@@ -558,7 +558,7 @@ export function CoachAthleteView({
         />
       )}
 
-      <div className={`px-4 ${view !== "home" ? "lg:pr-28" : ""} mt-4`}>
+      <div className={`px-4 ${view !== "home" ? "lg:relative lg:z-[3] lg:pr-28" : ""} mt-4`}>
         {view === "home" && (
           <div className="w-full max-w-[400px] mx-auto">
             <AthleteProfileCard
