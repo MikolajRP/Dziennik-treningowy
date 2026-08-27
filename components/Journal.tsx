@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, BookOpen, CalendarClock, CalendarDays, Dumbbell, HeartPulse, History, Link2, LogOut, TrendingUp } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Dumbbell, HeartPulse, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/app/auth/actions";
 import {
@@ -33,12 +33,11 @@ import { StravaConnect } from "./StravaConnect";
 import { ExportDataButton } from "./ExportDataButton";
 import { ExportReminderBanner } from "./ExportReminderBanner";
 import { HomePanel } from "./HomePanel";
-import { PaperTabNav } from "./PaperTabNav";
 import { ConnectionsTab } from "./ConnectionsTab";
 import { CoachHelpModal } from "./CoachHelpModal";
 import { HealthGate } from "./HealthGate";
 import type { HealthDraft } from "./HealthEntryForm";
-import { HealthTab, type HealthSubTab } from "./HealthTab";
+import { HealthTab } from "./HealthTab";
 import { PlanTab } from "./PlanTab";
 import { PlannerTab, emptyEventDraft, type EventDraft } from "./PlannerTab";
 import {
@@ -60,7 +59,7 @@ import {
   updateSetInList,
 } from "@/lib/calculations";
 import { latestHealthEntry } from "@/lib/healthCalculations";
-import { FONT_DISPLAY, FONT_MONO, HEALTH, INK, INK_SOFT, MUSTARD, PAPER, PLANNER, TEAL, gridBg } from "@/lib/design";
+import { FONT_DISPLAY, FONT_MONO, INK, INK_SOFT, MUSTARD, PAPER, gridBg } from "@/lib/design";
 import { coachTutorialSeenKey, newCoachWelcomeSeenKey } from "@/lib/onboarding";
 import type { Category, CategoryGroup, Circuit, CoachAccess, Cycle, HealthEntry, LeafExercise, LeafKind, PersonalEvent, PlanEntry, Period, Race, Workout, WorkoutExercise } from "@/lib/types";
 import { useReportsData } from "@/lib/useReportsData";
@@ -172,9 +171,6 @@ export function Journal({
   const [healthSaving, setHealthSaving] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [confirmDeleteHealthId, setConfirmDeleteHealthId] = useState<string | null>(null);
-  // Normally local to HealthTab, lifted here only so the desktop side-tab
-  // nav's "Zdrowie" flyout (Statystyki/Historia) can read and drive it.
-  const [healthSubTab, setHealthSubTab] = useState<HealthSubTab>("stats");
 
   function startHealthEdit(entry: HealthEntry) {
     setHealthDraft({
@@ -731,7 +727,7 @@ export function Journal({
 
   return (
     <div className="min-h-screen pb-10" style={gridBg}>
-      <div className={`sticky top-0 z-10 px-4 ${view !== "home" ? "lg:pr-28" : ""} pt-4 pb-2`} style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
+      <div className="sticky top-0 z-10 px-4 pt-4 pb-2" style={{ ...gridBg, borderBottom: `2px solid ${INK}` }}>
         {view !== "home" && (
           <button
             onClick={goHome}
@@ -781,7 +777,7 @@ export function Journal({
           </h1>
         )}
         {view === "cluster" && (
-          <div className="flex gap-4 mt-3 overflow-x-auto lg:hidden" style={{ scrollbarWidth: "none" }}>
+          <div className="flex gap-4 mt-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <button
               onClick={() => setClusterTab("log")}
               className="flex items-center gap-1.5 pb-2 text-sm shrink-0"
@@ -830,71 +826,6 @@ export function Journal({
         )}
       </div>
 
-      {view !== "home" && (
-        <PaperTabNav
-          tabs={[
-            {
-              id: "log-main",
-              label: "Dziennik",
-              icon: <BookOpen size={16} />,
-              accent: INK,
-              active: view === "cluster",
-              onOpen: () => {
-                startTileTransition();
-                afterFade(() => {
-                  setView("cluster");
-                  setClusterTab("log");
-                }, 180);
-              },
-              subtabs: [
-                { id: "log", label: "Dziennik", icon: <BookOpen size={14} />, accent: MUSTARD, active: clusterTab === "log", onOpen: () => setClusterTab("log") },
-                { id: "plan", label: "Plan", icon: <CalendarDays size={14} />, accent: MUSTARD, active: clusterTab === "plan", onOpen: () => setClusterTab("plan") },
-                { id: "stats", label: "Statystyki", icon: <BarChart3 size={14} />, accent: MUSTARD, active: clusterTab === "stats", onOpen: () => setClusterTab("stats") },
-                { id: "health-sub", label: "Zdrowie", icon: <HeartPulse size={14} />, accent: MUSTARD, active: clusterTab === "health", onOpen: () => setClusterTab("health") },
-              ],
-            },
-            {
-              id: "planner",
-              label: "Planner",
-              icon: <CalendarClock size={16} />,
-              accent: PLANNER,
-              active: view === "planner",
-              onOpen: () => {
-                startTileTransition();
-                afterFade(() => setView("planner"), 180);
-              },
-            },
-            {
-              id: "health-main",
-              label: "Zdrowie",
-              icon: <HeartPulse size={16} />,
-              accent: HEALTH,
-              active: view === "health",
-              onOpen: () => {
-                startTileTransition();
-                afterFade(() => setView("health"), 180);
-              },
-              subtabs: [
-                { id: "health-stats", label: "Statystyki", icon: <TrendingUp size={14} />, accent: MUSTARD, active: healthSubTab === "stats", onOpen: () => setHealthSubTab("stats") },
-                { id: "health-history", label: "Historia", icon: <History size={14} />, accent: MUSTARD, active: healthSubTab === "history", onOpen: () => setHealthSubTab("history") },
-              ],
-            },
-            {
-              id: "connections",
-              label: "Połączenia",
-              icon: <Link2 size={16} />,
-              accent: TEAL,
-              active: view === "connections",
-              badge: pendingInvites.length,
-              onOpen: () => {
-                startTileTransition();
-                afterFade(() => setView("connections"), 180);
-              },
-            },
-          ]}
-        />
-      )}
-
       <ExportReminderBanner
         userId={userId}
         workouts={workouts}
@@ -906,7 +837,7 @@ export function Journal({
         categories={categories}
       />
 
-      <div className={`px-4 ${view !== "home" ? "lg:relative lg:z-[3] lg:pr-28" : ""} mt-4`}>
+      <div className="px-4 mt-4">
         {view === "home" && (
           <HomePanel
             last12WeeksRunning={last12WeeksRunning}
@@ -989,8 +920,6 @@ export function Journal({
             formError={healthError}
             confirmDeleteId={confirmDeleteHealthId}
             setConfirmDeleteId={setConfirmDeleteHealthId}
-            subTab={healthSubTab}
-            onSubTabChange={setHealthSubTab}
           />
         )}
 
